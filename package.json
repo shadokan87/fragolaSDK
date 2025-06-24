@@ -1,0 +1,16 @@
+{
+  "name": "fragolav2",
+  "module": "index.ts",
+  "type": "module",
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "openai": "^5.6.0",
+    "portkey-ai": "^1.10.0",
+    "zod": "^3.25.67"
+  }
+}

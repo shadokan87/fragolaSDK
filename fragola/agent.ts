@@ -7,10 +7,11 @@ import { streamChunkToMessage } from "./utils"
 import { FragolaError } from "./exceptions"
 import type z from "zod"
 import type { Prettify } from "./types"
+import { Store } from "./store"
 
 export type StoreLike<T> = T extends Record<string, any> ? T : never;
 
-export const createStore = <T>(data: StoreLike<T>) => data;
+export const createStore = <T>(data: StoreLike<T>) => new Store(data);
 
 export type AgentOpt<TStore = {}> = {
     store?: StoreLike<TStore>,

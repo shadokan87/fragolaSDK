@@ -1,8 +1,9 @@
 import z from "zod";
-import { Agent, type AgentOpt } from "./agent";
+import { Agent, type AgentOpt, type StoreLike } from "./agent";
 import type { maybePromise } from "./types";
 import type { ClientOptions } from "openai/index.js";
 import OpenAI from "openai/index.js";
+import type { Store } from "./store";
 
 export namespace Fragola {
 }
@@ -10,7 +11,7 @@ export namespace Fragola {
 export interface Tool<T extends z.ZodType<any, any>> {
     name: string,
     description: string,
-    handler: ((parameters: z.infer<T>) => Promise<any>) | "dynamic",
+    handler: ((parameters: z.infer<T>, store?: Store<StoreLike<Record<string, any>>>) => Promise<any>) | "dynamic",
     schema: T
 }
 

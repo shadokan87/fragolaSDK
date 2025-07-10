@@ -29,7 +29,7 @@ export class Fragola<TGlobalContext = {}> {
         this.openai = clientOptions ? new OpenAI(clientOptions) : new OpenAI();
     }
 
-    Agent(opts: AgentOpt): Agent<TGlobalContext> {
+    Agent<TStore = {}>(opts: AgentOpt<TStore>): Agent<TGlobalContext, TStore> {
         return new Agent(opts, this.globalContext, this.openai);
     }
 }

@@ -6,21 +6,26 @@ import { zodToJsonSchema } from "openai/_vendor/zod-to-json-schema/zodToJsonSche
 import { streamChunkToMessage } from "./utils"
 import { FragolaError } from "./exceptions"
 import type z from "zod"
+import type { Prettify } from "./types"
 
-export type AgentOpt<TContext = {}> = {
-    context?: TContext,
+export type StoreLike<T> = T extends Record<string, any> ? T : never;
+
+export const createStore = <T>(data: StoreLike<T>) => data;
+
+export type AgentOpt<TStore = {}> = {
+    store?: StoreLike<TStore>,
     name: string,
     instructions: string,
     tools?: Tool<any>[],
-    llmParams: Omit<ChatCompletionCreateParamsBase, "messages" | "tools">
+    modelSettings: Prettify<Omit<ChatCompletionCreateParamsBase, "messages" | "tools">>
 }
 
 export type AgentState = {
     conversation: OpenAI.ChatCompletionMessageParam[],
+    controller?: AbortController
 }
 
-
-export class Agent<TGlobalContext = {}, TContext = {}> {
+export class Agent<TGlobalStore = {}, TStore = {}> {
     public static defaultAgentState: AgentState = {
         conversation: []
     }
@@ -28,12 +33,12 @@ export class Agent<TGlobalContext = {}, TContext = {}> {
     private openai: OpenAI;
     private paramsTools: ChatCompletionCreateParamsBase["tools"] = [];
 
-    constructor(private opts: AgentOpt<TContext>, private globalContext: TGlobalContext, openai: OpenAI, private state: AgentState = Agent.defaultAgentState) {
+    constructor(private opts: AgentOpt<TStore>, private globalStore: TGlobalStore, openai: OpenAI, private state: AgentState = Agent.defaultAgentState) {
         this.openai = openai;
-        this.toolsToParamsTools();
+        this.toolsToModelSettingsTools();
     }
 
-    private toolsToParamsTools() {
+    private toolsToModelSettingsTools() {
         const result: ChatCompletionCreateParamsBase["tools"] = [];
         this.opts.tools?.forEach(tool => {
             result.push({
@@ -49,7 +54,7 @@ export class Agent<TGlobalContext = {}, TContext = {}> {
         this.paramsTools = result;
     }
 
-  private appendMessages(messages: OpenAI.ChatCompletionMessageParam[], replaceLast: boolean = false) {
+    private appendMessages(messages: OpenAI.ChatCompletionMessageParam[], replaceLast: boolean = false) {
         this.updateConversation((prev) => {
             if (replaceLast)
                 return [...prev.slice(0, -1), ...messages];
@@ -62,7 +67,7 @@ export class Agent<TGlobalContext = {}, TContext = {}> {
     }
 
     private updateConversation(callback: (prev: AgentState["conversation"]) => AgentState["conversation"]) {
-        this.updateState((prev) => ({...prev, conversation: callback(this.state.conversation)}));
+        this.updateState((prev) => ({ ...prev, conversation: callback(this.state.conversation) }));
     }
 
     private async recursiveAgent(iter = 0): Promise<void> {
@@ -70,10 +75,11 @@ export class Agent<TGlobalContext = {}, TContext = {}> {
             console.error("max iter");
             return;
         }
-        let streamBody: ChatCompletionCreateParamsBase = { ...this.opts.llmParams, messages: [{ role: "system", content: this.opts.instructions }, ...this.state.conversation]};
+        this.updateState((prev) => ({ ...prev, controller: new AbortController() }));
+        let streamBody: ChatCompletionCreateParamsBase = { ...this.opts.modelSettings, messages: [{ role: "system", content: this.opts.instructions }, ...this.state.conversation] };
         if (this.paramsTools?.length)
             streamBody["tools"] = this.paramsTools;
-        const stream = await this.openai.chat.completions.create(streamBody);
+        const stream = await this.openai.chat.completions.create(streamBody, { signal: this.state.controller?.signal });
         let aiMessage: Partial<OpenAI.Chat.ChatCompletionMessageParam> = {};
         if (Symbol.asyncIterator in stream) {
             let replaceLast = false;
@@ -104,12 +110,13 @@ export class Agent<TGlobalContext = {}, TContext = {}> {
                     }
                     const handler = (() => {
                         if (tool.handler == "dynamic")
-                            return "Success";
+                            return async () => "Success";
                         return tool.handler;
-                    });
-                    const content = handler();
+                    })();
+                    const content = await handler(paramsParsed?.data);
+                    console.log("!content", JSON.stringify(content, null, 2));
                     // const content = tool.handler?.constructor.name == "AsyncFunction" ? await tool.handler(paramsParsed?.data) : tool.config.handler(paramsParsed?.data);
-                    const message: AgentState["conversation"][0] = {
+                    const message: OpenAI.ChatCompletionMessageParam = {
                         role: "tool",
                         content: JSON.stringify(content),
                         tool_call_id: toolCall.id
@@ -122,7 +129,7 @@ export class Agent<TGlobalContext = {}, TContext = {}> {
     }
 
     async userMessage(message: Omit<OpenAI.Chat.ChatCompletionUserMessageParam, "role">): Promise<AgentState> {
-        this.updateConversation((prev) => [...prev, {role: "user", ...message}]);
+        this.updateConversation((prev) => [...prev, { role: "user", ...message }]);
         await this.recursiveAgent();
         return this.state;
     }

@@ -1,7 +1,11 @@
 import { Fragola } from "./fragola/fragola";
 import { PORTKEY_GATEWAY_URL, createHeaders } from "portkey-ai";
 import getWeatherForCity from "./fragola/tools/getWeatherForCity";
-import { createStore, type StoreLike } from "./fragola/agent";
+import { createStore } from "./fragola/agent";
+
+export const weatherStore = createStore<{ lastWeather?: Record<string, string> }>({
+    lastWeather: undefined
+});
 
 async function main() {
     const fragola = new Fragola({
@@ -13,13 +17,9 @@ async function main() {
         })
     });
 
-    const store = createStore<{lastWeather?: Record<string, string>}>({
-        lastWeather: undefined
-    });
-
     const weatherAgent = fragola.Agent({
         name: "test", instructions: "you are a helpful assistant", tools: [getWeatherForCity],
-        store,
+        store: weatherStore,
         modelSettings: {
             model: 'us.anthropic.claude-3-5-haiku-20241022-v1:0' as any,
             temperature: 1,

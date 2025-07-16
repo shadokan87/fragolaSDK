@@ -1,5 +1,6 @@
 import z from "zod";
 import { Fragola, tool } from "../fragola";
+import type { weatherStore } from "../../main";
 
 const getWeatherForCity = tool({
     name: "getWeatherForCity",
@@ -7,10 +8,15 @@ const getWeatherForCity = tool({
     schema: z.object({
         city: z.string(),
     }),
-    handler: async (parameters) => {
+    handler: async (parameters, getStore) => {
         const { city } = parameters;
         const url = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&appid=${process.env["OPENWEATHER_API_KEY"]}&units=metric`;
-        
+        const store = getStore<typeof weatherStore>();
+
+        if (store) {
+            console.log(store.value.lastWeather);
+        }
+    
         try {
             const response = await fetch(url);
             if (!response.ok) {

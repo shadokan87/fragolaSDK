@@ -14,7 +14,7 @@ export type StoreLike<T> = T extends Record<string, any> ? T : never;
 export const createStore = <T>(data: StoreLike<T>) => new Store(data);
 
 export type AgentOpt<TStore = {}> = {
-    store?: StoreLike<TStore>,
+    store?: Store<StoreLike<TStore>>,
     name: string,
     instructions: string,
     tools?: Tool<any>[],
@@ -34,7 +34,7 @@ export class Agent<TGlobalStore = {}, TStore = {}> {
     private openai: OpenAI;
     private paramsTools: ChatCompletionCreateParamsBase["tools"] = [];
 
-    constructor(private opts: AgentOpt<TStore>, private globalStore: TGlobalStore, openai: OpenAI, private state: AgentState = Agent.defaultAgentState) {
+    constructor(private opts: AgentOpt<TStore>, private globalStore: Store<StoreLike<TGlobalStore>>, openai: OpenAI, private state: AgentState = Agent.defaultAgentState) {
         this.openai = openai;
         this.toolsToModelSettingsTools();
     }
@@ -114,9 +114,8 @@ export class Agent<TGlobalStore = {}, TStore = {}> {
                             return async () => "Success";
                         return tool.handler;
                     })();
-                    const content = await handler(paramsParsed?.data);
+                    const content = await handler(paramsParsed?.data, () => this.opts.store as any);
                     console.log("!content", JSON.stringify(content, null, 2));
-                    // const content = tool.handler?.constructor.name == "AsyncFunction" ? await tool.handler(paramsParsed?.data) : tool.config.handler(paramsParsed?.data);
                     const message: OpenAI.ChatCompletionMessageParam = {
                         role: "tool",
                         content: JSON.stringify(content),

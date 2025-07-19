@@ -15,7 +15,7 @@ export type StoreChangeCallback<TStore = {}> = (
  */
 export class Store<TStore = {}> {
     #value: StoreLike<TStore>;
-    #storeChangeCallbacks: StoreChangeCallback<TStore>[] = [];
+    #storeChangeCallbacks: StoreChangeCallback<StoreLike<TStore>>[] = [];
 
     constructor(value: StoreLike<TStore>) {
         this.#value = value;

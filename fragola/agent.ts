@@ -6,12 +6,23 @@ import { zodToJsonSchema } from "openai/_vendor/zod-to-json-schema/zodToJsonSche
 import { streamChunkToMessage } from "./utils"
 import { FragolaError } from "./exceptions"
 import type z from "zod"
-import type { Prettify } from "./types"
+import type { maybePromise, Prettify } from "./types"
 import { Store } from "./store"
 
 export type StoreLike<T> = T extends Record<string, any> ? T : never;
 
 export const createStore = <T>(data: StoreLike<T>) => new Store(data);
+
+export type runEventType =
+    "conversationUpdate";
+    // |
+    // "streamStart"
+    // | "streamChunk"
+    // | "streamEnd";
+    //@prettier-ignore
+    export type runHookCallBackMap = {
+        [K in runEventType]
+        : K extends "conversationUpdate" ? (conversation: OpenAI.ChatCompletionMessageParam[]) => maybePromise<void>: never }
 
 export type AgentOpt<TStore = {}> = {
     store?: Store<StoreLike<TStore>>,
@@ -34,7 +45,7 @@ export class Agent<TGlobalStore = {}, TStore = {}> {
     private openai: OpenAI;
     private paramsTools: ChatCompletionCreateParamsBase["tools"] = [];
 
-    constructor(private opts: AgentOpt<TStore>, private globalStore: Store<StoreLike<TGlobalStore>>, openai: OpenAI, private state: AgentState = Agent.defaultAgentState) {
+    constructor(private opts: AgentOpt<TStore>, private globalStore: Store<StoreLike<TGlobalStore>> | undefined = undefined, openai: OpenAI, private state: AgentState = Agent.defaultAgentState) {
         this.openai = openai;
         this.toolsToModelSettingsTools();
     }
@@ -114,8 +125,7 @@ export class Agent<TGlobalStore = {}, TStore = {}> {
                             return async () => "Success";
                         return tool.handler;
                     })();
-                    const content = await handler(paramsParsed?.data, () => this.opts.store as any);
-                    console.log("!content", JSON.stringify(content, null, 2));
+                    const content = await handler(paramsParsed?.data, () => this.opts.store as any, () => this.globalStore as any);
                     const message: OpenAI.ChatCompletionMessageParam = {
                         role: "tool",
                         content: JSON.stringify(content),

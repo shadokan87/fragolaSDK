@@ -9,6 +9,7 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
+    "nanoid": "^5.1.5",
     "openai": "^5.6.0",
     "portkey-ai": "^1.10.0",
     "zod": "^3.25.67"

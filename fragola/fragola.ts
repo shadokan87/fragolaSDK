@@ -8,12 +8,13 @@ import type { Store } from "./store";
 export namespace Fragola {
 }
 
-export type GetStore = <T extends Store>() => T | undefined;
+export type GetStore = <T extends StoreLike<any>>() => Store<T> | undefined;
 
 export interface Tool<T extends z.ZodType<any, any>> {
     name: string,
     description: string,
-    handler: ((parameters: z.infer<T>, getStore: GetStore) => Promise<any>) | "dynamic",
+    namespace?: string,
+    handler: ((parameters: z.infer<T>, getStore: GetStore, getGlobalStore: GetStore) => Promise<any>) | "dynamic",
     schema: T
 }
 
@@ -28,11 +29,11 @@ const test = tool({
 
 export class Fragola<TGlobalStore = {}> {
     private openai: OpenAI;
-    constructor(clientOptions?: ClientOptions, private globalContext: TGlobalStore = {} as any) {
+    constructor(clientOptions?: ClientOptions,private globalStore: Store<StoreLike<TGlobalStore>> | undefined = undefined ) {
         this.openai = clientOptions ? new OpenAI(clientOptions) : new OpenAI();
     }
 
     Agent<TStore = {}>(opts: AgentOpt<TStore>): Agent<TGlobalStore, TStore> {
-        return new Agent(opts, this.globalContext, this.openai);
+        return new Agent(opts, this.globalStore, this.openai);
     }
 }

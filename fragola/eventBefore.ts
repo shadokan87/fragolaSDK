@@ -1,6 +1,6 @@
 import type { AgentState } from "./agent";
 import type { maybePromise, StoreLike } from "./types";
-import type { AgentBeforeEventId, AgentDefaultEventId } from "./event";
+import type { AgentBeforeEventId, AgentDefaultEventId, EventDefaultCallback } from "./event";
 import type { GetStore } from "./fragola";
 import type { Store } from "./store";
 
@@ -10,11 +10,7 @@ import type { Store } from "./store";
  *
  * @param state - The current state of the agent.
  */
-export type BeforeConversationUpdateCallback<TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = (
-    state: AgentState,
-    getStore: () => Store<TStore>,
-    getGlobalStore: () => Store<TGlobalStore>
-) => maybePromise<void>;
+export type BeforeConversationUpdateCallback<TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = EventDefaultCallback<TGlobalStore, TStore>;
 
 export type callbackMap<TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = {
     [K in AgentBeforeEventId]:

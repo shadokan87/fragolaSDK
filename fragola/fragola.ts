@@ -5,7 +5,7 @@ import type { ClientOptions } from "openai/index.js";
 import OpenAI from "openai/index.js";
 import type { Store } from "./store";
 
-export type GetStore = <T extends StoreLike<any>>() => Store<T> | undefined;
+export type GetStore = <TStore extends StoreLike<any>>() => Store<TStore> | undefined;
 
 export interface Tool<T extends z.ZodType<any, any>> {
     name: string,

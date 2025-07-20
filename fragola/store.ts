@@ -1,4 +1,4 @@
-import type { StoreLike } from "./agent";
+import type { StoreLike } from "./types";
 
 /**
  * Callback type for store change events.

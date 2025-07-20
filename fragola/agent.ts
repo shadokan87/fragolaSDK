@@ -1,4 +1,4 @@
-import OpenAI from "openai/index.js"
+import { Store } from "./store"
 import type { Tool } from "./fragola"
 import type { ChatCompletionCreateParamsBase } from "openai/resources/chat/completions.js"
 import { type ClientOptions } from "openai"
@@ -6,23 +6,18 @@ import { zodToJsonSchema } from "openai/_vendor/zod-to-json-schema/zodToJsonSche
 import { streamChunkToMessage } from "./utils"
 import { FragolaError } from "./exceptions"
 import type z from "zod"
-import type { maybePromise, Prettify } from "./types"
-import { Store } from "./store"
-
-export type StoreLike<T> = T extends Record<string, any> ? T : never;
+import type { Prettify, StoreLike } from "./types"
+import { OpenAI } from "openai/index.js"
+import type { AgentEventId, AgentDefaultEventId, AgentBeforeEventId } from "./event"
+import type { callbackMap as eventDefaultCallbackMap } from "./eventDefault";
+import type { callbackMap as eventBeforeCallbackMap } from "./eventBefore";
 
 export const createStore = <T>(data: StoreLike<T>) => new Store(data);
 
-export type runEventType =
-    "conversationUpdate";
-    // |
-    // "streamStart"
-    // | "streamChunk"
-    // | "streamEnd";
-    //@prettier-ignore
-    export type runHookCallBackMap = {
-        [K in runEventType]
-        : K extends "conversationUpdate" ? (conversation: OpenAI.ChatCompletionMessageParam[]) => maybePromise<void>: never }
+export type AgentState = {
+    conversation: OpenAI.ChatCompletionMessageParam[],
+    stepCount: number
+}
 
 export type AgentOpt<TStore = {}> = {
     store?: Store<StoreLike<TStore>>,
@@ -32,14 +27,10 @@ export type AgentOpt<TStore = {}> = {
     modelSettings: Prettify<Omit<ChatCompletionCreateParamsBase, "messages" | "tools">>
 }
 
-export type AgentState = {
-    conversation: OpenAI.ChatCompletionMessageParam[],
-    controller?: AbortController
-}
-
 export class Agent<TGlobalStore = {}, TStore = {}> {
     public static defaultAgentState: AgentState = {
-        conversation: []
+        conversation: [],
+        stepCount: 0
     }
 
     private openai: OpenAI;
@@ -87,11 +78,11 @@ export class Agent<TGlobalStore = {}, TStore = {}> {
             console.error("max iter");
             return;
         }
-        this.updateState((prev) => ({ ...prev, controller: new AbortController() }));
+        const abortController = new AbortController();
         let streamBody: ChatCompletionCreateParamsBase = { ...this.opts.modelSettings, messages: [{ role: "system", content: this.opts.instructions }, ...this.state.conversation] };
         if (this.paramsTools?.length)
             streamBody["tools"] = this.paramsTools;
-        const stream = await this.openai.chat.completions.create(streamBody, { signal: this.state.controller?.signal });
+        const stream = await this.openai.chat.completions.create(streamBody, { signal: abortController.signal });
         let aiMessage: Partial<OpenAI.Chat.ChatCompletionMessageParam> = {};
         if (Symbol.asyncIterator in stream) {
             let replaceLast = false;
@@ -120,12 +111,18 @@ export class Agent<TGlobalStore = {}, TStore = {}> {
                             throw new FragolaError("Tool arguments parsing fail");
                         }
                     }
+                    // execute handler function
                     const handler = (() => {
                         if (tool.handler == "dynamic")
                             return async () => "Success";
                         return tool.handler;
                     })();
-                    const content = await handler(paramsParsed?.data, () => this.opts.store as any, () => this.globalStore as any);
+                    const isAsync = handler.constructor.name === "AsyncFunction";
+                    const content = isAsync
+                        ? await handler(paramsParsed?.data, () => this.opts.store as any, () => this.globalStore as any)
+                        : handler(paramsParsed?.data, () => this.opts.store as any, () => this.globalStore as any);
+
+                    // add tool message to conversation
                     const message: OpenAI.ChatCompletionMessageParam = {
                         role: "tool",
                         content: JSON.stringify(content),
@@ -142,5 +139,13 @@ export class Agent<TGlobalStore = {}, TStore = {}> {
         this.updateConversation((prev) => [...prev, { role: "user", ...message }]);
         await this.recursiveAgent();
         return this.state;
+    }
+
+    on<TEventId extends AgentEventId>(eventId: TEventId, callback:
+        TEventId extends AgentDefaultEventId ? eventDefaultCallbackMap[TEventId] :
+        TEventId extends AgentBeforeEventId ? eventBeforeCallbackMap<TGlobalStore, TStore>[TEventId] :
+        never
+    ) {
+
     }
 }

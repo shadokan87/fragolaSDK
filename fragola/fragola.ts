@@ -19,7 +19,7 @@ export const tool = <T extends z.ZodType<any, any>>(params: Tool<T>) => params;
 
 export class Fragola<TGlobalStore = {}> {
     private openai: OpenAI;
-    constructor(clientOptions?: ClientOptions,private globalStore: Store<StoreLike<TGlobalStore>> | undefined = undefined ) {
+    constructor(clientOptions?: ClientOptions, private globalStore: Store<TGlobalStore> | undefined = undefined) {
         this.openai = clientOptions ? new OpenAI(clientOptions) : new OpenAI();
     }
 

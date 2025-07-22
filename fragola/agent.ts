@@ -198,6 +198,22 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
         }
     }
 
+    /**
+     * Registers a callback for a specific agent event.
+     *
+     * @template TEventId - The type of the event ID (must extend AgentEventId).
+     * @param eventId - The event identifier to listen for.
+     * @param callback - The callback function to invoke when the event occurs. The callback type is inferred from the event ID and store types.
+     * @returns A function to unregister the event listener.
+     *
+     * @example
+     * // Register a callback for a custom event
+     * const unregister = agent.on("before:conversationUpdate", (state, getStore, getGlobalStore) => {
+     *   // handle event
+     * });
+     * // Later, to remove the listener:
+     * unregister();
+     */
     on<TEventId extends AgentEventId>(eventId: TEventId, callback: eventIdToCallback<TEventId, TGlobalStore, TStore>
     ) {
         type EventTargetType = registeredEvent<TEventId, TGlobalStore, TStore>;
@@ -220,4 +236,23 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
                 this.registeredEvents.set(eventId, events);
         }
     }
+
+    /**
+     * Registers a callback to be invoked before the "conversationUpdate" event is processed by the agent.
+     * This allows inspection or modification of the agent state prior to updating the conversation.
+     *
+     * @param callback - The function to execute before the conversation update event.
+     *   Receives:
+     *     - state: The current agent state.
+     *     - getStore: A function returning the local store instance or undefined.
+     *     - getGlobalStore: A function returning the global store instance or undefined.
+     *   See {@link EventDefaultCallback} for callback signature details.
+     * @returns A function to unregister the event listener.
+     *
+     * @example
+     * agent.onBeforeConversationUpdate((state, getStore, getGlobalStore) => {
+     *     console.log("before conversation update: ", state.conversation.at(-1)?.content);
+     * });
+     */
+    onBeforeConversationUpdate(callback: BeforeConversationUpdateCallback<TGlobalStore, TStore>) { return this.on("before:conversationUpdate", callback); }
 }

@@ -1,14 +1,11 @@
-import type { AgentState } from "./agent";
-import type { maybePromise, StoreLike } from "./types";
+import type { StoreLike } from "./types";
 import type { AgentBeforeEventId, AgentDefaultEventId, EventDefaultCallback } from "./event";
-import type { GetStore } from "./fragola";
-import type { Store } from "./store";
 
 /**
- * Callback invoked before the "conversationUpdate" event is processed by the agent.
- * Allows inspection of the agent state prior to updating the conversation.
+ * Callback type for handling logic before a conversation update event.
  *
- * @param state - The current state of the agent.
+ * @template TGlobalStore - The type of the global store.
+ * @template TStore - The type of the local store.
  */
 export type BeforeConversationUpdateCallback<TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = EventDefaultCallback<TGlobalStore, TStore>;
 

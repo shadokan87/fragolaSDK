@@ -3,7 +3,7 @@ import { PORTKEY_GATEWAY_URL, createHeaders } from "portkey-ai";
 import getWeatherForCity from "./fragola/tools/getWeatherForCity";
 import { createStore } from "./fragola/agent";
 
-export const weatherStore = createStore<{ lastWeather?: Record<string, string> }>({
+export const weatherStore = createStore<{ lastWeather: Record<string, string> | undefined }>({
     lastWeather: undefined
 });
 
@@ -28,6 +28,11 @@ async function main() {
         }
     });
 
+    weatherAgent.on("before:conversationUpdate", (state, getStore) => {
+
+    });
+
+    return ;
     const { conversation } = await weatherAgent.userMessage({ content: "what is the weather in Paris ?" });
     console.log(JSON.stringify(conversation, null, 2));
 }

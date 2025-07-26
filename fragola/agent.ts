@@ -8,10 +8,11 @@ import { FragolaError } from "./exceptions"
 import type z from "zod"
 import type { Prettify, StoreLike } from "./types"
 import { OpenAI } from "openai/index.js"
-import type { AgentEventId, AgentDefaultEventId, AgentBeforeEventId, EventDefaultCallback } from "./event"
-import type { callbackMap as eventDefaultCallbackMap } from "./eventDefault";
+import type { AgentEventId, AgentDefaultEventId, AgentBeforeEventId, EventDefaultCallback, AgentAfterEventId } from "./event"
+import type { ConversationUpdateCallback, callbackMap as eventDefaultCallbackMap } from "./eventDefault";
 import type { BeforeConversationUpdateCallback, callbackMap as eventBeforeCallbackMap } from "./eventBefore";
 import { nanoid } from "nanoid"
+import type { AfterConversationUpdateCallback, callbackMap as eventAfterCallbackMap } from "./eventAfter"
 
 export const createStore = <T>(data: StoreLike<T>) => new Store(data);
 
@@ -39,8 +40,10 @@ export type AgentOpt<TStore extends StoreLike<any> = {}> = {
  * @template TGlobalStore - The type of the global store.
  * @template TStore - The type of the local store.
  */
-type eventIdToCallback<TEventId extends AgentEventId, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = TEventId extends AgentDefaultEventId ? eventDefaultCallbackMap<TGlobalStore, TStore>[TEventId] :
+type eventIdToCallback<TEventId extends AgentEventId, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> =
+    TEventId extends AgentDefaultEventId ? eventDefaultCallbackMap<TGlobalStore, TStore>[TEventId] :
     TEventId extends AgentBeforeEventId ? eventBeforeCallbackMap<TGlobalStore, TStore>[TEventId] :
+    TEventId extends AgentAfterEventId ? eventAfterCallbackMap<TGlobalStore, TStore>[TEventId] :
     never
 
 type registeredEvent<TEventId extends AgentEventId, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = {
@@ -57,6 +60,8 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
     private openai: OpenAI;
     private paramsTools: ChatCompletionCreateParamsBase["tools"] = [];
     private registeredEvents: Map<AgentEventId, registeredEvent<AgentEventId, TGlobalStore, TStore>[]> = new Map();
+    // Tmp values for applyEvents method
+    private conversationTmp: AgentState["conversation"] | undefined = undefined;
 
     constructor(private opts: AgentOpt<TStore>, private globalStore: Store<TGlobalStore> | undefined = undefined, openai: OpenAI, private state: AgentState = Agent.defaultAgentState) {
         this.openai = openai;
@@ -93,8 +98,10 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
 
     private async updateConversation(callback: (prev: AgentState["conversation"]) => AgentState["conversation"]) {
         await this.applyEvents("before:conversationUpdate");
-        const conversationBeforeUpdate = structuredClone(this.state.conversation);
-        this.updateState((prev) => ({ ...prev, conversation: callback(this.state.conversation) }));
+        this.conversationTmp = callback(this.state.conversation);
+        const newConversation = await this.applyEvents("conversationUpdate");
+        this.conversationTmp = undefined;
+        this.updateState((prev) => ({ ...prev, conversation: newConversation }));
     }
 
     private async recursiveAgent(iter = 0): Promise<void> {
@@ -103,13 +110,13 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
             return;
         }
         const abortController = new AbortController();
-        let requestBody: ChatCompletionCreateParamsBase = { 
-            ...this.opts.modelSettings, 
-            messages: [{ role: "system", content: this.opts.instructions }, ...this.state.conversation] 
+        let requestBody: ChatCompletionCreateParamsBase = {
+            ...this.opts.modelSettings,
+            messages: [{ role: "system", content: this.opts.instructions }, ...this.state.conversation]
         };
         if (this.paramsTools?.length)
             requestBody["tools"] = this.paramsTools;
-        
+
         const response = await this.openai.chat.completions.create(requestBody, { signal: abortController.signal });
         let aiMessage: OpenAI.Chat.ChatCompletionMessageParam;
 
@@ -175,27 +182,36 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
         return this.state;
     }
 
-    private async applyEvents<TEventId extends AgentEventId>(eventId: TEventId) {
+    private async applyEvents<TEventId extends AgentEventId>(eventId: TEventId): Promise<ReturnType<eventIdToCallback<TEventId, TGlobalStore, TStore>>> {
         const events = this.registeredEvents.get(eventId);
         if (!events)
-            return;
+            return undefined as ReturnType<eventIdToCallback<TEventId, TGlobalStore, TStore>>;
         for (let i = 0; i < events.length; i++) {
             const callback = events[i].callback;
+            const defaultParams: Parameters<EventDefaultCallback<TGlobalStore, TStore>> = [this.state, () => this.opts.store, () => this.globalStore];
             switch (eventId) {
                 case "before:conversationUpdate": {
-                    let params: Parameters<EventDefaultCallback<TGlobalStore, TStore>> = [this.state, () => this.opts.store, () => this.globalStore];
+                    let params: Parameters<EventDefaultCallback<TGlobalStore, TStore>> = defaultParams;
                     if (callback.constructor.name == "AsyncFunction") {
-                        await (callback as EventDefaultCallback<TGlobalStore, TStore>)(...params);
+                        return await (callback as EventDefaultCallback<TGlobalStore, TStore>)(...params) as any;
                     } else {
-                        (callback as EventDefaultCallback<TGlobalStore, TStore>)(...params);
+                        return (callback as EventDefaultCallback<TGlobalStore, TStore>)(...params) as any;
                     }
-                    break;
+                }
+                case "conversationUpdate": {
+                    let params: Parameters<ConversationUpdateCallback<TGlobalStore, TStore>> = [this.conversationTmp || [], ...defaultParams];
+                    if (callback.constructor.name == "AsyncFunction") {
+                        return await (callback as ConversationUpdateCallback<TGlobalStore, TStore>)(...params) as any;
+                    } else {
+                        return (callback as ConversationUpdateCallback<TGlobalStore, TStore>)(...params) as any;
+                    }
                 }
                 default: {
                     throw new FragolaError(`Internal error: event with name '${eventId}' is unknown`)
                 }
             }
         }
+        return undefined as ReturnType<eventIdToCallback<TEventId, TGlobalStore, TStore>>;
     }
 
     /**
@@ -238,15 +254,16 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
     }
 
     /**
-     * Registers a callback to be invoked before the "conversationUpdate" event is processed by the agent.
+     * Registers a callback to be invoked before the "conversationUpdate" event is processed.
      * This allows inspection or modification of the agent state prior to updating the conversation.
-     *
+     * @typescript
+     * Is a default event, see {@link EventDefaultCallback} for callback signature details.
+     * 
      * @param callback - The function to execute before the conversation update event.
      *   Receives:
      *     - state: The current agent state.
      *     - getStore: A function returning the local store instance or undefined.
      *     - getGlobalStore: A function returning the global store instance or undefined.
-     *   See {@link EventDefaultCallback} for callback signature details.
      * @returns A function to unregister the event listener.
      *
      * @example
@@ -255,4 +272,27 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
      * });
      */
     onBeforeConversationUpdate(callback: BeforeConversationUpdateCallback<TGlobalStore, TStore>) { return this.on("before:conversationUpdate", callback); }
+
+    onAfterConversationUpdate(callback: AfterConversationUpdateCallback<TGlobalStore, TStore>) { return this.on("after:conversationUpdate", callback) }
+
+    /**
+     * Registers a callback for the "conversationUpdate" event.
+     *
+     * @param callback - Function that receives:
+     *   - newConversation: The updated conversation messages.
+     *     - state: The current agent state.
+     *     - getStore: A function returning the local store instance or undefined.
+     *     - getGlobalStore: A function returning the global store instance or undefined.
+     * @returns the updated conversation messages (array or Promise).
+     *
+     * @example
+     * agent.onConversationUpdate((newConversation, state, getStore, getGlobalStore) => {
+     *   // Modify the last message before returning
+     *   if (newConversation.length > 0) {
+     *     newConversation[newConversation.length - 1].content += " (modified)";
+     *   }
+     *   return newConversation;
+     * });
+     */
+    onConversationUpdate(callback: ConversationUpdateCallback<TGlobalStore, TStore>) { return this.on("conversationUpdate", callback) }
 }

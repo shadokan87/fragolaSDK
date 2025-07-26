@@ -18,7 +18,8 @@ export const createStore = <T>(data: StoreLike<T>) => new Store(data);
 
 export type AgentState = {
     conversation: OpenAI.ChatCompletionMessageParam[],
-    stepCount: number
+    stepCount: number,
+    status: "idle" | "generating" | "waiting"
 }
 
 export type AgentOpt<TStore extends StoreLike<any> = {}> = {
@@ -26,6 +27,7 @@ export type AgentOpt<TStore extends StoreLike<any> = {}> = {
     name: string,
     instructions: string,
     tools?: Tool<any>[],
+    initialConversation?: OpenAI.ChatCompletionMessageParam[],
     modelSettings: Prettify<Omit<ChatCompletionCreateParamsBase, "messages" | "tools">>
 }
 
@@ -54,7 +56,8 @@ type registeredEvent<TEventId extends AgentEventId, TGlobalStore extends StoreLi
 export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> {
     public static defaultAgentState: AgentState = {
         conversation: [],
-        stepCount: 0
+        stepCount: 0,
+        status: "idle"
     }
 
     private openai: OpenAI;
@@ -66,6 +69,8 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
     constructor(private opts: AgentOpt<TStore>, private globalStore: Store<TGlobalStore> | undefined = undefined, openai: OpenAI, private state: AgentState = Agent.defaultAgentState) {
         this.openai = openai;
         this.toolsToModelSettingsTools();
+        // if (opts.initialConversation != undefined)
+        //     this.state.conversation = structuredClone(opts.initialConversation);
     }
 
     private toolsToModelSettingsTools() {
@@ -75,7 +80,7 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
                 type: "function",
                 function: {
                     name: tool.name,
-                    description: tool.description,
+                    // description: tool.description,
                     parameters: zodToJsonSchema(tool.schema)
                 }
 
@@ -92,6 +97,11 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
         });
     }
 
+    private setIdle() { this.updateState(prev => ({ ...prev, status: "idle" })) }
+    private setGenerating() { this.updateState(prev => ({ ...prev, status: "generating" })) }
+    private setWaiting() { this.updateState(prev => ({ ...prev, status: "waiting" })) }
+
+
     private updateState(callback: (prev: typeof this.state) => typeof this.state) {
         this.state = callback(this.state);
     }
@@ -99,13 +109,18 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
     private async updateConversation(callback: (prev: AgentState["conversation"]) => AgentState["conversation"]) {
         await this.applyEvents("before:conversationUpdate");
         this.conversationTmp = callback(this.state.conversation);
-        const newConversation = await this.applyEvents("conversationUpdate");
-        this.conversationTmp = undefined;
+        const newConversation = await this.applyEvents("conversationUpdate") || this.conversationTmp;
         this.updateState((prev) => ({ ...prev, conversation: newConversation }));
+        await this.applyEvents("after:conversationUpdate");
+    }
+
+    async step() {
+        await this.recursiveAgent();
+        return this.state;
     }
 
     private async recursiveAgent(iter = 0): Promise<void> {
-        if (iter == 5) {
+        if (iter == 10) {
             console.error("max iter");
             return;
         }
@@ -117,33 +132,40 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
         if (this.paramsTools?.length)
             requestBody["tools"] = this.paramsTools;
 
-        const response = await this.openai.chat.completions.create(requestBody, { signal: abortController.signal });
+        const lastMessage: OpenAI.ChatCompletionMessageParam | undefined = this.state.conversation.at(-1);
         let aiMessage: OpenAI.Chat.ChatCompletionMessageParam;
+        const shouldGenerate: boolean = lastMessage != undefined;
+        if (shouldGenerate) {
+            this.setGenerating();
+            const response = await this.openai.chat.completions.create(requestBody, { signal: abortController.signal });
 
-        // Handle streaming vs non-streaming
-        if (Symbol.asyncIterator in response) {
-            let partialMessage: Partial<OpenAI.Chat.ChatCompletionMessageParam> = {};
-            let replaceLast = false;
+            // Handle streaming vs non-streaming
+            if (Symbol.asyncIterator in response) {
+                let partialMessage: Partial<OpenAI.Chat.ChatCompletionMessageParam> = {};
+                let replaceLast = false;
 
-            for await (const chunk of response) {
-                partialMessage = streamChunkToMessage(chunk, partialMessage);
-                await this.appendMessages([partialMessage as OpenAI.Chat.ChatCompletionMessageParam], replaceLast);
-                replaceLast = true;
+                for await (const chunk of response) {
+                    partialMessage = streamChunkToMessage(chunk, partialMessage);
+                    await this.appendMessages([partialMessage as OpenAI.Chat.ChatCompletionMessageParam], replaceLast);
+                    replaceLast = true;
+                }
+                aiMessage = partialMessage as OpenAI.Chat.ChatCompletionMessageParam;
+            } else {
+                aiMessage = response.choices[0].message as OpenAI.Chat.ChatCompletionMessageParam;
+                await this.appendMessages([aiMessage]);
             }
-            aiMessage = partialMessage as OpenAI.Chat.ChatCompletionMessageParam;
-        } else {
-            aiMessage = response.choices[0].message as OpenAI.Chat.ChatCompletionMessageParam;
-            await this.appendMessages([aiMessage]);
-        }
+        } else
+            aiMessage = lastMessage as typeof aiMessage; // Have been checked for undefined in shouldGenerate
 
         // Handle tool calls if present
         if (aiMessage.role === "assistant" && aiMessage.tool_calls && aiMessage.tool_calls.length) {
-            await Promise.all(aiMessage.tool_calls.map(async toolCall => {
+            this.setWaiting();
+            for (const toolCall of aiMessage.tool_calls) {
                 // Find tool in project that matches the tool requested by last ai message
                 const tool = this.opts.tools?.find(tool => tool.name == toolCall.function.name);
                 if (!tool) {
                     console.error(`Tool with name ${toolCall.function.name} not found in project`); //TODO: replace with exception
-                    return;
+                    continue;
                 }
                 let paramsParsed: z.SafeParseReturnType<any, any> | undefined;
                 if (tool.schema) {
@@ -171,7 +193,7 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
                     tool_call_id: toolCall.id
                 }
                 await this.updateConversation((prev) => [...prev, message]);
-            }));
+            }
             return await this.recursiveAgent(iter + 1);
         }
     }
@@ -190,6 +212,7 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
             const callback = events[i].callback;
             const defaultParams: Parameters<EventDefaultCallback<TGlobalStore, TStore>> = [this.state, () => this.opts.store, () => this.globalStore];
             switch (eventId) {
+                case "after:conversationUpdate":
                 case "before:conversationUpdate": {
                     let params: Parameters<EventDefaultCallback<TGlobalStore, TStore>> = defaultParams;
                     if (callback.constructor.name == "AsyncFunction") {

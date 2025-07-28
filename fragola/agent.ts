@@ -13,6 +13,7 @@ import type { ConversationUpdateCallback, callbackMap as eventDefaultCallbackMap
 import type { BeforeConversationUpdateCallback, callbackMap as eventBeforeCallbackMap } from "./eventBefore";
 import { nanoid } from "nanoid"
 import type { AfterConversationUpdateCallback, callbackMap as eventAfterCallbackMap } from "./eventAfter"
+import type { ChatCompletionAssistantMessageParam } from "openai/resources"
 
 export const createStore = <T>(data: StoreLike<T>) => new Store(data);
 
@@ -69,8 +70,8 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
     constructor(private opts: AgentOpt<TStore>, private globalStore: Store<TGlobalStore> | undefined = undefined, openai: OpenAI, private state: AgentState = Agent.defaultAgentState) {
         this.openai = openai;
         this.toolsToModelSettingsTools();
-        // if (opts.initialConversation != undefined)
-        //     this.state.conversation = structuredClone(opts.initialConversation);
+        if (opts.initialConversation != undefined)
+            this.state.conversation = structuredClone(opts.initialConversation);
     }
 
     private toolsToModelSettingsTools() {
@@ -115,8 +116,19 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
     }
 
     async step() {
-        await this.recursiveAgent();
+        if (this.state.conversation.length != 0)
+            await this.recursiveAgent();
         return this.state;
+    }
+
+    private lastAiMessage(conversation: OpenAI.ChatCompletionMessageParam[]): OpenAI.ChatCompletionAssistantMessageParam | undefined {
+        for (let i = conversation.length - 1; i >= 0; i--) {
+            const msg = conversation[i];
+            if (msg.role === "assistant") {
+                return msg;
+            }
+        }
+        return undefined;
     }
 
     private async recursiveAgent(iter = 0): Promise<void> {
@@ -134,7 +146,29 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
 
         const lastMessage: OpenAI.ChatCompletionMessageParam | undefined = this.state.conversation.at(-1);
         let aiMessage: OpenAI.Chat.ChatCompletionMessageParam;
-        const shouldGenerate: boolean = lastMessage != undefined;
+        let lastAiMessage: OpenAI.ChatCompletionAssistantMessageParam | undefined = undefined;
+        let toolCalls: OpenAI.Chat.Completions.ChatCompletionMessageToolCall[] = [];
+
+        const shouldGenerate: boolean = (() => {
+            if (lastMessage?.role == "user")
+                return true;
+            if (lastMessage?.role == "tool") {
+                lastAiMessage = this.lastAiMessage(this.state.conversation);
+                if (!lastAiMessage)
+                    throw new FragolaError("Invalid conversation, found 'tool' role without previous 'assistant' role.");
+                if (!lastAiMessage.tool_calls)
+                    throw new FragolaError("Invalid conversation, found 'tool' role but 'tool_calls' is empty in 'assistant' role.");
+
+                // Some tool calls may be already answered, we filter them out
+                toolCalls = lastAiMessage.tool_calls.filter(toolCall => {
+                    return !this.state.conversation.some(message => message.role == "tool" && message.tool_call_id == toolCall.id)
+                });
+                // Generation can happen only if all tool_calls have been answered, if not the case, tool calls will be answered and the generation can happen in the next recursive turn
+                return toolCalls.length == 0;
+            }
+            return false;
+        })();
+
         if (shouldGenerate) {
             this.setGenerating();
             const response = await this.openai.chat.completions.create(requestBody, { signal: abortController.signal });
@@ -154,19 +188,21 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
                 aiMessage = response.choices[0].message as OpenAI.Chat.ChatCompletionMessageParam;
                 await this.appendMessages([aiMessage]);
             }
-        } else
-            aiMessage = lastMessage as typeof aiMessage; // Have been checked for undefined in shouldGenerate
+            if (aiMessage.role == "assistant" && aiMessage.tool_calls && aiMessage.tool_calls.length)
+                toolCalls = aiMessage.tool_calls;
+        } else if (lastMessage?.role == "assistant" && lastMessage.tool_calls && lastMessage.tool_calls.length) {
+            toolCalls = lastMessage.tool_calls;
+        }
 
         // Handle tool calls if present
-        if (aiMessage.role === "assistant" && aiMessage.tool_calls && aiMessage.tool_calls.length) {
+        if (toolCalls.length > 0) {
             this.setWaiting();
-            for (const toolCall of aiMessage.tool_calls) {
-                // Find tool in project that matches the tool requested by last ai message
+            for (const toolCall of toolCalls) {
+                // Find tool in options that matches the tool requested by last ai message
                 const tool = this.opts.tools?.find(tool => tool.name == toolCall.function.name);
-                if (!tool) {
-                    console.error(`Tool with name ${toolCall.function.name} not found in project`); //TODO: replace with exception
-                    continue;
-                }
+                if (!tool)
+                    throw new FragolaError("Tool arguments parsing fail");
+
                 let paramsParsed: z.SafeParseReturnType<any, any> | undefined;
                 if (tool.schema) {
                     paramsParsed = (tool.schema as z.Schema).safeParse(JSON.parse(toolCall.function.arguments));
@@ -187,9 +223,21 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
                     : handler(paramsParsed?.data, () => this.opts.store as any, () => this.globalStore as any);
 
                 // add tool message to conversation
+                const contentString: string = (() => {
+                    switch (typeof content) {
+                        case "string":
+                            return content;
+                        case "number":
+                        case "boolean":
+                        case "bigint":
+                            return String(content);
+                        default:
+                            return JSON.stringify(content);
+                    }
+                })();
                 const message: OpenAI.ChatCompletionMessageParam = {
                     role: "tool",
-                    content: JSON.stringify(content),
+                    content: contentString,
                     tool_call_id: toolCall.id
                 }
                 await this.updateConversation((prev) => [...prev, message]);

@@ -14,7 +14,7 @@ const getWeatherForCity = tool({
         const store = getStore<typeof weatherStore>();
 
         if (store) {
-            console.log(store.value.lastWeather);
+            console.log(store.value);
         }
     
         try {

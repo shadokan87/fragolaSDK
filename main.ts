@@ -17,7 +17,7 @@ async function main() {
         })
     });
 
-    const weatherAgent = fragola.Agent({
+    const weatherAgent = fragola.agent({
         name: "test", instructions: "you are a helpful assistant", tools: [getWeatherForCity],
         store: weatherStore,
         modelSettings: {

@@ -4,7 +4,7 @@ import type { ChatCompletionCreateParamsBase } from "openai/resources/chat/compl
 import { type ClientOptions } from "openai"
 import { zodToJsonSchema } from "openai/_vendor/zod-to-json-schema/zodToJsonSchema.mjs"
 import { streamChunkToMessage } from "./utils"
-import { FragolaError } from "./exceptions"
+import { FragolaError, MaxStepHitError } from "./exceptions"
 import type z from "zod"
 import type { Prettify, StoreLike } from "./types"
 import { OpenAI } from "openai/index.js"
@@ -23,14 +23,54 @@ export type AgentState = {
     status: "idle" | "generating" | "waiting"
 }
 
+/**
+ * Options for controlling the agent's step execution behavior.
+ *
+ * @see {@link defaultStepOptions} for default values.
+ */
+export type StepOptions = Partial<{
+    /** The maximum number of steps to execute in one call (default: 10). */
+    maxStep: number,
+    /** Wether or not to reset agent state `stepCount` after each user messages. `true` is recommanded for conversational agents.*/
+    resetStepCountAfterUserMessage: boolean,
+    /** Determines how to handle unanswered tool calls: `answer` to process them, `skip` to ignore (default: "answer"). */
+    unansweredToolBehaviour: "answer" | "skip",
+    /** The string to use when skipping a tool call (default: "(generation has been canceled, you may ignore this tool output)"). */
+    skipToolString: string
+}>;
+
+/**
+ * @typescript The default values for {@link StepOptions}.
+ *
+ * @property maxStep - Default: 10. The maximum number of steps to execute in one call.
+ * @property unansweredToolBehaviour - Default: "answer". Determines how to handle unanswered tool calls.
+ * @property skipToolString - Default: "(generation has been canceled, you may ignore this tool output)". The string to use when skipping a tool call.
+ */
+export const defaultStepOptions: StepOptions = {
+    maxStep: 10,
+    resetStepCountAfterUserMessage: true,
+    unansweredToolBehaviour: "answer",
+    skipToolString: "(generation has been canceled, you may ignore this tool output)"
+}
+
 export type AgentOpt<TStore extends StoreLike<any> = {}> = {
     store?: Store<TStore>,
+    stepOptions?: StepOptions,
     name: string,
     instructions: string,
     tools?: Tool<any>[],
     initialConversation?: OpenAI.ChatCompletionMessageParam[],
     modelSettings: Prettify<Omit<ChatCompletionCreateParamsBase, "messages" | "tools">>
 }
+
+type StepBy = Partial<{
+    /** To execute only up to N steps even if `maxStep` is not hit*/
+    by: number,
+}>;
+
+type StepParams = StepBy & StepOptions;
+
+export type UserMessageQuery = Prettify<Omit<OpenAI.Chat.ChatCompletionUserMessageParam, "role">> & {step?: StepParams};
 
 /**
  * Maps an event ID to its corresponding callback type based on the event category.
@@ -72,6 +112,15 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
         this.toolsToModelSettingsTools();
         if (opts.initialConversation != undefined)
             this.state.conversation = structuredClone(opts.initialConversation);
+        if (!opts.stepOptions)
+            opts.stepOptions = defaultStepOptions;
+        else {
+            opts.stepOptions = {
+                maxStep: opts.stepOptions.maxStep || defaultStepOptions.maxStep,
+                unansweredToolBehaviour: opts.stepOptions.unansweredToolBehaviour || defaultStepOptions.unansweredToolBehaviour,
+                skipToolString: opts.stepOptions.skipToolString || defaultStepOptions.skipToolString
+            }
+        }
     }
 
     private toolsToModelSettingsTools() {
@@ -115,10 +164,40 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
         await this.applyEvents("after:conversationUpdate");
     }
 
-    async step() {
+    private stepOptions() { return this.opts.stepOptions as Required<StepOptions>}
+
+    private handleOverrideStepOptions(overrideStepOptions: StepOptions | undefined): StepOptions {
+        let stepOptions: StepOptions;
+        if (!overrideStepOptions)
+            stepOptions = this.stepOptions();
+        else {
+            stepOptions = {
+                maxStep: overrideStepOptions.maxStep || this.stepOptions().maxStep,
+                unansweredToolBehaviour: overrideStepOptions.unansweredToolBehaviour || this.stepOptions().unansweredToolBehaviour,
+                skipToolString: overrideStepOptions.skipToolString || this.stepOptions().skipToolString
+            }
+        }
+        return stepOptions;
+    }
+
+    async step(params?: StepParams) {
+        let overrideStepOptions: StepOptions | undefined = undefined;
+        if (params) {
+            const {by, ...rest} = params;
+            overrideStepOptions = rest;
+        }
+        const stepOptions: StepOptions = this.handleOverrideStepOptions(overrideStepOptions);
         if (this.state.conversation.length != 0)
-            await this.recursiveAgent();
+            await this.recursiveAgent(stepOptions, () => {
+                if (params?.by != undefined)
+                    return this.state.stepCount == (this.state.stepCount + params.by);
+                return false;
+        });
         return this.state;
+    }
+
+    resetStepCount() {
+        this.state.stepCount = 0;
     }
 
     private lastAiMessage(conversation: OpenAI.ChatCompletionMessageParam[]): OpenAI.ChatCompletionAssistantMessageParam | undefined {
@@ -131,11 +210,14 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
         return undefined;
     }
 
-    private async recursiveAgent(iter = 0): Promise<void> {
-        if (iter == 10) {
-            console.error("max iter");
-            return;
+    private async recursiveAgent(stepOptions: StepOptions, stop: () => boolean,iter = 0): Promise<void> {
+        if (stepOptions.resetStepCountAfterUserMessage) {
+            if (this.state.conversation.at(-1)?.role == "user")
+                this.state.stepCount = 0;
         }
+        if (this.state.stepCount == stepOptions.maxStep)
+            throw new MaxStepHitError(``);
+
         const abortController = new AbortController();
         let requestBody: ChatCompletionCreateParamsBase = {
             ...this.opts.modelSettings,
@@ -157,7 +239,7 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
                 if (!lastAiMessage)
                     throw new FragolaError("Invalid conversation, found 'tool' role without previous 'assistant' role.");
                 if (!lastAiMessage.tool_calls)
-                    throw new FragolaError("Invalid conversation, found 'tool' role but 'tool_calls' is empty in 'assistant' role.");
+                    throw new FragolaError("Invalid conversation, found 'tool' role but 'tool_calls' is empty in previous 'assistant' role.");
 
                 // Some tool calls may be already answered, we filter them out
                 toolCalls = lastAiMessage.tool_calls.filter(toolCall => {
@@ -181,16 +263,18 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
                 for await (const chunk of response) {
                     partialMessage = streamChunkToMessage(chunk, partialMessage);
                     await this.appendMessages([partialMessage as OpenAI.Chat.ChatCompletionMessageParam], replaceLast);
+                    !replaceLast && (this.state.stepCount = this.state.stepCount + 1);
                     replaceLast = true;
                 }
                 aiMessage = partialMessage as OpenAI.Chat.ChatCompletionMessageParam;
             } else {
                 aiMessage = response.choices[0].message as OpenAI.Chat.ChatCompletionMessageParam;
                 await this.appendMessages([aiMessage]);
+                this.state.stepCount = this.state.stepCount + 1;
             }
             if (aiMessage.role == "assistant" && aiMessage.tool_calls && aiMessage.tool_calls.length)
                 toolCalls = aiMessage.tool_calls;
-        } else if (lastMessage?.role == "assistant" && lastMessage.tool_calls && lastMessage.tool_calls.length) {
+        } else if (lastMessage?.role == "assistant" && lastMessage.tool_calls && lastMessage.tool_calls.length) { // Last message is 'assistant' role without generation required, assign tool calls if any
             toolCalls = lastMessage.tool_calls;
         }
 
@@ -242,14 +326,14 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
                 }
                 await this.updateConversation((prev) => [...prev, message]);
             }
-            return await this.recursiveAgent(iter + 1);
+            return await this.recursiveAgent(stepOptions, stop, iter + 1);
         }
     }
 
-    async userMessage(message: Omit<OpenAI.Chat.ChatCompletionUserMessageParam, "role">): Promise<AgentState> {
+    async userMessage(query: UserMessageQuery): Promise<AgentState> {
+        const {step, ...message} = query;
         await this.updateConversation((prev) => [...prev, { role: "user", ...message }]);
-        await this.recursiveAgent();
-        return this.state;
+        return await this.step(query.step);
     }
 
     private async applyEvents<TEventId extends AgentEventId>(eventId: TEventId): Promise<ReturnType<eventIdToCallback<TEventId, TGlobalStore, TStore>>> {

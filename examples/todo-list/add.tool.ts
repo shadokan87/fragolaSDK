@@ -5,7 +5,6 @@ import { type todo, type todoStoreType, todoStore } from "./todoList.store";
 
 const addTodo = tool({
     name: "addTodo",
-    namespace: "todo",
     description: "Add a todo to the list",
     schema: z.object({
         task: z.string()
@@ -21,7 +20,8 @@ const addTodo = tool({
             store.update((prev) => {
                 return { todos: [...prev.todos, newTodo] }
             });
-            return `Todo added, current list: ${JSON.stringify(store.value)}`;
+            return store.value.todos
+            // return `Todo added, current list: ${JSON.stringify(store.value)}`;
         } else
             return "An error occured, failed to get todo list";
     }

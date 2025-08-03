@@ -1,4 +1,4 @@
-import { createStore, type StoreLike } from "../../fragola/agent";
+import { createStore } from "../../fragola/agent";
 
 export interface todo {
     id: string,

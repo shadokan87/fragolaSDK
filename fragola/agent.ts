@@ -4,7 +4,7 @@ import type { ChatCompletionCreateParamsBase } from "openai/resources/chat/compl
 import { type ClientOptions } from "openai"
 import { zodToJsonSchema } from "openai/_vendor/zod-to-json-schema/zodToJsonSchema.mjs"
 import { streamChunkToMessage } from "./utils"
-import { FragolaError, MaxStepHitError } from "./exceptions"
+import { BadUsage, FragolaError, MaxStepHitError } from "./exceptions"
 import type z from "zod"
 import type { Prettify, StoreLike } from "./types"
 import { OpenAI } from "openai/index.js"
@@ -20,7 +20,7 @@ export const createStore = <T>(data: StoreLike<T>) => new Store(data);
 export type AgentState = {
     conversation: OpenAI.ChatCompletionMessageParam[],
     stepCount: number,
-    status: "idle" | "generating" | "waiting"
+    status: "idle" | "generating" | "waiting",
 }
 
 /**
@@ -113,13 +113,14 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
         if (opts.initialConversation != undefined)
             this.state.conversation = structuredClone(opts.initialConversation);
         if (!opts.stepOptions)
-            opts.stepOptions = defaultStepOptions;
+            this.opts["stepOptions"] = defaultStepOptions;
         else {
-            opts.stepOptions = {
-                maxStep: opts.stepOptions.maxStep || defaultStepOptions.maxStep,
+            this.opts["stepOptions"] = {
+                maxStep: opts.stepOptions.maxStep != undefined ? opts.stepOptions.maxStep : defaultStepOptions.maxStep,
                 unansweredToolBehaviour: opts.stepOptions.unansweredToolBehaviour || defaultStepOptions.unansweredToolBehaviour,
                 skipToolString: opts.stepOptions.skipToolString || defaultStepOptions.skipToolString
             }
+            this.validateStepOptions(this.opts.stepOptions);
         }
     }
 
@@ -130,7 +131,7 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
                 type: "function",
                 function: {
                     name: tool.name,
-                    // description: tool.description,
+                    description: tool.description,
                     parameters: zodToJsonSchema(tool.schema)
                 }
 
@@ -180,12 +181,25 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
         return stepOptions;
     }
 
+    validateStepOptions(stepOptions: StepOptions | undefined) {
+        if (!stepOptions)
+            return ;
+        const {maxStep} = stepOptions;
+        if (maxStep != undefined) {
+            if (maxStep <= 0)
+                throw new BadUsage(`field 'maxStep' of 'StepOptions' cannot be less or equal to 0. Received '${maxStep}'`)
+        }
+    }
+
     async step(params?: StepParams) {
         let overrideStepOptions: StepOptions | undefined = undefined;
         if (params) {
             const {by, ...rest} = params;
+            if (by != undefined && by <= 0)
+                throw new BadUsage(`field 'by' of 'StepParams' cannot be less or equal to 0. Received '${by}'`);
             overrideStepOptions = rest;
         }
+        this.validateStepOptions(overrideStepOptions);
         const stepOptions: StepOptions = this.handleOverrideStepOptions(overrideStepOptions);
         if (this.state.conversation.length != 0)
             await this.recursiveAgent(stepOptions, () => {
@@ -326,7 +340,8 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
                 }
                 await this.updateConversation((prev) => [...prev, message]);
             }
-            return await this.recursiveAgent(stepOptions, stop, iter + 1);
+            if (!stop())
+                return await this.recursiveAgent(stepOptions, stop, iter + 1);
         }
     }
 

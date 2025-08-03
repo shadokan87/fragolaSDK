@@ -5,11 +5,12 @@ import { todoStore } from "./todoList.store";
 import readline from "readline";
 import removeTodo from "./remove.tool";
 import completeTodo from "./complete.tool";
-import { createStore } from "../../fragola/agent";
+import { Agent, createStore, type StepOptions } from "../../fragola/agent";
 import { nanoid } from "nanoid";
 import { multipleToolCall } from "../../fragola/tests/multipleToolCall";
 import { onlyOneToolAnswered } from "../../fragola/tests/onlyOneToolAnswered";
 import { userStore } from "./user.store";
+import type OpenAI from "openai";
 
 async function main() {
 
@@ -25,6 +26,9 @@ async function main() {
     const todoListAgent = fragola.agent({
         name: "todo list assistant", instructions: "you are a todo list manager, you can add, remove or mark todos as completed. after each actions you should show the current list in markdown format with their completed states. when displaying the todos, use a simple list with checkbox, you may not use a table", tools: [addTodo, removeTodo, completeTodo],
         store: todoStore,
+        stepOptions: {
+            maxStep: 0
+        },
         // initialConversation: multipleToolCall,
         modelSettings: {
             model: 'us.anthropic.claude-3-5-haiku-20241022-v1:0' as any,
@@ -38,7 +42,7 @@ async function main() {
     //     console.log("final conv: ", state.conversation);
     // });
 
-    await todoListAgent.step({by: 2, maxStep: 10, unansweredToolBehaviour: "skip" });
+    // await todoListAgent.step({ by: 2, maxStep: 10, unansweredToolBehaviour: "skip" });
     // await todoListAgent.step();
 
     // todoListAgent.onBeforeConversationUpdate((state, getStore, getGlobalStore) => {
@@ -65,9 +69,9 @@ async function main() {
                 rl.close();
                 return;
             }
-            const { conversation } = await todoListAgent.userMessage({ content: input, step: { by: 1, maxStep: 5 } });
+            const { conversation } = await todoListAgent.userMessage({ content: input });
             // console.log(JSON.stringify(conversation.filter(c => c.role != "assistant"), null, 2));
-            // console.log("AI: ", conversation.at(-1)?.content);
+            console.log("AI: ", conversation.at(-1)?.content);
             promptUser();
         });
     };

@@ -18,3 +18,13 @@ export class MaxStepHitError extends FragolaError {
         }
     }
 }
+
+export class BadUsage extends FragolaError {
+    constructor(message: string) {
+        super(message);
+        this.name = "BadUsage";
+        if (Error.captureStackTrace) {
+            Error.captureStackTrace(this, BadUsage)
+        }
+    }
+}

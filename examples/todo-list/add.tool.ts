@@ -20,8 +20,7 @@ const addTodo = tool({
             store.update((prev) => {
                 return { todos: [...prev.todos, newTodo] }
             });
-            return store.value.todos
-            // return `Todo added, current list: ${JSON.stringify(store.value)}`;
+            return `Todo added, current list: ${JSON.stringify(store.value)}`;
         } else
             return "An error occured, failed to get todo list";
     }

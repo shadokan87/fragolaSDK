@@ -7,13 +7,14 @@ import { streamChunkToMessage } from "./utils"
 import { BadUsage, FragolaError, MaxStepHitError } from "./exceptions"
 import type z from "zod"
 import type { Prettify, StoreLike } from "./types"
-import { OpenAI } from "openai/index.js"
+import OpenAI from "openai/index.js"
 import type { AgentEventId, AgentDefaultEventId, AgentBeforeEventId, EventDefaultCallback, AgentAfterEventId } from "./event"
-import type { ConversationUpdateCallback, callbackMap as eventDefaultCallbackMap } from "./eventDefault";
+import type { CallAPI, CallAPIProcessChuck, ConversationUpdateCallback, callbackMap as eventDefaultCallbackMap, ProviderAPICallback } from "./eventDefault";
 import type { BeforeConversationUpdateCallback, callbackMap as eventBeforeCallbackMap } from "./eventBefore";
 import { nanoid } from "nanoid"
-import type { AfterConversationUpdateCallback, callbackMap as eventAfterCallbackMap } from "./eventAfter"
+import type { AfterConversationUpdateCallback, AfterStateUpdateCallback, callbackMap as eventAfterCallbackMap } from "./eventAfter"
 import type { ChatCompletionAssistantMessageParam } from "openai/resources"
+import chalk from "chalk"
 
 export const createStore = <T>(data: StoreLike<T>) => new Store(data);
 
@@ -33,10 +34,12 @@ export type StepOptions = Partial<{
     maxStep: number,
     /** Wether or not to reset agent state `stepCount` after each user messages. `true` is recommanded for conversational agents.*/
     resetStepCountAfterUserMessage: boolean,
-    /** Determines how to handle unanswered tool calls: `answer` to process them, `skip` to ignore (default: "answer"). */
-    unansweredToolBehaviour: "answer" | "skip",
-    /** The string to use when skipping a tool call (default: "(generation has been canceled, you may ignore this tool output)"). */
-    skipToolString: string
+
+    //TODO: unanswered tool behaviour fields
+    // /** Determines how to handle unanswered tool calls: `answer` to process them, `skip` to ignore (default: "answer"). */
+    // unansweredToolBehaviour: "answer" | "skip",
+    // /** The string to use when skipping a tool call (default: "(generation has been canceled, you may ignore this tool output)"). */
+    // skipToolString: string
 }>;
 
 /**
@@ -49,11 +52,11 @@ export type StepOptions = Partial<{
 export const defaultStepOptions: StepOptions = {
     maxStep: 10,
     resetStepCountAfterUserMessage: true,
-    unansweredToolBehaviour: "answer",
-    skipToolString: "(generation has been canceled, you may ignore this tool output)"
+    // unansweredToolBehaviour: "answer",
+    // skipToolString: "Info: this too execution has been canceled. Do not assume it has been processed and inform the user that you are aware of it."
 }
 
-export type AgentOpt<TStore extends StoreLike<any> = {}> = {
+export type AgentOpts<TStore extends StoreLike<any> = {}> = {
     store?: Store<TStore>,
     stepOptions?: StepOptions,
     name: string,
@@ -70,7 +73,7 @@ type StepBy = Partial<{
 
 type StepParams = StepBy & StepOptions;
 
-export type UserMessageQuery = Prettify<Omit<OpenAI.Chat.ChatCompletionUserMessageParam, "role">> & {step?: StepParams};
+export type UserMessageQuery = Prettify<Omit<OpenAI.Chat.ChatCompletionUserMessageParam, "role">> & { step?: StepParams };
 
 /**
  * Maps an event ID to its corresponding callback type based on the event category.
@@ -107,7 +110,7 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
     // Tmp values for applyEvents method
     private conversationTmp: AgentState["conversation"] | undefined = undefined;
 
-    constructor(private opts: AgentOpt<TStore>, private globalStore: Store<TGlobalStore> | undefined = undefined, openai: OpenAI, private state: AgentState = Agent.defaultAgentState) {
+    constructor(private opts: AgentOpts<TStore>, private globalStore: Store<TGlobalStore> | undefined = undefined, openai: OpenAI, private state: AgentState = Agent.defaultAgentState) {
         this.openai = openai;
         this.toolsToModelSettingsTools();
         if (opts.initialConversation != undefined)
@@ -117,12 +120,13 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
         else {
             this.opts["stepOptions"] = {
                 maxStep: opts.stepOptions.maxStep != undefined ? opts.stepOptions.maxStep : defaultStepOptions.maxStep,
-                unansweredToolBehaviour: opts.stepOptions.unansweredToolBehaviour || defaultStepOptions.unansweredToolBehaviour,
-                skipToolString: opts.stepOptions.skipToolString || defaultStepOptions.skipToolString
+                // unansweredToolBehaviour: opts.stepOptions.unansweredToolBehaviour || defaultStepOptions.unansweredToolBehaviour,
+                // skipToolString: opts.stepOptions.skipToolString || defaultStepOptions.skipToolString
             }
             this.validateStepOptions(this.opts.stepOptions);
         }
     }
+    getState() { return this.state };
 
     private toolsToModelSettingsTools() {
         const result: ChatCompletionCreateParamsBase["tools"] = [];
@@ -148,43 +152,44 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
         });
     }
 
-    private setIdle() { this.updateState(prev => ({ ...prev, status: "idle" })) }
-    private setGenerating() { this.updateState(prev => ({ ...prev, status: "generating" })) }
-    private setWaiting() { this.updateState(prev => ({ ...prev, status: "waiting" })) }
+    private async setIdle() { await this.updateState(prev => ({ ...prev, status: "idle" })) }
+    private async setGenerating() { await this.updateState(prev => ({ ...prev, status: "generating" })) }
+    private async setWaiting() { await this.updateState(prev => ({ ...prev, status: "waiting" })) }
 
 
-    private updateState(callback: (prev: typeof this.state) => typeof this.state) {
+    private async updateState(callback: (prev: typeof this.state) => typeof this.state) {
         this.state = callback(this.state);
+        await this.applyEvents("after:stateUpdate");
     }
 
     private async updateConversation(callback: (prev: AgentState["conversation"]) => AgentState["conversation"]) {
         await this.applyEvents("before:conversationUpdate");
         this.conversationTmp = callback(this.state.conversation);
         const newConversation = await this.applyEvents("conversationUpdate") || this.conversationTmp;
-        this.updateState((prev) => ({ ...prev, conversation: newConversation }));
+        await this.updateState((prev) => ({ ...prev, conversation: newConversation }));
         await this.applyEvents("after:conversationUpdate");
     }
 
-    private stepOptions() { return this.opts.stepOptions as Required<StepOptions>}
+    private stepOptions() { return this.opts.stepOptions as Required<StepOptions> }
 
-    private handleOverrideStepOptions(overrideStepOptions: StepOptions | undefined): StepOptions {
+    private handleOverrideStepOptions(overrideStepOptions: StepOptions | undefined): Required<StepOptions> {
         let stepOptions: StepOptions;
         if (!overrideStepOptions)
             stepOptions = this.stepOptions();
         else {
             stepOptions = {
                 maxStep: overrideStepOptions.maxStep || this.stepOptions().maxStep,
-                unansweredToolBehaviour: overrideStepOptions.unansweredToolBehaviour || this.stepOptions().unansweredToolBehaviour,
-                skipToolString: overrideStepOptions.skipToolString || this.stepOptions().skipToolString
+                // unansweredToolBehaviour: overrideStepOptions.unansweredToolBehaviour || this.stepOptions().unansweredToolBehaviour,
+                // skipToolString: overrideStepOptions.skipToolString || this.stepOptions().skipToolString
             }
         }
-        return stepOptions;
+        return stepOptions as Required<StepOptions>;
     }
 
-    validateStepOptions(stepOptions: StepOptions | undefined) {
+    private validateStepOptions(stepOptions: StepOptions | undefined) {
         if (!stepOptions)
-            return ;
-        const {maxStep} = stepOptions;
+            return;
+        const { maxStep } = stepOptions;
         if (maxStep != undefined) {
             if (maxStep <= 0)
                 throw new BadUsage(`field 'maxStep' of 'StepOptions' cannot be less or equal to 0. Received '${maxStep}'`)
@@ -194,19 +199,19 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
     async step(params?: StepParams) {
         let overrideStepOptions: StepOptions | undefined = undefined;
         if (params) {
-            const {by, ...rest} = params;
+            const { by, ...rest } = params;
             if (by != undefined && by <= 0)
                 throw new BadUsage(`field 'by' of 'StepParams' cannot be less or equal to 0. Received '${by}'`);
             overrideStepOptions = rest;
         }
         this.validateStepOptions(overrideStepOptions);
-        const stepOptions: StepOptions = this.handleOverrideStepOptions(overrideStepOptions);
+        const stepOptions: Required<StepOptions> = this.handleOverrideStepOptions(overrideStepOptions);
         if (this.state.conversation.length != 0)
             await this.recursiveAgent(stepOptions, () => {
                 if (params?.by != undefined)
                     return this.state.stepCount == (this.state.stepCount + params.by);
                 return false;
-        });
+            });
         return this.state;
     }
 
@@ -224,7 +229,7 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
         return undefined;
     }
 
-    private async recursiveAgent(stepOptions: StepOptions, stop: () => boolean,iter = 0): Promise<void> {
+    private async recursiveAgent(stepOptions: Required<StepOptions>, stop: () => boolean, iter = 0): Promise<void> {
         if (stepOptions.resetStepCountAfterUserMessage) {
             if (this.state.conversation.at(-1)?.role == "user")
                 this.state.stepCount = 0;
@@ -233,15 +238,9 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
             throw new MaxStepHitError(``);
 
         const abortController = new AbortController();
-        let requestBody: ChatCompletionCreateParamsBase = {
-            ...this.opts.modelSettings,
-            messages: [{ role: "system", content: this.opts.instructions }, ...this.state.conversation]
-        };
-        if (this.paramsTools?.length)
-            requestBody["tools"] = this.paramsTools;
 
         const lastMessage: OpenAI.ChatCompletionMessageParam | undefined = this.state.conversation.at(-1);
-        let aiMessage: OpenAI.Chat.ChatCompletionMessageParam;
+        let aiMessage: OpenAI.ChatCompletionAssistantMessageParam;
         let lastAiMessage: OpenAI.ChatCompletionAssistantMessageParam | undefined = undefined;
         let toolCalls: OpenAI.Chat.Completions.ChatCompletionMessageToolCall[] = [];
 
@@ -266,35 +265,70 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
         })();
 
         if (shouldGenerate) {
-            this.setGenerating();
-            const response = await this.openai.chat.completions.create(requestBody, { signal: abortController.signal });
+            const events = this.registeredEvents.get("providerAPI");
+            const defaultProcessChunck: CallAPIProcessChuck = (chunck) => chunck;
+            const defaultModelSettings: AgentOpts<any>["modelSettings"] = this.opts.modelSettings;
 
-            // Handle streaming vs non-streaming
-            if (Symbol.asyncIterator in response) {
-                let partialMessage: Partial<OpenAI.Chat.ChatCompletionMessageParam> = {};
-                let replaceLast = false;
+            const callAPI: CallAPI = async (processChunck, modelSettings, clientOpts) => {
+                const _processChunck = processChunck || defaultProcessChunck;
+                const _modelSettings = modelSettings || defaultModelSettings;
+                const openai = clientOpts ? new OpenAI(clientOpts) : this.openai;
 
-                for await (const chunk of response) {
-                    partialMessage = streamChunkToMessage(chunk, partialMessage);
-                    await this.appendMessages([partialMessage as OpenAI.Chat.ChatCompletionMessageParam], replaceLast);
-                    !replaceLast && (this.state.stepCount = this.state.stepCount + 1);
-                    replaceLast = true;
+                let requestBody: ChatCompletionCreateParamsBase = {
+                    ..._modelSettings,
+                    messages: [{ role: "system", content: this.opts.instructions }, ...this.state.conversation]
+                };
+                if (this.paramsTools?.length)
+                    requestBody["tools"] = this.paramsTools;
+
+                this.setGenerating();
+                const response = await openai.chat.completions.create(requestBody, { signal: abortController.signal });
+
+                // Handle streaming vs non-streaming
+                if (Symbol.asyncIterator in response) {
+                    let partialMessage: Partial<OpenAI.Chat.ChatCompletionMessageParam> = {};
+                    let replaceLast = false;
+
+                    for await (const chunck of response) {
+                        if (_processChunck.constructor.name == "AsyncFunction") {
+                            const _chunck = await _processChunck(chunck, partialMessage as typeof aiMessage);
+                            partialMessage = streamChunkToMessage(_chunck, partialMessage);
+                        } else {
+                            const _chunck = _processChunck(chunck, partialMessage as typeof aiMessage);
+                            partialMessage = streamChunkToMessage(_chunck as OpenAI.ChatCompletionChunk, partialMessage);
+                        }
+                        await this.appendMessages([partialMessage as OpenAI.Chat.ChatCompletionMessageParam], replaceLast);
+                        !replaceLast && (this.state.stepCount = this.state.stepCount + 1);
+                        replaceLast = true;
+                    }
+                    aiMessage = partialMessage as typeof aiMessage;
+                } else {
+                    aiMessage = response.choices[0].message as typeof aiMessage;
+                    await this.appendMessages([aiMessage]);
+                    this.state.stepCount = this.state.stepCount + 1;
                 }
-                aiMessage = partialMessage as OpenAI.Chat.ChatCompletionMessageParam;
-            } else {
-                aiMessage = response.choices[0].message as OpenAI.Chat.ChatCompletionMessageParam;
-                await this.appendMessages([aiMessage]);
-                this.state.stepCount = this.state.stepCount + 1;
+                if (aiMessage.role == "assistant" && aiMessage.tool_calls && aiMessage.tool_calls.length)
+                    toolCalls = aiMessage.tool_calls;
+                return aiMessage;
             }
-            if (aiMessage.role == "assistant" && aiMessage.tool_calls && aiMessage.tool_calls.length)
-                toolCalls = aiMessage.tool_calls;
+            if (events) {
+                for (const event of events) {
+                    let params: Parameters<ProviderAPICallback<TGlobalStore, TStore>> = [callAPI, this.state, () => this.opts.store, () => this.globalStore];
+                    const callback = event.callback as ProviderAPICallback<TGlobalStore, TStore>;
+                    if (callback.constructor.name == "AsyncFunction")
+                        aiMessage = await callback(...params);
+                    else
+                        aiMessage = callback(...params) as ChatCompletionAssistantMessageParam;
+                }
+            } else
+                await callAPI();
         } else if (lastMessage?.role == "assistant" && lastMessage.tool_calls && lastMessage.tool_calls.length) { // Last message is 'assistant' role without generation required, assign tool calls if any
             toolCalls = lastMessage.tool_calls;
         }
 
         // Handle tool calls if present
         if (toolCalls.length > 0) {
-            this.setWaiting();
+            await this.setWaiting();
             for (const toolCall of toolCalls) {
                 // Find tool in options that matches the tool requested by last ai message
                 const tool = this.opts.tools?.find(tool => tool.name == toolCall.function.name);
@@ -340,13 +374,15 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
                 }
                 await this.updateConversation((prev) => [...prev, message]);
             }
+            await this.setIdle();
             if (!stop())
                 return await this.recursiveAgent(stepOptions, stop, iter + 1);
         }
+        await this.setIdle();
     }
 
     async userMessage(query: UserMessageQuery): Promise<AgentState> {
-        const {step, ...message} = query;
+        const { step, ...message } = query;
         await this.updateConversation((prev) => [...prev, { role: "user", ...message }]);
         return await this.step(query.step);
     }
@@ -359,6 +395,7 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
             const callback = events[i].callback;
             const defaultParams: Parameters<EventDefaultCallback<TGlobalStore, TStore>> = [this.state, () => this.opts.store, () => this.globalStore];
             switch (eventId) {
+                case "after:stateUpdate":
                 case "after:conversationUpdate":
                 case "before:conversationUpdate": {
                     let params: Parameters<EventDefaultCallback<TGlobalStore, TStore>> = defaultParams;
@@ -456,7 +493,7 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
      * @returns the updated conversation messages (array or Promise).
      *
      * @example
-     * agent.onConversationUpdate((newConversation, state, getStore, getGlobalStore) => {
+     * agent.onConversationUpdate((newConversation) => {
      *   // Modify the last message before returning
      *   if (newConversation.length > 0) {
      *     newConversation[newConversation.length - 1].content += " (modified)";
@@ -465,4 +502,8 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
      * });
      */
     onConversationUpdate(callback: ConversationUpdateCallback<TGlobalStore, TStore>) { return this.on("conversationUpdate", callback) }
+
+    onProviderAPI(callback: ProviderAPICallback<TGlobalStore, TStore>) { return this.on("providerAPI", callback) }
+
+    onAfterStateUpdate(callback: AfterStateUpdateCallback<TGlobalStore, TStore>) { return this.on("after:stateUpdate", callback) }
 }

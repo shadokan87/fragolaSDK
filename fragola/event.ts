@@ -4,7 +4,7 @@ import type { Store } from "./store";
 import type { StoreLike, maybePromise } from "./types";
 
 export type AgentDefaultEventId =
-  "conversationUpdate" | "apiCall" | "stateChange";
+  "conversationUpdate" | "apiCall" | "stateUpdate" | "providerAPI"; //| "toolCall";
 
 
 export type AgentBeforeEventId = `before:${AgentDefaultEventId}`;

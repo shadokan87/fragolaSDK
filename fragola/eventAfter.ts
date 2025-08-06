@@ -9,8 +9,11 @@ import type { AgentAfterEventId, EventDefaultCallback } from "./event";
  */
 export type AfterConversationUpdateCallback<TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = EventDefaultCallback<TGlobalStore, TStore>;
 
+export type AfterStateUpdateCallback<TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = EventDefaultCallback<TGlobalStore, TStore>;
+
 export type callbackMap<TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = {
     [K in AgentAfterEventId]:
         K extends "after:conversationUpdate" ? AfterConversationUpdateCallback<TGlobalStore, TStore> :
+        K extends "after:stateUpdate" ? AfterStateUpdateCallback<TGlobalStore, TStore> :
         never;
 };

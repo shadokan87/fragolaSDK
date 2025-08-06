@@ -14,6 +14,7 @@ import type OpenAI from "openai";
 import type { CallAPIProcessChuck } from "../../fragola/eventDefault";
 import { collapseTextChangeRangesAcrossMultipleVersions } from "typescript";
 import type { ChatCompletionAssistantMessageParam } from "openai/resources";
+import { createStateUtils } from "../../fragola/stateUtils";
 
 async function main() {
     // CLI Buffer and Display Management
@@ -25,25 +26,16 @@ async function main() {
 
     const drawInterface = (state: AgentState) => {
         clearScreen();
-        
+        const utils = createStateUtils(state);
         // Display conversation history
         state.conversation.forEach((msg, i) => {
             if (msg.role === 'user') {
                 console.log('You:', msg.content);
             }
             else if (msg.role == "tool") {
-                // Find the assistant message that made this tool call
-                const assistantMessage = state.conversation.find(value => 
-                    value.role == "assistant" && 
-                    value.tool_calls?.some(tool => tool.id == msg.tool_call_id)
-                ) as ChatCompletionAssistantMessageParam;
-                
-                if (assistantMessage) {
-                    // Find the specific tool call
-                    const toolCall = assistantMessage.tool_calls?.find(tool => tool.id === msg.tool_call_id);
-                    if (toolCall) {
-                        console.log(`✅ Used '${toolCall.function.name}' with args: ${toolCall.function.arguments}`);
-                    }
+                const toolCallOrigin = utils.toolCallOrigin(msg);
+                if (toolCallOrigin) {
+                    console.log(`✅ Used '${toolCallOrigin.function.name}' with args: ${toolCallOrigin.function.arguments}`);
                 }
             }
             else if (msg.role === "assistant") {
@@ -62,76 +54,75 @@ async function main() {
         });
     }
 
-const fragola = new Fragola({
-    apiKey: 'xxx',
-    baseURL: PORTKEY_GATEWAY_URL,
-    defaultHeaders: createHeaders({
-        virtualKey: process.env["BEDROCK_DEV"],
-        apiKey: process.env["PORTKEY_API_KEY"]
-    })
-}, userStore);
+    const fragola = new Fragola({
+        apiKey: 'xxx',
+        baseURL: PORTKEY_GATEWAY_URL,
+        defaultHeaders: createHeaders({
+            virtualKey: process.env["BEDROCK_DEV"],
+            apiKey: process.env["PORTKEY_API_KEY"]
+        })
+    }, userStore);
 
-const todoListAgent = fragola.agent({
-    name: "todo list assistant", instructions: "you are a todo list manager, you can add, remove or mark todos as completed. after each actions you should show the current list in markdown format with their completed states. when displaying the todos, use a simple list with checkbox, you may not use a table", tools: [addTodo, removeTodo, completeTodo],
-    store: todoStore,
-    stepOptions: {
-        maxStep: 10
-    },
-    modelSettings: {
-        model: 'us.anthropic.claude-3-5-haiku-20241022-v1:0' as any,
-        temperature: 1,
-        stream: true,
-        tool_choice: "auto",
-    }
-});
+    const todoListAgent = fragola.agent({
+        name: "todo list assistant", instructions: "you are a todo list manager, you can add, remove or mark todos as completed. after each actions you should show the current list in markdown format with their completed states. when displaying the todos, use a simple list with checkbox, you may not use a table", tools: [addTodo, removeTodo, completeTodo],
+        store: todoStore,
+        stepOptions: {
+            maxStep: 10
+        },
+        modelSettings: {
+            model: 'us.anthropic.claude-3-5-haiku-20241022-v1:0' as any,
+            temperature: 1,
+            stream: true,
+            tool_choice: "auto",
+        }
+    });
 
-todoListAgent.onAfterStateUpdate((state) => {
-    drawInterface(state);
-});
+    todoListAgent.onAfterStateUpdate((state) => {
+        drawInterface(state);
+    });
 
-todoListAgent.onProviderAPI(async (callAPI, state) => {
-    const processChunck: CallAPIProcessChuck = async (chunck, partialMessage) => {
-        await new Promise(resolve => setTimeout(resolve, 300));
-        return chunck;
+    todoListAgent.onProviderAPI(async (callAPI, state) => {
+        const processChunck: CallAPIProcessChuck = async (chunck) => {
+            return chunck;
+        };
+
+        const aiMessage = await callAPI(processChunck);
+        return aiMessage;
+    });
+
+    const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout
+    });
+
+    // Initial screen draw
+    drawInterface(todoListAgent.getState());
+
+    const promptUser = () => {
+        rl.question("You: ", async (input) => {
+            if (input.trim().toLowerCase() === "exit") {
+                clearScreen();
+                console.log('Goodbye!');
+                rl.close();
+                return;
+            }
+            const { conversation } = await todoListAgent.userMessage({ content: input });
+
+            setTimeout(() => {
+                promptUser();
+            }, 100); // Small delay to let user read the response
+        });
     };
 
-    const aiMessage = await callAPI(processChunck);
-    return aiMessage;
-});
+    promptUser();
 
-const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout
-});
-
-// Initial screen draw
-drawInterface(todoListAgent.getState());
-
-const promptUser = () => {
-    rl.question("You: ", async (input) => {
-        if (input.trim().toLowerCase() === "exit") {
-            clearScreen();
-            console.log('Goodbye!');
-            rl.close();
-            return;
-        }
-        const { conversation } = await todoListAgent.userMessage({ content: input });
-
-        setTimeout(() => {
-            promptUser();
-        }, 100); // Small delay to let user read the response
+    // Handle process termination gracefully
+    process.on('SIGINT', () => {
+        clearScreen();
+        console.log('Goodbye!');
+        rl.close();
+        process.exit(0);
     });
-};
-
-promptUser();
-
-// Handle process termination gracefully
-process.on('SIGINT', () => {
-    clearScreen();
-    console.log('Goodbye!');
-    rl.close();
-    process.exit(0);
-});
 }
 
 main();

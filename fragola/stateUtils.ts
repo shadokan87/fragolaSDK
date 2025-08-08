@@ -37,7 +37,7 @@ export function createStateUtils(state: AgentState) {
          * const utils = createStateUtils(state);
          * // Assuming the message is the following
          * // { role: "tool", tool_call_id: "tool_123", content: "Result" };
-         * const toolCall = utils.toolCallOrigin(state.conversation.at(-1));
+         * const toolCall = utils.toolCallOrigin(state.conversation.at(-1).tool_calls[0]);
          * // toolCall will be { id: "tool_123", function: { name: "getWeather", arguments: "{}" } }
          */
         toolCallOrigin: (message: OpenAI.ChatCompletionToolMessageParam) => {

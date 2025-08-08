@@ -1,5 +1,5 @@
 import z from "zod";
-import { Agent, type AgentOpts } from "./agent";
+import { Agent, type CreateAgentOptions } from "./agent";
 import type { maybePromise, StoreLike } from "./types";
 import type { ClientOptions } from "openai/index.js";
 import OpenAI from "openai/index.js";
@@ -23,7 +23,7 @@ export class Fragola<TGlobalStore = {}> {
         this.openai = clientOptions ? new OpenAI(clientOptions) : new OpenAI();
     }
 
-    agent<TStore = {}>(opts: AgentOpts<TStore>): Agent<TGlobalStore, TStore> {
+    agent<TStore = {}>(opts: CreateAgentOptions<TStore>): Agent<TGlobalStore, TStore> {
         return new Agent<TGlobalStore, TStore>(opts, this.globalStore, this.openai);
     }
 }

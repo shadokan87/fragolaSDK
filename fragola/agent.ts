@@ -1,5 +1,5 @@
 import { Store } from "./store"
-import type { Tool } from "./fragola"
+import type { GetStore, Tool } from "./fragola"
 import type { ChatCompletionCreateParamsBase } from "openai/resources/chat/completions.js"
 import { type ClientOptions } from "openai"
 import { zodToJsonSchema } from "openai/_vendor/zod-to-json-schema/zodToJsonSchema.mjs"
@@ -56,14 +56,27 @@ export const defaultStepOptions: StepOptions = {
     // skipToolString: "Info: this too execution has been canceled. Do not assume it has been processed and inform the user that you are aware of it."
 }
 
-export type AgentOpts<TStore extends StoreLike<any> = {}> = {
-    store?: Store<TStore>,
+interface agentContexOptions {
     stepOptions?: StepOptions,
     name: string,
     instructions: string,
     tools?: Tool<any>[],
     initialConversation?: OpenAI.ChatCompletionMessageParam[],
     modelSettings: Prettify<Omit<ChatCompletionCreateParamsBase, "messages" | "tools">>
+}
+
+type SetOptionsParams = Omit<agentContexOptions, "name">;
+
+export type CreateAgentOptions<TStore extends StoreLike<any> = {}> = {
+    store?: Store<TStore>
+} & agentContexOptions;
+
+type AgentContext = {
+    state: AgentState,
+    options: agentContexOptions,
+    getStore: GetStore,
+    getGlobalStore: GetStore,
+    setOptions: (options: SetOptionsParams) => void,
 }
 
 type StepBy = Partial<{
@@ -110,7 +123,7 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
     // Tmp values for applyEvents method
     private conversationTmp: AgentState["conversation"] | undefined = undefined;
 
-    constructor(private opts: AgentOpts<TStore>, private globalStore: Store<TGlobalStore> | undefined = undefined, openai: OpenAI, private state: AgentState = Agent.defaultAgentState) {
+    constructor(private opts: CreateAgentOptions<TStore>, private globalStore: Store<TGlobalStore> | undefined = undefined, openai: OpenAI, private state: AgentState = Agent.defaultAgentState) {
         this.openai = openai;
         this.toolsToModelSettingsTools();
         if (opts.initialConversation != undefined)
@@ -267,7 +280,7 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
         if (shouldGenerate) {
             const events = this.registeredEvents.get("providerAPI");
             const defaultProcessChunck: CallAPIProcessChuck = (chunck) => chunck;
-            const defaultModelSettings: AgentOpts<any>["modelSettings"] = this.opts.modelSettings;
+            const defaultModelSettings: CreateAgentOptions<any>["modelSettings"] = this.opts.modelSettings;
 
             const callAPI: CallAPI = async (processChunck, modelSettings, clientOpts) => {
                 const _processChunck = processChunck || defaultProcessChunck;

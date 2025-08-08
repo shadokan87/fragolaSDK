@@ -1,5 +1,5 @@
 import type OpenAI from "openai/index.js";
-import type { AgentOpts, AgentState } from "./agent";
+import type { CreateAgentOptions, AgentState } from "./agent";
 import type { maybePromise, StoreLike } from "./types";
 import type { AgentDefaultEventId } from "./event";
 import type { Store } from "./store";
@@ -20,7 +20,7 @@ export type ConversationUpdateCallback<TGlobalStore extends StoreLike<any>, TSto
 ) => maybePromise<OpenAI.ChatCompletionMessageParam[]>;
 
 export type CallAPIProcessChuck = (chunck: OpenAI.ChatCompletionChunk, partialMessage: OpenAI.ChatCompletionAssistantMessageParam) => maybePromise<OpenAI.ChatCompletionChunk>;
-export type CallAPI = (processChunck?: CallAPIProcessChuck, modelSettings?: AgentOpts["modelSettings"], clientOptions?: ClientOptions) => Promise<OpenAI.ChatCompletionAssistantMessageParam>
+export type CallAPI = (processChunck?: CallAPIProcessChuck, modelSettings?: CreateAgentOptions["modelSettings"], clientOptions?: ClientOptions) => Promise<OpenAI.ChatCompletionAssistantMessageParam>
 
 export type ProviderAPICallback<TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = (
     callAPI: CallAPI,

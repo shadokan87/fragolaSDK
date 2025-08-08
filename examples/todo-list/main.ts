@@ -26,6 +26,7 @@ async function main() {
 
     const drawInterface = (state: AgentState) => {
         clearScreen();
+        const test = () => {};
         const utils = createStateUtils(state);
         // Display conversation history
         state.conversation.forEach((msg, i) => {
@@ -106,7 +107,7 @@ async function main() {
                 rl.close();
                 return;
             }
-            const { conversation } = await todoListAgent.userMessage({ content: input });
+            void await todoListAgent.userMessage({ content: input });
 
             setTimeout(() => {
                 promptUser();

@@ -9,7 +9,7 @@ const removeTodo = tool({
     schema: z.object({
         id: z.string().describe("the id of the todo")
     }),
-    handler: async (params, getStore) => {
+    handler: async (params, {getStore}) => {
         const store = getStore<todoStoreType>();
         if (store) {
             const prevLen = store.value.todos.length;

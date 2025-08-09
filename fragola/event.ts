@@ -4,7 +4,7 @@ import type { Store } from "./store";
 import type { StoreLike, maybePromise } from "./types";
 
 export type AgentDefaultEventId =
-  "conversationUpdate" | "apiCall" | "stateUpdate" | "providerAPI"; //| "toolCall";
+  "conversationUpdate" | "apiCall" | "stateUpdate" | "modelInvocation"; //| "toolCall";
 
 
 export type AgentBeforeEventId = `before:${AgentDefaultEventId}`;
@@ -13,6 +13,6 @@ export type AgentAfterEventId = `after:${AgentDefaultEventId}`;
 
 export type AgentEventId = AgentDefaultEventId | AgentBeforeEventId | AgentAfterEventId;
 
-export type EventDefaultCallback = (
-      context: AgentContext
+export type EventDefaultCallback<TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = (
+      context: AgentContext<TGlobalStore, TStore>
 ) => maybePromise<void>;

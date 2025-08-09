@@ -1,7 +1,6 @@
 import { Store } from "./store"
-import type { GetStore, Tool } from "./fragola"
+import type { Tool } from "./fragola"
 import type { ChatCompletionCreateParamsBase } from "openai/resources/chat/completions.js"
-import { type ClientOptions } from "openai"
 import { zodToJsonSchema } from "openai/_vendor/zod-to-json-schema/zodToJsonSchema.mjs"
 import { streamChunkToMessage } from "./utils"
 import { BadUsage, FragolaError, MaxStepHitError } from "./exceptions"
@@ -9,14 +8,13 @@ import type z from "zod"
 import type { Prettify, StoreLike } from "./types"
 import OpenAI from "openai/index.js"
 import type { AgentEventId, AgentDefaultEventId, AgentBeforeEventId, EventDefaultCallback, AgentAfterEventId } from "./event"
-import type { CallAPI, CallAPIProcessChuck, ConversationUpdateCallback, callbackMap as eventDefaultCallbackMap, ProviderAPICallback } from "./eventDefault";
+import type { CallAPI, CallAPIProcessChuck, ConversationUpdateCallback, callbackMap as eventDefaultCallbackMap, ModelInvocation } from "./eventDefault";
 import type { BeforeConversationUpdateCallback, callbackMap as eventBeforeCallbackMap } from "./eventBefore";
 import { nanoid } from "nanoid"
 import type { AfterConversationUpdateCallback, AfterStateUpdateCallback, callbackMap as eventAfterCallbackMap } from "./eventAfter"
 import type { ChatCompletionAssistantMessageParam } from "openai/resources"
-import chalk from "chalk"
 
-export const createStore = <T>(data: StoreLike<T>) => new Store(data);
+export const createStore = <T extends StoreLike<any>>(data: StoreLike<T>) => new Store(data);
 
 export type AgentState = {
     conversation: OpenAI.ChatCompletionMessageParam[],
@@ -73,7 +71,7 @@ interface AgentContexOptions {
     /** Optional initial conversation history for the agent. */
     initialConversation?: OpenAI.ChatCompletionMessageParam[],
     /** Model-specific settings excluding messages and tools. */
-    modelSettings: Prettify<Omit<ChatCompletionCreateParamsBase, "messages" | "tools">>
+    modelSettings: Prettify<Omit<ChatCompletionCreateParamsBase, "messages" | "tools">>,
 } //TODO: better comment for stepOptions with explaination for each fields
 
 type SetOptionsParams = Omit<AgentContexOptions, "name">;
@@ -91,9 +89,9 @@ export type AgentContext<TStore extends StoreLike<any> = {}, TGlobalStore extend
     /** The configuration options for the agent context. */
     options: AgentContexOptions,
     /** Function to retrieve the agent's local store. */
-    getStore: () => Store<TStore>,
+    getStore: <TS extends StoreLike<any> = TStore>() => Store<TS> | undefined,
     /** Function to retrieve the global store shared across agents of the same Fragola instance. */
-    getGlobalStore: () => Store<TGlobalStore>,
+    getGlobalStore: <TGS extends StoreLike<any> = TGlobalStore>() => Store<TGS> | undefined,
     /**
      * Sets the current instructions for the agent.
      * @param instructions - The new instructions as a string.
@@ -270,12 +268,12 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
         return undefined;
     }
 
-    createAgentContext(): AgentContext {
+    createAgentContext<TGS extends StoreLike<any> = TGlobalStore, TS extends StoreLike<any> = TStore>(): AgentContext<TS, TGS> {
         return {
             state: this.state,
             options: this.opts,
-            getStore: () => this.opts.store as any,
-            getGlobalStore: () => this.globalStore as any,
+            getStore: <TS>() => this.opts.store as Store<TS> | undefined,
+            getGlobalStore: <TGS>() => this.globalStore as Store<TGS> | undefined,
             setInstructions: (instructions) => {
                 this.opts["instructions"] = instructions;
             },
@@ -321,7 +319,7 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
         })();
 
         if (shouldGenerate) {
-            const events = this.registeredEvents.get("providerAPI");
+            const events = this.registeredEvents.get("modelInvocation");
             const defaultProcessChunck: CallAPIProcessChuck = (chunck) => chunck;
             const defaultModelSettings: CreateAgentOptions<any>["modelSettings"] = this.opts.modelSettings;
 
@@ -369,8 +367,8 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
             }
             if (events) {
                 for (const event of events) {
-                    let params: Parameters<ProviderAPICallback<TGlobalStore, TStore>> = [callAPI, this.createAgentContext()];
-                    const callback = event.callback as ProviderAPICallback<TGlobalStore, TStore>;
+                    let params: Parameters<ModelInvocation<TGlobalStore, TStore>> = [callAPI, this.createAgentContext()];
+                    const callback = event.callback as ModelInvocation<TGlobalStore, TStore>;
                     if (callback.constructor.name == "AsyncFunction")
                         aiMessage = await callback(...params);
                     else
@@ -406,9 +404,10 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
                     return tool.handler;
                 })();
                 const isAsync = handler.constructor.name === "AsyncFunction";
+                const context = this.createAgentContext();
                 const content = isAsync
-                    ? await handler(paramsParsed?.data, () => this.opts.store as any, () => this.globalStore as any)
-                    : handler(paramsParsed?.data, () => this.opts.store as any, () => this.globalStore as any);
+                    ? await handler(paramsParsed?.data, context)
+                    : handler(paramsParsed?.data, context);
 
                 // add tool message to conversation
                 const contentString: string = (() => {
@@ -559,7 +558,7 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
      */
     onConversationUpdate(callback: ConversationUpdateCallback<TGlobalStore, TStore>) { return this.on("conversationUpdate", callback) }
 
-    onProviderAPI(callback: ProviderAPICallback<TGlobalStore, TStore>) { return this.on("providerAPI", callback) }
+    onModelInvocation(callback: ModelInvocation<TGlobalStore, TStore>) { return this.on("modelInvocation", callback) }
 
     onAfterStateUpdate(callback: AfterStateUpdateCallback<TGlobalStore, TStore>) { return this.on("after:stateUpdate", callback) }
 }

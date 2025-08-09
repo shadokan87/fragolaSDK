@@ -9,7 +9,7 @@ const completeTodo = tool({
     schema: z.object({
         id: z.string().describe("the id of the todo")
     }),
-    handler: async (params, getStore) => {
+    handler: async (params, {getStore}) => {
         const store = getStore<todoStoreType>();
         if (store) {
             let todos = structuredClone(store.value.todos);

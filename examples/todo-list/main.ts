@@ -17,9 +17,6 @@ import type { ChatCompletionAssistantMessageParam } from "openai/resources";
 import { createStateUtils } from "../../fragola/stateUtils";
 
 async function main() {
-    // CLI Buffer and Display Management
-    let isStreaming = false;
-
     const clearScreen = () => {
         console.clear();
     };
@@ -78,11 +75,11 @@ async function main() {
         }
     });
 
-    todoListAgent.onAfterStateUpdate((state) => {
+    todoListAgent.onAfterStateUpdate(({state}) => {
         drawInterface(state);
     });
 
-    todoListAgent.onProviderAPI(async (callAPI, state) => {
+    todoListAgent.onModelInvocation(async (callAPI, context) => {
         const processChunck: CallAPIProcessChuck = async (chunck) => {
             return chunck;
         };

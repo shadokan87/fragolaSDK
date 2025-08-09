@@ -8,9 +8,7 @@ import type { AgentBeforeEventId, EventDefaultCallback } from "./event";
  * @template TGlobalStore - The type of the global store.
  * @template TStore - The type of the local store.
  */
-export type BeforeConversationUpdateCallback<TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = (
-    context: AgentContext
-) => maybePromise<void>;
+export type BeforeConversationUpdateCallback<TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = EventDefaultCallback<TGlobalStore, TStore>;
 
 //@prettier-ignore
 export type callbackMap<TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = {

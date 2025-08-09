@@ -9,8 +9,8 @@ const addTodo = tool({
     schema: z.object({
         task: z.string()
     }),
-    handler: async (params, getStore) => {
-        const store = getStore<todoStoreType>();
+    handler: async (params, context) => {
+        const store = context.getStore<todoStoreType>();
         const newTodo: todo = {
             id: nanoid(),
             task: params.task,

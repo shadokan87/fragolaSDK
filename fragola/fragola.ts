@@ -1,5 +1,5 @@
 import z from "zod";
-import { Agent, type CreateAgentOptions } from "./agent";
+import { Agent, type AgentContext, type CreateAgentOptions } from "./agent";
 import type { maybePromise, StoreLike } from "./types";
 import type { ClientOptions } from "openai/index.js";
 import OpenAI from "openai/index.js";
@@ -11,7 +11,7 @@ export interface Tool<T extends z.ZodType<any, any>> {
     name: string,
     description: string,
     namespace?: string,
-    handler: ((parameters: z.infer<T>, getStore: GetStore, getGlobalStore: GetStore) => maybePromise<any>) | "dynamic",
+    handler: ((parameters: z.infer<T>, context: AgentContext) => maybePromise<any>) | "dynamic",
     schema: T
 }
 

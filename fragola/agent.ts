@@ -56,26 +56,54 @@ export const defaultStepOptions: StepOptions = {
     // skipToolString: "Info: this too execution has been canceled. Do not assume it has been processed and inform the user that you are aware of it."
 }
 
-interface agentContexOptions {
+/**
+ * Options for configuring the agent context.
+ */
+interface AgentContexOptions {
+    /** Optional settings for each step in the agent's process. */
     stepOptions?: StepOptions,
+    /** The name assigned to the agent. */
     name: string,
+    /** Whether to use the developer role for the agent (optional). */
+    useDeveloperRole?: boolean,
+    /** Instructions or guidelines for the agent's behavior. */
     instructions: string,
+    /** Optional array of tools available to the agent. */
     tools?: Tool<any>[],
+    /** Optional initial conversation history for the agent. */
     initialConversation?: OpenAI.ChatCompletionMessageParam[],
+    /** Model-specific settings excluding messages and tools. */
     modelSettings: Prettify<Omit<ChatCompletionCreateParamsBase, "messages" | "tools">>
-}
+} //TODO: better comment for stepOptions with explaination for each fields
 
-type SetOptionsParams = Omit<agentContexOptions, "name">;
+type SetOptionsParams = Omit<AgentContexOptions, "name">;
 
 export type CreateAgentOptions<TStore extends StoreLike<any> = {}> = {
     store?: Store<TStore>
-} & agentContexOptions;
+} & Prettify<AgentContexOptions>;
 
-type AgentContext = {
+/**
+ * Context of the agent which triggered the event or tool.
+ */
+export type AgentContext<TStore extends StoreLike<any> = {}, TGlobalStore extends StoreLike<any> = {}> = {
+    /** The current state of the agent. */
     state: AgentState,
-    options: agentContexOptions,
-    getStore: GetStore,
-    getGlobalStore: GetStore,
+    /** The configuration options for the agent context. */
+    options: AgentContexOptions,
+    /** Function to retrieve the agent's local store. */
+    getStore: () => Store<TStore>,
+    /** Function to retrieve the global store shared across agents of the same Fragola instance. */
+    getGlobalStore: () => Store<TGlobalStore>,
+    /**
+     * Sets the current instructions for the agent.
+     * @param instructions - The new instructions as a string.
+     */
+    setInstructions: (instructions: string) => void,
+    /**
+     * Updates the agent's options.
+     * **note**: the `name` property is ommited
+     * @param options - The new options to set, as a SetOptionsParams object.
+     */
     setOptions: (options: SetOptionsParams) => void,
 }
 
@@ -242,6 +270,21 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
         return undefined;
     }
 
+    createAgentContext(): AgentContext {
+        return {
+            state: this.state,
+            options: this.opts,
+            getStore: () => this.opts.store as any,
+            getGlobalStore: () => this.globalStore as any,
+            setInstructions: (instructions) => {
+                this.opts["instructions"] = instructions;
+            },
+            setOptions: (options) => {
+                this.opts = { ...options, name: this.opts.name, store: this.opts.store }
+            }
+        }
+    }
+
     private async recursiveAgent(stepOptions: Required<StepOptions>, stop: () => boolean, iter = 0): Promise<void> {
         if (stepOptions.resetStepCountAfterUserMessage) {
             if (this.state.conversation.at(-1)?.role == "user")
@@ -326,7 +369,7 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
             }
             if (events) {
                 for (const event of events) {
-                    let params: Parameters<ProviderAPICallback<TGlobalStore, TStore>> = [callAPI, this.state, () => this.opts.store, () => this.globalStore];
+                    let params: Parameters<ProviderAPICallback<TGlobalStore, TStore>> = [callAPI, this.createAgentContext()];
                     const callback = event.callback as ProviderAPICallback<TGlobalStore, TStore>;
                     if (callback.constructor.name == "AsyncFunction")
                         aiMessage = await callback(...params);
@@ -406,7 +449,7 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
             return undefined as ReturnType<eventIdToCallback<TEventId, TGlobalStore, TStore>>;
         for (let i = 0; i < events.length; i++) {
             const callback = events[i].callback;
-            const defaultParams: Parameters<EventDefaultCallback<TGlobalStore, TStore>> = [this.state, () => this.opts.store, () => this.globalStore];
+            const defaultParams: Parameters<EventDefaultCallback<TGlobalStore, TStore>> = [this.createAgentContext()];
             switch (eventId) {
                 case "after:stateUpdate":
                 case "after:conversationUpdate":

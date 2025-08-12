@@ -2,7 +2,7 @@ import { Store } from "./store"
 import type { Tool } from "./fragola"
 import type { ChatCompletionCreateParamsBase } from "openai/resources/chat/completions.js"
 import { zodToJsonSchema } from "openai/_vendor/zod-to-json-schema/zodToJsonSchema.mjs"
-import { streamChunkToMessage } from "./utils"
+import { streamChunkToMessage, isAsyncFunction } from "./utils"
 import { BadUsage, FragolaError, MaxStepHitError } from "./exceptions"
 import type z from "zod"
 import type { Prettify, StoreLike } from "./types"
@@ -11,7 +11,7 @@ import type { AgentEventId, AgentDefaultEventId, AgentBeforeEventId, EventDefaul
 import type { CallAPI, CallAPIProcessChuck, ConversationUpdateCallback, callbackMap as eventDefaultCallbackMap, ModelInvocation } from "./eventDefault";
 import type { BeforeConversationUpdateCallback, callbackMap as eventBeforeCallbackMap } from "./eventBefore";
 import { nanoid } from "nanoid"
-import type { AfterConversationUpdateCallback, AfterStateUpdateCallback, callbackMap as eventAfterCallbackMap } from "./eventAfter"
+import type { AfterConversationUpdateCallback, AfterStateUpdateCallback, conversationUpdateReason, callbackMap as eventAfterCallbackMap } from "./eventAfter"
 import type { ChatCompletionAssistantMessageParam } from "openai/resources"
 
 export const createStore = <T extends StoreLike<any>>(data: StoreLike<T>) => new Store(data);
@@ -136,6 +136,17 @@ type registeredEvent<TEventId extends AgentEventId, TGlobalStore extends StoreLi
     callback: eventIdToCallback<TEventId, TGlobalStore, TStore>
 }
 
+type ConversationUpdateParams = {
+    reason: conversationUpdateReason
+}
+
+type ApplyAfterConversationUpdateParams = ConversationUpdateParams;
+
+type applyEventParams<K extends AgentEventId> = 
+    K extends "after:conversationUpdate" ? ApplyAfterConversationUpdateParams :
+    K extends "conversationUpdate" ? ConversationUpdateParams :
+    never;
+
 export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> {
     public static defaultAgentState: AgentState = {
         conversation: [],
@@ -183,12 +194,12 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
         this.paramsTools = result;
     }
 
-    private async appendMessages(messages: OpenAI.ChatCompletionMessageParam[], replaceLast: boolean = false) {
+    private async appendMessages(messages: OpenAI.ChatCompletionMessageParam[], replaceLast: boolean = false, reason: conversationUpdateReason) {
         await this.updateConversation((prev) => {
             if (replaceLast)
                 return [...prev.slice(0, -1), ...messages];
             return [...prev, ...messages]
-        });
+        }, reason);
     }
 
     private async setIdle() { await this.updateState(prev => ({ ...prev, status: "idle" })) }
@@ -198,15 +209,15 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
 
     private async updateState(callback: (prev: typeof this.state) => typeof this.state) {
         this.state = callback(this.state);
-        await this.applyEvents("after:stateUpdate");
+        await this.applyEvents("after:stateUpdate", null);
     }
 
-    private async updateConversation(callback: (prev: AgentState["conversation"]) => AgentState["conversation"]) {
-        await this.applyEvents("before:conversationUpdate");
+    private async updateConversation(callback: (prev: AgentState["conversation"]) => AgentState["conversation"], reason: conversationUpdateReason) {
+        await this.applyEvents("before:conversationUpdate", null);
         this.conversationTmp = callback(this.state.conversation);
-        const newConversation = await this.applyEvents("conversationUpdate") || this.conversationTmp;
+        const newConversation = await this.applyEvents("conversationUpdate", {reason}) || this.conversationTmp;
         await this.updateState((prev) => ({ ...prev, conversation: newConversation }));
-        await this.applyEvents("after:conversationUpdate");
+        await this.applyEvents("after:conversationUpdate", {reason});
     }
 
     private stepOptions() { return this.opts.stepOptions as Required<StepOptions> }
@@ -235,20 +246,20 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
         }
     }
 
-    async step(params?: StepParams) {
+    async step(stepParams?: StepParams) {
         let overrideStepOptions: StepOptions | undefined = undefined;
-        if (params) {
-            const { by, ...rest } = params;
+        if (stepParams) {
+            const { by, ...rest } = stepParams;
             if (by != undefined && by <= 0)
-                throw new BadUsage(`field 'by' of 'StepParams' cannot be less or equal to 0. Received '${by}'`);
+                throw new BadUsage(`field 'by' of 'stepParams' cannot be less or equal to 0. Received '${by}'`);
             overrideStepOptions = rest;
         }
         this.validateStepOptions(overrideStepOptions);
         const stepOptions: Required<StepOptions> = this.handleOverrideStepOptions(overrideStepOptions);
         if (this.state.conversation.length != 0)
             await this.recursiveAgent(stepOptions, () => {
-                if (params?.by != undefined)
-                    return this.state.stepCount == (this.state.stepCount + params.by);
+                if (stepParams?.by != undefined)
+                    return this.state.stepCount == (this.state.stepCount + stepParams.by);
                 return false;
             });
         return this.state;
@@ -351,14 +362,15 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
                             const _chunck = _processChunck(chunck, partialMessage as typeof aiMessage);
                             partialMessage = streamChunkToMessage(_chunck as OpenAI.ChatCompletionChunk, partialMessage);
                         }
-                        await this.appendMessages([partialMessage as OpenAI.Chat.ChatCompletionMessageParam], replaceLast);
+                        const updateReason: conversationUpdateReason = !chunck.choices[0].finish_reason ? "partialAiMessage" : "AiMessage";
+                        await this.appendMessages([partialMessage as OpenAI.Chat.ChatCompletionMessageParam], replaceLast, updateReason);
                         !replaceLast && (this.state.stepCount = this.state.stepCount + 1);
                         replaceLast = true;
                     }
                     aiMessage = partialMessage as typeof aiMessage;
                 } else {
                     aiMessage = response.choices[0].message as typeof aiMessage;
-                    await this.appendMessages([aiMessage]);
+                    await this.appendMessages([aiMessage], false, "AiMessage");
                     this.state.stepCount = this.state.stepCount + 1;
                 }
                 if (aiMessage.role == "assistant" && aiMessage.tool_calls && aiMessage.tool_calls.length)
@@ -427,7 +439,7 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
                     content: contentString,
                     tool_call_id: toolCall.id
                 }
-                await this.updateConversation((prev) => [...prev, message]);
+                await this.updateConversation((prev) => [...prev, message], "toolCall");
             }
             await this.setIdle();
             if (!stop())
@@ -438,11 +450,11 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
 
     async userMessage(query: UserMessageQuery): Promise<AgentState> {
         const { step, ...message } = query;
-        await this.updateConversation((prev) => [...prev, { role: "user", ...message }]);
+        await this.updateConversation((prev) => [...prev, { role: "user", ...message }], "userMessage");
         return await this.step(query.step);
     }
 
-    private async applyEvents<TEventId extends AgentEventId>(eventId: TEventId): Promise<ReturnType<eventIdToCallback<TEventId, TGlobalStore, TStore>>> {
+    private async applyEvents<TEventId extends AgentEventId>(eventId: TEventId, _params: applyEventParams<TEventId> | null): Promise<ReturnType<eventIdToCallback<TEventId, TGlobalStore, TStore>>> {
         const events = this.registeredEvents.get(eventId);
         if (!events)
             return undefined as ReturnType<eventIdToCallback<TEventId, TGlobalStore, TStore>>;
@@ -451,18 +463,26 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
             const defaultParams: Parameters<EventDefaultCallback<TGlobalStore, TStore>> = [this.createAgentContext()];
             switch (eventId) {
                 case "after:stateUpdate":
-                case "after:conversationUpdate":
                 case "before:conversationUpdate": {
                     let params: Parameters<EventDefaultCallback<TGlobalStore, TStore>> = defaultParams;
-                    if (callback.constructor.name == "AsyncFunction") {
+                    if (isAsyncFunction(callback)) {
                         return await (callback as EventDefaultCallback<TGlobalStore, TStore>)(...params) as any;
                     } else {
                         return (callback as EventDefaultCallback<TGlobalStore, TStore>)(...params) as any;
                     }
                 }
+                case "after:conversationUpdate": {
+                    type callbackType = AfterConversationUpdateCallback<TGlobalStore, TStore>;
+                    let params: Parameters<callbackType> = [_params!.reason, ...defaultParams];
+                    if (isAsyncFunction(callback)) {
+                        return await (callback as callbackType)(...params) as any;
+                    } else {
+                        return (callback as callbackType)(...params) as any;
+                    }
+                }
                 case "conversationUpdate": {
-                    let params: Parameters<ConversationUpdateCallback<TGlobalStore, TStore>> = [this.conversationTmp || [], ...defaultParams];
-                    if (callback.constructor.name == "AsyncFunction") {
+                    let params: Parameters<ConversationUpdateCallback<TGlobalStore, TStore>> = [this.conversationTmp || [], _params!.reason, ...defaultParams];
+                    if (isAsyncFunction(callback)) {
                         return await (callback as ConversationUpdateCallback<TGlobalStore, TStore>)(...params) as any;
                     } else {
                         return (callback as ConversationUpdateCallback<TGlobalStore, TStore>)(...params) as any;

@@ -4,6 +4,7 @@ import type { maybePromise, StoreLike } from "./types";
 import type { AgentDefaultEventId } from "./event";
 import type { Store } from "./store";
 import type { ClientOptions } from "openai/index.js";
+import type { conversationUpdateReason } from "./eventAfter";
 
 
 /**
@@ -14,6 +15,7 @@ import type { ClientOptions } from "openai/index.js";
  */
 export type ConversationUpdateCallback<TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = (
     newConversation: OpenAI.ChatCompletionMessageParam[],
+    reason: conversationUpdateReason,
     context: AgentContext<TGlobalStore, TStore>
 ) => maybePromise<OpenAI.ChatCompletionMessageParam[]>;
 

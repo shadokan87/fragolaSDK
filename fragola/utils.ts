@@ -1,5 +1,9 @@
 import type OpenAI from "openai";
 
+export function isAsyncFunction(fn: Function): boolean {
+    return fn.constructor.name === 'AsyncFunction';
+}
+
 export const streamChunkToMessage = (chunk: OpenAI.Chat.Completions.ChatCompletionChunk,message: Partial<OpenAI.Chat.ChatCompletionMessageParam> = {} as Partial<OpenAI.Chat.ChatCompletionMessageParam>) => {
     let updatedMessage = structuredClone(message);
 

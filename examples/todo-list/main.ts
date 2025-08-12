@@ -22,34 +22,34 @@ async function main() {
     };
 
     const drawInterface = (state: AgentState) => {
-        clearScreen();
+        // clearScreen();
         const test = () => {};
         const utils = createStateUtils(state);
         // Display conversation history
-        state.conversation.forEach((msg, i) => {
-            if (msg.role === 'user') {
-                console.log('You:', msg.content);
-            }
-            else if (msg.role == "tool") {
-                const toolCallOrigin = utils.toolCallOrigin(msg);
-                if (toolCallOrigin) {
-                    console.log(`✅ Used '${toolCallOrigin.function.name}' with args: ${toolCallOrigin.function.arguments}`);
-                }
-            }
-            else if (msg.role === "assistant") {
-                if (i == state.conversation.length - 1 && ["generating", "waiting"].includes(state.status)) {
-                    console.log(`Assistant (working): `, msg.content);
-                    if (msg.tool_calls && msg.tool_calls.length) {
-                        msg.tool_calls.forEach(tool => {
-                            if (!state.conversation.some(msg => msg.role == "tool" && msg.tool_call_id == tool.id))
-                                console.log(`🔧 Using '${tool.function.name}' ...`);
-                        });
-                    }
-                }
-                else
-                    console.log("Assistant: ", msg.content);
-            }
-        });
+        // state.conversation.forEach((msg, i) => {
+        //     if (msg.role === 'user') {
+        //         console.log('You:', msg.content);
+        //     }
+        //     else if (msg.role == "tool") {
+        //         const toolCallOrigin = utils.toolCallOrigin(msg);
+        //         if (toolCallOrigin) {
+        //             console.log(`✅ Used '${toolCallOrigin.function.name}' with args: ${toolCallOrigin.function.arguments}`);
+        //         }
+        //     }
+        //     else if (msg.role === "assistant") {
+        //         if (i == state.conversation.length - 1 && ["generating", "waiting"].includes(state.status)) {
+        //             console.log(`Assistant (working): `, msg.content);
+        //             if (msg.tool_calls && msg.tool_calls.length) {
+        //                 msg.tool_calls.forEach(tool => {
+        //                     if (!state.conversation.some(msg => msg.role == "tool" && msg.tool_call_id == tool.id))
+        //                         console.log(`🔧 Using '${tool.function.name}' ...`);
+        //                 });
+        //             }
+        //         }
+        //         else
+        //             console.log("Assistant: ", msg.content);
+        //     }
+        // });
     }
 
     const fragola = new Fragola({
@@ -74,6 +74,12 @@ async function main() {
             tool_choice: "auto",
         }
     });
+
+    // todoListAgent.onAfterConversationUpdate((reason, {state}) => {
+    //     console.log(`reason: ${reason}, state: ${JSON.stringify(state.conversation.at(-1), null, 2)}`)
+    //     if (reason == "userMessage")
+    //         process.exit(1);
+    // });
 
     todoListAgent.onAfterStateUpdate(({state}) => {
         drawInterface(state);

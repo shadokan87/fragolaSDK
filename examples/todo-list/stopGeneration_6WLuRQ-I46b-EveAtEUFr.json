@@ -1,0 +1,10 @@
+{
+  "conversation": [
+    {
+      "role": "user",
+      "content": "add 3 random tasks"
+    }
+  ],
+  "stepCount": 0,
+  "status": "idle"
+}

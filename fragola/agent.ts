@@ -7,9 +7,8 @@ import { BadUsage, FragolaError, MaxStepHitError } from "./exceptions"
 import type z from "zod"
 import type { Prettify, StoreLike } from "./types"
 import OpenAI from "openai/index.js"
-import type { AgentEventId, AgentDefaultEventId, AgentBeforeEventId, EventDefaultCallback, AgentAfterEventId } from "./event"
-import type { CallAPI, CallAPIProcessChuck, ConversationUpdateCallback, callbackMap as eventDefaultCallbackMap, ModelInvocation } from "./eventDefault";
-import type { BeforeConversationUpdateCallback, callbackMap as eventBeforeCallbackMap } from "./eventBefore";
+import type { AgentEventId, AgentDefaultEventId, EventDefaultCallback, AgentAfterEventId } from "./event"
+import type { CallAPI, CallAPIProcessChuck, ConversationUpdateCallback, callbackMap as eventDefaultCallbackMap, ModelInvocationCallback } from "./eventDefault";
 import { nanoid } from "nanoid"
 import type { AfterConversationUpdateCallback, AfterStateUpdateCallback, conversationUpdateReason, callbackMap as eventAfterCallbackMap } from "./eventAfter"
 import type { ChatCompletionAssistantMessageParam } from "openai/resources"
@@ -35,9 +34,9 @@ export type StepOptions = Partial<{
 
     //TODO: unanswered tool behaviour fields
     // /** Determines how to handle unanswered tool calls: `answer` to process them, `skip` to ignore (default: "answer"). */
-    // unansweredToolBehaviour: "answer" | "skip",
+    unansweredToolBehaviour: "answer" | "skip",
     // /** The string to use when skipping a tool call (default: "(generation has been canceled, you may ignore this tool output)"). */
-    // skipToolString: string
+    skipToolString: string
 }>;
 
 /**
@@ -50,8 +49,8 @@ export type StepOptions = Partial<{
 export const defaultStepOptions: StepOptions = {
     maxStep: 10,
     resetStepCountAfterUserMessage: true,
-    // unansweredToolBehaviour: "answer",
-    // skipToolString: "Info: this too execution has been canceled. Do not assume it has been processed and inform the user that you are aware of it."
+    unansweredToolBehaviour: "answer",
+    skipToolString: "Info: this too execution has been canceled. Do not assume it has been processed and inform the user that you are aware of it."
 }
 
 /**
@@ -85,7 +84,7 @@ export type CreateAgentOptions<TStore extends StoreLike<any> = {}> = {
  */
 export type AgentContext<TStore extends StoreLike<any> = {}, TGlobalStore extends StoreLike<any> = {}> = {
     /** The current state of the agent. */
-    state: AgentState,
+    getState: () => AgentState,
     /** The configuration options for the agent context. */
     options: AgentContexOptions,
     /** Function to retrieve the agent's local store. */
@@ -103,6 +102,7 @@ export type AgentContext<TStore extends StoreLike<any> = {}, TGlobalStore extend
      * @param options - The new options to set, as a SetOptionsParams object.
      */
     setOptions: (options: SetOptionsParams) => void,
+    stop: () => Promise<void>,
 }
 
 type StepBy = Partial<{
@@ -118,7 +118,6 @@ export type UserMessageQuery = Prettify<Omit<OpenAI.Chat.ChatCompletionUserMessa
  * Maps an event ID to its corresponding callback type based on the event category.
  *
  * - For default event IDs (`AgentDefaultEventId`), returns the callback type from `eventDefaultCallbackMap`.
- * - For before event IDs (`AgentBeforeEventId`), returns the callback type from `eventBeforeCallbackMap` using the provided global and local store types.
  * - For other event IDs, resolves to `never`.
  *
  * @template TEventId - The type of the event ID.
@@ -127,7 +126,6 @@ export type UserMessageQuery = Prettify<Omit<OpenAI.Chat.ChatCompletionUserMessa
  */
 type eventIdToCallback<TEventId extends AgentEventId, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> =
     TEventId extends AgentDefaultEventId ? eventDefaultCallbackMap<TGlobalStore, TStore>[TEventId] :
-    TEventId extends AgentBeforeEventId ? eventBeforeCallbackMap<TGlobalStore, TStore>[TEventId] :
     TEventId extends AgentAfterEventId ? eventAfterCallbackMap<TGlobalStore, TStore>[TEventId] :
     never
 
@@ -142,7 +140,7 @@ type ConversationUpdateParams = {
 
 type ApplyAfterConversationUpdateParams = ConversationUpdateParams;
 
-type applyEventParams<K extends AgentEventId> = 
+type applyEventParams<K extends AgentEventId> =
     K extends "after:conversationUpdate" ? ApplyAfterConversationUpdateParams :
     K extends "conversationUpdate" ? ConversationUpdateParams :
     never;
@@ -159,6 +157,8 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
     private registeredEvents: Map<AgentEventId, registeredEvent<AgentEventId, TGlobalStore, TStore>[]> = new Map();
     // Tmp values for applyEvents method
     private conversationTmp: AgentState["conversation"] | undefined = undefined;
+    private abortController: AbortController | undefined = undefined;
+    private stopRequested: boolean = false;
 
     constructor(private opts: CreateAgentOptions<TStore>, private globalStore: Store<TGlobalStore> | undefined = undefined, openai: OpenAI, private state: AgentState = Agent.defaultAgentState) {
         this.openai = openai;
@@ -169,9 +169,8 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
             this.opts["stepOptions"] = defaultStepOptions;
         else {
             this.opts["stepOptions"] = {
-                maxStep: opts.stepOptions.maxStep != undefined ? opts.stepOptions.maxStep : defaultStepOptions.maxStep,
-                // unansweredToolBehaviour: opts.stepOptions.unansweredToolBehaviour || defaultStepOptions.unansweredToolBehaviour,
-                // skipToolString: opts.stepOptions.skipToolString || defaultStepOptions.skipToolString
+                ...defaultStepOptions,
+                ...opts.stepOptions
             }
             this.validateStepOptions(this.opts.stepOptions);
         }
@@ -213,36 +212,21 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
     }
 
     private async updateConversation(callback: (prev: AgentState["conversation"]) => AgentState["conversation"], reason: conversationUpdateReason) {
-        await this.applyEvents("before:conversationUpdate", null);
         this.conversationTmp = callback(this.state.conversation);
-        const newConversation = await this.applyEvents("conversationUpdate", {reason}) || this.conversationTmp;
+        const newConversation = await this.applyEvents("conversationUpdate", { reason }) || this.conversationTmp;
         await this.updateState((prev) => ({ ...prev, conversation: newConversation }));
-        await this.applyEvents("after:conversationUpdate", {reason});
+        await this.applyEvents("after:conversationUpdate", { reason });
     }
 
     private stepOptions() { return this.opts.stepOptions as Required<StepOptions> }
 
-    private handleOverrideStepOptions(overrideStepOptions: StepOptions | undefined): Required<StepOptions> {
-        let stepOptions: StepOptions;
-        if (!overrideStepOptions)
-            stepOptions = this.stepOptions();
-        else {
-            stepOptions = {
-                maxStep: overrideStepOptions.maxStep || this.stepOptions().maxStep,
-                // unansweredToolBehaviour: overrideStepOptions.unansweredToolBehaviour || this.stepOptions().unansweredToolBehaviour,
-                // skipToolString: overrideStepOptions.skipToolString || this.stepOptions().skipToolString
-            }
-        }
-        return stepOptions as Required<StepOptions>;
-    }
-
-    private validateStepOptions(stepOptions: StepOptions | undefined) {
+   private validateStepOptions(stepOptions: StepOptions | undefined) {
         if (!stepOptions)
             return;
         const { maxStep } = stepOptions;
         if (maxStep != undefined) {
             if (maxStep <= 0)
-                throw new BadUsage(`field 'maxStep' of 'StepOptions' cannot be less or equal to 0. Received '${maxStep}'`)
+                throw new BadUsage(`field 'maxStep' of 'StepOptions' cannot be less than or equal to 0. Received '${maxStep}'`)
         }
     }
 
@@ -251,22 +235,38 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
         if (stepParams) {
             const { by, ...rest } = stepParams;
             if (by != undefined && by <= 0)
-                throw new BadUsage(`field 'by' of 'stepParams' cannot be less or equal to 0. Received '${by}'`);
-            overrideStepOptions = rest;
+                throw new BadUsage(`field 'by' of 'stepParams' cannot be less than or equal to 0. Received '${by}'`);
+            if (!rest || Object.keys(rest).length != 0)
+                overrideStepOptions = rest;
         }
-        this.validateStepOptions(overrideStepOptions);
-        const stepOptions: Required<StepOptions> = this.handleOverrideStepOptions(overrideStepOptions);
+        if (overrideStepOptions)
+            this.validateStepOptions(overrideStepOptions);
+        const stepOptions: Required<StepOptions> = overrideStepOptions ? {...defaultStepOptions, ...overrideStepOptions} as Required<StepOptions> : this.stepOptions();
         if (this.state.conversation.length != 0)
             await this.recursiveAgent(stepOptions, () => {
                 if (stepParams?.by != undefined)
                     return this.state.stepCount == (this.state.stepCount + stepParams.by);
                 return false;
+            }).finally(() => {
+                this.abortController = undefined;
+                this.stopRequested = false;
             });
         return this.state;
     }
 
     resetStepCount() {
         this.state.stepCount = 0;
+    }
+
+    /**
+     * Stops the current agent execution.
+     * This will abort any ongoing API calls and prevent further tool execution.
+     */
+    async stop() {
+        this.stopRequested = true;
+        if (this.abortController) {
+            this.abortController.abort();
+        }
     }
 
     private lastAiMessage(conversation: OpenAI.ChatCompletionMessageParam[]): OpenAI.ChatCompletionAssistantMessageParam | undefined {
@@ -281,28 +281,43 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
 
     createAgentContext<TGS extends StoreLike<any> = TGlobalStore, TS extends StoreLike<any> = TStore>(): AgentContext<TS, TGS> {
         return {
-            state: this.state,
+            getState: () => this.state,
             options: this.opts,
             getStore: <TS>() => this.opts.store as Store<TS> | undefined,
             getGlobalStore: <TGS>() => this.globalStore as Store<TGS> | undefined,
             setInstructions: (instructions) => {
                 this.opts["instructions"] = instructions;
             },
+            stop: async () => await this.stop(),
             setOptions: (options) => {
                 this.opts = { ...options, name: this.opts.name, store: this.opts.store }
             }
         }
     }
 
+    private setStepCount(value: number) {
+        this.updateState((prev) => {
+            return {
+                ...prev,
+                stepCount: value
+            }
+        });
+    }
+
     private async recursiveAgent(stepOptions: Required<StepOptions>, stop: () => boolean, iter = 0): Promise<void> {
+        // Check if stop was requested
+        if (this.stopRequested) {
+            return;
+        }
+
         if (stepOptions.resetStepCountAfterUserMessage) {
             if (this.state.conversation.at(-1)?.role == "user")
-                this.state.stepCount = 0;
+                this.setStepCount(0);
         }
         if (this.state.stepCount == stepOptions.maxStep)
             throw new MaxStepHitError(``);
 
-        const abortController = new AbortController();
+        this.abortController = new AbortController();
 
         const lastMessage: OpenAI.ChatCompletionMessageParam | undefined = this.state.conversation.at(-1);
         let aiMessage: OpenAI.ChatCompletionAssistantMessageParam;
@@ -347,7 +362,7 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
                     requestBody["tools"] = this.paramsTools;
 
                 this.setGenerating();
-                const response = await openai.chat.completions.create(requestBody, { signal: abortController.signal });
+                const response = await openai.chat.completions.create(requestBody, { signal: this.abortController!.signal });
 
                 // Handle streaming vs non-streaming
                 if (Symbol.asyncIterator in response) {
@@ -364,14 +379,16 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
                         }
                         const updateReason: conversationUpdateReason = !chunck.choices[0].finish_reason ? "partialAiMessage" : "AiMessage";
                         await this.appendMessages([partialMessage as OpenAI.Chat.ChatCompletionMessageParam], replaceLast, updateReason);
-                        !replaceLast && (this.state.stepCount = this.state.stepCount + 1);
+                        !replaceLast && (this.setStepCount(this.state.stepCount + 1));
                         replaceLast = true;
                     }
+                    this.abortController = undefined;
                     aiMessage = partialMessage as typeof aiMessage;
                 } else {
+                    this.abortController = undefined;
                     aiMessage = response.choices[0].message as typeof aiMessage;
                     await this.appendMessages([aiMessage], false, "AiMessage");
-                    this.state.stepCount = this.state.stepCount + 1;
+                    this.setStepCount(this.state.stepCount + 1);
                 }
                 if (aiMessage.role == "assistant" && aiMessage.tool_calls && aiMessage.tool_calls.length)
                     toolCalls = aiMessage.tool_calls;
@@ -379,8 +396,8 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
             }
             if (events) {
                 for (const event of events) {
-                    let params: Parameters<ModelInvocation<TGlobalStore, TStore>> = [callAPI, this.createAgentContext()];
-                    const callback = event.callback as ModelInvocation<TGlobalStore, TStore>;
+                    let params: Parameters<ModelInvocationCallback<TGlobalStore, TStore>> = [callAPI, this.createAgentContext()];
+                    const callback = event.callback as ModelInvocationCallback<TGlobalStore, TStore>;
                     if (callback.constructor.name == "AsyncFunction")
                         aiMessage = await callback(...params);
                     else
@@ -396,6 +413,11 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
         if (toolCalls.length > 0) {
             await this.setWaiting();
             for (const toolCall of toolCalls) {
+                // Check if stop was requested before processing each tool
+                if (this.stopRequested) {
+                    break;
+                }
+
                 // Find tool in options that matches the tool requested by last ai message
                 const tool = this.opts.tools?.find(tool => tool.name == toolCall.function.name);
                 if (!tool)
@@ -462,8 +484,7 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
             const callback = events[i].callback;
             const defaultParams: Parameters<EventDefaultCallback<TGlobalStore, TStore>> = [this.createAgentContext()];
             switch (eventId) {
-                case "after:stateUpdate":
-                case "before:conversationUpdate": {
+                case "after:stateUpdate": {
                     let params: Parameters<EventDefaultCallback<TGlobalStore, TStore>> = defaultParams;
                     if (isAsyncFunction(callback)) {
                         return await (callback as EventDefaultCallback<TGlobalStore, TStore>)(...params) as any;
@@ -535,26 +556,6 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
         }
     }
 
-    /**
-     * Registers a callback to be invoked before the "conversationUpdate" event is processed.
-     * This allows inspection or modification of the agent state prior to updating the conversation.
-     * @typescript
-     * Is a default event, see {@link EventDefaultCallback} for callback signature details.
-     * 
-     * @param callback - The function to execute before the conversation update event.
-     *   Receives:
-     *     - state: The current agent state.
-     *     - getStore: A function returning the local store instance or undefined.
-     *     - getGlobalStore: A function returning the global store instance or undefined.
-     * @returns A function to unregister the event listener.
-     *
-     * @example
-     * agent.onBeforeConversationUpdate((state, getStore, getGlobalStore) => {
-     *     console.log("before conversation update: ", state.conversation.at(-1)?.content);
-     * });
-     */
-    onBeforeConversationUpdate(callback: BeforeConversationUpdateCallback<TGlobalStore, TStore>) { return this.on("before:conversationUpdate", callback); }
-
     onAfterConversationUpdate(callback: AfterConversationUpdateCallback<TGlobalStore, TStore>) { return this.on("after:conversationUpdate", callback) }
 
     /**
@@ -562,7 +563,7 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
      *
      * @param callback - Function that receives:
      *   - newConversation: The updated conversation messages.
-     *     - state: The current agent state.
+     *     - getState: Returns the current agent state.
      *     - getStore: A function returning the local store instance or undefined.
      *     - getGlobalStore: A function returning the global store instance or undefined.
      * @returns the updated conversation messages (array or Promise).
@@ -578,7 +579,7 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
      */
     onConversationUpdate(callback: ConversationUpdateCallback<TGlobalStore, TStore>) { return this.on("conversationUpdate", callback) }
 
-    onModelInvocation(callback: ModelInvocation<TGlobalStore, TStore>) { return this.on("modelInvocation", callback) }
+    onModelInvocation(callback: ModelInvocationCallback<TGlobalStore, TStore>) { return this.on("modelInvocation", callback) }
 
     onAfterStateUpdate(callback: AfterStateUpdateCallback<TGlobalStore, TStore>) { return this.on("after:stateUpdate", callback) }
 }

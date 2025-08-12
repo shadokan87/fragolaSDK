@@ -12,44 +12,48 @@ import { onlyOneToolAnswered } from "../../fragola/tests/onlyOneToolAnswered";
 import { userStore } from "./user.store";
 import type OpenAI from "openai";
 import type { CallAPIProcessChuck } from "../../fragola/eventDefault";
-import { collapseTextChangeRangesAcrossMultipleVersions } from "typescript";
 import type { ChatCompletionAssistantMessageParam } from "openai/resources";
 import { createStateUtils } from "../../fragola/stateUtils";
+import fs from "fs";
+import { join } from "path";
 
 async function main() {
     const clearScreen = () => {
         console.clear();
     };
 
+    const display = true;
     const drawInterface = (state: AgentState) => {
-        // clearScreen();
-        const test = () => {};
+        if (!display)
+            return;
+        clearScreen();
+        const test = () => { };
         const utils = createStateUtils(state);
         // Display conversation history
-        // state.conversation.forEach((msg, i) => {
-        //     if (msg.role === 'user') {
-        //         console.log('You:', msg.content);
-        //     }
-        //     else if (msg.role == "tool") {
-        //         const toolCallOrigin = utils.toolCallOrigin(msg);
-        //         if (toolCallOrigin) {
-        //             console.log(`✅ Used '${toolCallOrigin.function.name}' with args: ${toolCallOrigin.function.arguments}`);
-        //         }
-        //     }
-        //     else if (msg.role === "assistant") {
-        //         if (i == state.conversation.length - 1 && ["generating", "waiting"].includes(state.status)) {
-        //             console.log(`Assistant (working): `, msg.content);
-        //             if (msg.tool_calls && msg.tool_calls.length) {
-        //                 msg.tool_calls.forEach(tool => {
-        //                     if (!state.conversation.some(msg => msg.role == "tool" && msg.tool_call_id == tool.id))
-        //                         console.log(`🔧 Using '${tool.function.name}' ...`);
-        //                 });
-        //             }
-        //         }
-        //         else
-        //             console.log("Assistant: ", msg.content);
-        //     }
-        // });
+        state.conversation.forEach((msg, i) => {
+            if (msg.role === 'user') {
+                console.log('You:', msg.content);
+            }
+            else if (msg.role == "tool") {
+                const toolCallOrigin = utils.toolCallOrigin(msg);
+                if (toolCallOrigin) {
+                    console.log(`✅ Used '${toolCallOrigin.function.name}' with args: ${toolCallOrigin.function.arguments}`);
+                }
+            }
+            else if (msg.role === "assistant") {
+                if (i == state.conversation.length - 1 && ["generating", "waiting"].includes(state.status)) {
+                    console.log(`Assistant (working): `, msg.content);
+                    if (msg.tool_calls && msg.tool_calls.length) {
+                        msg.tool_calls.forEach(tool => {
+                            if (!state.conversation.some(msg => msg.role == "tool" && msg.tool_call_id == tool.id))
+                                console.log(`🔧 Using '${tool.function.name}' ...`);
+                        });
+                    }
+                }
+                else
+                    console.log("Assistant: ", msg.content);
+            }
+        });
     }
 
     const fragola = new Fragola({
@@ -81,12 +85,26 @@ async function main() {
     //         process.exit(1);
     // });
 
-    todoListAgent.onAfterStateUpdate(({state}) => {
-        drawInterface(state);
+    todoListAgent.onAfterStateUpdate(async ({ getState, stop }) => {
+        // await stop();
+        drawInterface(getState());
     });
 
+    function saveState(state: AgentState, filename: string) {
+        const path = join(process.env["PWD"]!, filename + ".json");
+        console.log("!path", path);
+        fs.writeFileSync(path, JSON.stringify(state, null, 2), 'utf-8');
+    }
+
     todoListAgent.onModelInvocation(async (callAPI, context) => {
+        let count = 0;
         const processChunck: CallAPIProcessChuck = async (chunck) => {
+            if (count == 3) {
+                await context.stop();
+                saveState(context.getState(), `stopGeneration_${nanoid()}`);
+            }
+            // await new Promise(resolve => setTimeout(resolve, 300));
+            count++;
             return chunck;
         };
 
@@ -110,7 +128,7 @@ async function main() {
                 rl.close();
                 return;
             }
-            void await todoListAgent.userMessage({ content: input });
+            void await todoListAgent.userMessage({ content: input, step: { unansweredToolBehaviour: "skip", skipToolString: "error: (generation canceled)" } });
 
             setTimeout(() => {
                 promptUser();

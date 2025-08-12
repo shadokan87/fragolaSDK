@@ -28,10 +28,6 @@ async function main() {
         }
     });
 
-    weatherAgent.on("before:conversationUpdate", (state, getStore) => {
-
-    });
-
     return ;
     const { conversation } = await weatherAgent.userMessage({ content: "what is the weather in Paris ?" });
     console.log(JSON.stringify(conversation, null, 2));

@@ -22,7 +22,7 @@ export type ConversationUpdateCallback<TGlobalStore extends StoreLike<any>, TSto
 export type CallAPIProcessChuck = (chunck: OpenAI.ChatCompletionChunk, partialMessage: OpenAI.ChatCompletionAssistantMessageParam) => maybePromise<OpenAI.ChatCompletionChunk>;
 export type CallAPI = (processChunck?: CallAPIProcessChuck, modelSettings?: CreateAgentOptions["modelSettings"], clientOptions?: ClientOptions) => Promise<OpenAI.ChatCompletionAssistantMessageParam>
 
-export type ModelInvocation<TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = (
+export type ModelInvocationCallback<TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = (
     callAPI: CallAPI,
     context: AgentContext<TGlobalStore, TStore>
 ) => maybePromise<OpenAI.ChatCompletionAssistantMessageParam>;
@@ -31,6 +31,6 @@ export type ModelInvocation<TGlobalStore extends StoreLike<any>, TStore extends 
 export type callbackMap<TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = {
     [K in AgentDefaultEventId]:
     K extends "conversationUpdate" ? ConversationUpdateCallback<TGlobalStore, TStore> :
-    K extends "modelInvocation" ? ModelInvocation<TGlobalStore, TStore> :
+    K extends "modelInvocation" ? ModelInvocationCallback<TGlobalStore, TStore> :
     never;
 };

@@ -85,9 +85,9 @@ async function main() {
     //         process.exit(1);
     // });
 
-    todoListAgent.onAfterStateUpdate(async ({ getState, stop }) => {
-        // await stop();
-        drawInterface(getState());
+    todoListAgent.onAfterStateUpdate(async (context) => {
+        // await context.stop();
+        drawInterface(context.state);
     });
 
     function saveState(state: AgentState, filename: string) {
@@ -101,7 +101,7 @@ async function main() {
         const processChunck: CallAPIProcessChuck = async (chunck) => {
             if (count == 3) {
                 await context.stop();
-                saveState(context.getState(), `stopGeneration_${nanoid()}`);
+                saveState(context.state, `stopGeneration_${nanoid()}`);
             }
             // await new Promise(resolve => setTimeout(resolve, 300));
             count++;

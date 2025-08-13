@@ -1,5 +1,6 @@
 import { type todo, type todoStoreType, todoStore } from "./todoList.store";
 import { tool } from "../../fragola/fragola";
+import { Store } from "../../fragola/store";
 import z from "zod";
 
 const removeTodo = tool({
@@ -9,8 +10,8 @@ const removeTodo = tool({
     schema: z.object({
         id: z.string().describe("the id of the todo")
     }),
-    handler: async (params, {getStore}) => {
-        const store = getStore<todoStoreType>();
+    handler: async (params, context) => {
+        const store = context.store as Store<todoStoreType> | undefined;
         if (store) {
             const prevLen = store.value.todos.length;
             store.update((prev) => {

@@ -11,7 +11,7 @@ export interface Tool<T extends z.ZodType<any, any>> {
     name: string,
     description: string,
     namespace?: string,
-    handler: ((parameters: z.infer<T>, context: AgentContext) => maybePromise<any>) | "dynamic",
+    handler: ((parameters: z.infer<T>, context: AgentContext<any, any>) => maybePromise<any>) | "dynamic",
     schema: T
 }
 

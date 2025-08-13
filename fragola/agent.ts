@@ -67,42 +67,85 @@ interface AgentContexOptions {
     instructions: string,
     /** Optional array of tools available to the agent. */
     tools?: Tool<any>[],
-    /** Optional initial conversation history for the agent. */
-    initialConversation?: OpenAI.ChatCompletionMessageParam[],
     /** Model-specific settings excluding messages and tools. */
     modelSettings: Prettify<Omit<ChatCompletionCreateParamsBase, "messages" | "tools">>,
 } //TODO: better comment for stepOptions with explaination for each fields
 
-type SetOptionsParams = Omit<AgentContexOptions, "name">;
+type SetOptionsParams = Omit<AgentContexOptions, "name" | "initialConversation">;
 
 export type CreateAgentOptions<TStore extends StoreLike<any> = {}> = {
-    store?: Store<TStore>
+    store?: Store<TStore>,
+    /** Optional initial conversation history for the agent. */
+    initialConversation?: OpenAI.ChatCompletionMessageParam[],
 } & Prettify<AgentContexOptions>;
+
+export type ResetParams = Prettify<Pick<Required<CreateAgentOptions>, "initialConversation">>;
+
+const AGENT_FRIEND = Symbol('AgentAccess');
 
 /**
  * Context of the agent which triggered the event or tool.
  */
-export type AgentContext<TStore extends StoreLike<any> = {}, TGlobalStore extends StoreLike<any> = {}> = {
+export class AgentContext<TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> {
+    constructor(
+        private _state: AgentState,
+        private _options: AgentContexOptions,
+        private _store: Store<TStore> | undefined,
+        private _globalStore: Store<TGlobalStore> | undefined,
+        private setInstructionsFn: (instructions: string) => void,
+        private setOptionsFn: (options: SetOptionsParams) => void,
+        private stopFn: () => Promise<void>
+    ) { }
+
+    [AGENT_FRIEND] = {
+        setState: (newState: AgentState) => {
+            this._state = newState;
+        },
+        setOptions: (newOptions: AgentContexOptions) => {
+            this._options = newOptions;
+        },
+    };
+
     /** The current state of the agent. */
-    getState: () => AgentState,
+    get state() {
+        return this._state;
+    }
+
     /** The configuration options for the agent context. */
-    options: AgentContexOptions,
+    get options() {
+        return this._options;
+    }
+
     /** Function to retrieve the agent's local store. */
-    getStore: <TS extends StoreLike<any> = TStore>() => Store<TS> | undefined,
+    get store() {
+        return this._store as Store<TStore> | undefined;
+    }
+
     /** Function to retrieve the global store shared across agents of the same Fragola instance. */
-    getGlobalStore: <TGS extends StoreLike<any> = TGlobalStore>() => Store<TGS> | undefined,
+    get globalStore() {
+        return this._globalStore as Store<TGlobalStore> | undefined;
+    }
+
     /**
      * Sets the current instructions for the agent.
      * @param instructions - The new instructions as a string.
      */
-    setInstructions: (instructions: string) => void,
+    setInstructions(instructions: string) {
+        this.setInstructionsFn(instructions);
+    }
+
     /**
      * Updates the agent's options.
      * **note**: the `name` property is ommited
      * @param options - The new options to set, as a SetOptionsParams object.
      */
-    setOptions: (options: SetOptionsParams) => void,
-    stop: () => Promise<void>,
+    setOptions(options: SetOptionsParams) {
+        this.setOptionsFn(options);
+    }
+
+    async stop() {
+        return await this.stopFn();
+    }
 }
 
 type StepBy = Partial<{
@@ -110,7 +153,7 @@ type StepBy = Partial<{
     by: number,
 }>;
 
-type StepParams = StepBy & StepOptions;
+export type StepParams = StepBy & StepOptions;
 
 export type UserMessageQuery = Prettify<Omit<OpenAI.Chat.ChatCompletionUserMessageParam, "role">> & { step?: StepParams };
 
@@ -159,8 +202,10 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
     private conversationTmp: AgentState["conversation"] | undefined = undefined;
     private abortController: AbortController | undefined = undefined;
     private stopRequested: boolean = false;
+    private context: AgentContext<TGlobalStore, TStore>;
 
     constructor(private opts: CreateAgentOptions<TStore>, private globalStore: Store<TGlobalStore> | undefined = undefined, openai: OpenAI, private state: AgentState = Agent.defaultAgentState) {
+        this.context = this.createAgentContext();
         this.openai = openai;
         this.toolsToModelSettingsTools();
         if (opts.initialConversation != undefined)
@@ -208,6 +253,7 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
 
     private async updateState(callback: (prev: typeof this.state) => typeof this.state) {
         this.state = callback(this.state);
+        this.context[AGENT_FRIEND].setState(this.state);
         await this.applyEvents("after:stateUpdate", null);
     }
 
@@ -218,9 +264,30 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
         await this.applyEvents("after:conversationUpdate", { reason });
     }
 
+    /**
+     * Updates the agent's options.
+     * **Note**: Can only be called when agent status is "idle". 
+     * The `name` and `initialConversation` properties are omitted.
+     * 
+     * @param options - The new options to set, as a SetOptionsParams object.
+     * @throws {BadUsage} When called while agent is not idle (generating or waiting).
+     */
+    setOptions(options: SetOptionsParams) {
+        if (this.state.status !== "idle") {
+            throw new BadUsage(
+                `Cannot change options while agent is '${this.state.status}'. ` +
+                `Options can only be changed when agent status is 'idle'.`
+            );
+        }
+        this.opts = { ...this.opts, ...options };
+        this.context[AGENT_FRIEND].setOptions({ ...this.context.options, ...options });
+    }
+
+    get options() { return this.opts }
+
     private stepOptions() { return this.opts.stepOptions as Required<StepOptions> }
 
-   private validateStepOptions(stepOptions: StepOptions | undefined) {
+    private validateStepOptions(stepOptions: StepOptions | undefined) {
         if (!stepOptions)
             return;
         const { maxStep } = stepOptions;
@@ -241,7 +308,7 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
         }
         if (overrideStepOptions)
             this.validateStepOptions(overrideStepOptions);
-        const stepOptions: Required<StepOptions> = overrideStepOptions ? {...defaultStepOptions, ...overrideStepOptions} as Required<StepOptions> : this.stepOptions();
+        const stepOptions: Required<StepOptions> = overrideStepOptions ? { ...defaultStepOptions, ...overrideStepOptions } as Required<StepOptions> : this.stepOptions();
         if (this.state.conversation.length != 0)
             await this.recursiveAgent(stepOptions, () => {
                 if (stepParams?.by != undefined)
@@ -256,6 +323,20 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
 
     resetStepCount() {
         this.state.stepCount = 0;
+    }
+
+    reset(params: ResetParams = {initialConversation: []}) {
+        if (this.state.status != "idle") {
+            throw new BadUsage(
+                `Cannot reset while agent is '${this.state.status}'. ` +
+                `Agent can only be reset when agent status is 'idle'.`
+            );
+        }
+        this.updateState(() => ({
+            status: "idle",
+            conversation: params.initialConversation,
+            stepCount: 0
+        }));
     }
 
     /**
@@ -279,20 +360,20 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
         return undefined;
     }
 
-    createAgentContext<TGS extends StoreLike<any> = TGlobalStore, TS extends StoreLike<any> = TStore>(): AgentContext<TS, TGS> {
-        return {
-            getState: () => this.state,
-            options: this.opts,
-            getStore: <TS>() => this.opts.store as Store<TS> | undefined,
-            getGlobalStore: <TGS>() => this.globalStore as Store<TGS> | undefined,
-            setInstructions: (instructions) => {
+    private createAgentContext<TGS extends StoreLike<any> = TGlobalStore, TS extends StoreLike<any> = TStore>(): AgentContext<TGS, TS> {
+        return new AgentContext<TGS, TS>(
+            this.state,
+            this.opts,
+            this.opts.store as Store<TS> | undefined,
+            this.globalStore as Store<TGS> | undefined,
+            (instructions) => {
                 this.opts["instructions"] = instructions;
             },
-            stop: async () => await this.stop(),
-            setOptions: (options) => {
+            (options) => {
                 this.opts = { ...options, name: this.opts.name, store: this.opts.store }
-            }
-        }
+            },
+            async () => await this.stop()
+        );
     }
 
     private setStepCount(value: number) {
@@ -396,7 +477,7 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
             }
             if (events) {
                 for (const event of events) {
-                    let params: Parameters<ModelInvocationCallback<TGlobalStore, TStore>> = [callAPI, this.createAgentContext()];
+                    let params: Parameters<ModelInvocationCallback<TGlobalStore, TStore>> = [callAPI, this.context];
                     const callback = event.callback as ModelInvocationCallback<TGlobalStore, TStore>;
                     if (callback.constructor.name == "AsyncFunction")
                         aiMessage = await callback(...params);
@@ -438,10 +519,9 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
                     return tool.handler;
                 })();
                 const isAsync = handler.constructor.name === "AsyncFunction";
-                const context = this.createAgentContext();
                 const content = isAsync
-                    ? await handler(paramsParsed?.data, context)
-                    : handler(paramsParsed?.data, context);
+                    ? await handler(paramsParsed?.data, this.context)
+                    : handler(paramsParsed?.data, this.context);
 
                 // add tool message to conversation
                 const contentString: string = (() => {
@@ -563,9 +643,9 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
      *
      * @param callback - Function that receives:
      *   - newConversation: The updated conversation messages.
-     *     - getState: Returns the current agent state.
-     *     - getStore: A function returning the local store instance or undefined.
-     *     - getGlobalStore: A function returning the global store instance or undefined.
+     *     - state: Returns the current agent state.
+     *     - store: A function returning the local store instance or undefined.
+     *     - globalStore: A function returning the global store instance or undefined.
      * @returns the updated conversation messages (array or Promise).
      *
      * @example

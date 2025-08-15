@@ -1,7 +1,7 @@
 import type OpenAI from "openai/index.js";
 import type { CreateAgentOptions, AgentContext } from "./agent";
 import type { maybePromise, StoreLike } from "./types";
-import type { AgentDefaultEventId } from "./event";
+import type { AgentDefaultEventId, EventToolCall } from "./event";
 import type { Store } from "./store";
 import type { ClientOptions } from "openai/index.js";
 import type { conversationUpdateReason } from "./eventAfter";
@@ -30,7 +30,7 @@ export type ModelInvocationCallback<TGlobalStore extends StoreLike<any>, TStore 
 //@prettier-ignore
 export type callbackMap<TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = {
     [K in AgentDefaultEventId]:
-    K extends "conversationUpdate" ? ConversationUpdateCallback<TGlobalStore, TStore> :
+    K extends "toolCall" ? EventToolCall<any,TGlobalStore, TStore> :
     K extends "modelInvocation" ? ModelInvocationCallback<TGlobalStore, TStore> :
     never;
 };

@@ -18,7 +18,7 @@ export async function setOptionsTest() {
     }
 
     const testAgent = fragolaTest.agent({
-        name: "test", instructions: "You are an agent performing unit tests, answer like a helpful assistant you may be asked to call test tools.",
+        name: "test", instructions: "You are an agent performing unit tests, answer like a helpful assistant you may be asked to call test tools.", tools: testTools,
         modelSettings: {
             model: 'us.anthropic.claude-3-5-haiku-20241022-v1:0' as any,
             temperature: 1,

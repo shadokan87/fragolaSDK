@@ -9,21 +9,22 @@ const addTodo = tool({
     schema: z.object({
         task: z.string()
     }),
-    handler: async (params, context) => {
-        const store = context.getStore<todoStoreType>();
-        const newTodo: todo = {
-            id: nanoid(),
-            task: params.task,
-            completed: false
-        }
-        if (store) {
-            store.update((prev) => {
-                return { todos: [...prev.todos, newTodo] }
-            });
-            return `Todo added, current list: ${JSON.stringify(store.value)}`;
-        } else
-            return "An error occured, failed to get todo list";
-    }
+    handler: "dynamic"
+    // handler: async (params, context) => {
+    //     const store = context.getStore<todoStoreType>();
+    //     const newTodo: todo = {
+    //         id: nanoid(),
+    //         task: params.task,
+    //         completed: false
+    //     }
+    //     if (store) {
+    //         store.update((prev) => {
+    //             return { todos: [...prev.todos, newTodo] }
+    //         });
+    //         return `Todo added, current list: ${JSON.stringify(store.value)}`;
+    //     } else
+    //         return "An error occured, failed to get todo list";
+    // }
 });
 
 export default addTodo;

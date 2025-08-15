@@ -1,7 +1,8 @@
+//@ts-nocheck
 import { createHeaders, PORTKEY_GATEWAY_URL } from "portkey-ai";
 import { Fragola } from "../../fragola/fragola";
 import addTodo from "./add.tool";
-import { todoStore, type todo } from "./todoList.store";
+import { todoStore } from "./todoList.store";
 import readline from "readline";
 import removeTodo from "./remove.tool";
 import completeTodo from "./complete.tool";
@@ -16,7 +17,7 @@ import type { ChatCompletionAssistantMessageParam } from "openai/resources";
 import { createStateUtils } from "../../fragola/stateUtils";
 import fs from "fs";
 import { join } from "path";
-import type z from "zod";
+import { z } from "zod";
 
 async function main() {
     const clearScreen = () => {
@@ -31,30 +32,30 @@ async function main() {
         const test = () => { };
         const utils = createStateUtils(state);
         // Display conversation history
-        // state.conversation.forEach((msg, i) => {
-        //     if (msg.role === 'user') {
-        //         console.log('You:', msg.content);
-        //     }
-        //     else if (msg.role == "tool") {
-        //         const toolCallOrigin = utils.toolCallOrigin(msg);
-        //         if (toolCallOrigin) {
-        //             console.log(`✅ Used '${toolCallOrigin.function.name}' with args: ${toolCallOrigin.function.arguments}`);
-        //         }
-        //     }
-        //     else if (msg.role === "assistant") {
-        //         if (i == state.conversation.length - 1 && ["generating", "waiting"].includes(state.status)) {
-        //             console.log(`Assistant (working): `, msg.content);
-        //             if (msg.tool_calls && msg.tool_calls.length) {
-        //                 msg.tool_calls.forEach(tool => {
-        //                     if (!state.conversation.some(msg => msg.role == "tool" && msg.tool_call_id == tool.id))
-        //                         console.log(`🔧 Using '${tool.function.name}' ...`);
-        //                 });
-        //             }
-        //         }
-        //         else
-        //             console.log("Assistant: ", msg.content);
-        //     }
-        // });
+        state.conversation.forEach((msg, i) => {
+            if (msg.role === 'user') {
+                console.log('You:', msg.content);
+            }
+            else if (msg.role == "tool") {
+                const toolCallOrigin = utils.toolCallOrigin(msg);
+                if (toolCallOrigin) {
+                    console.log(`✅ Used '${toolCallOrigin.function.name}' with args: ${toolCallOrigin.function.arguments}`);
+                }
+            }
+            else if (msg.role === "assistant") {
+                if (i == state.conversation.length - 1 && ["generating", "waiting"].includes(state.status)) {
+                    console.log(`Assistant (working): `, msg.content);
+                    if (msg.tool_calls && msg.tool_calls.length) {
+                        msg.tool_calls.forEach(tool => {
+                            if (!state.conversation.some(msg => msg.role == "tool" && msg.tool_call_id == tool.id))
+                                console.log(`🔧 Using '${tool.function.name}' ...`);
+                        });
+                    }
+                }
+                else
+                    console.log("Assistant: ", msg.content);
+            }
+        });
     }
 
     const fragola = new Fragola({
@@ -91,37 +92,39 @@ async function main() {
         drawInterface(context.state);
     });
 
+    todoListAgent.onAiMessage(async (message, isPartial, _, when) => when(!isPartial, () => {
+        message.content = "(modified)";
+        return message;
+    }));
+
+    const calculatorParamsSchema = z.union([
+        z.array(z.number()),
+        z.enum(["add", "subtract", "multiply", "divide"])
+    ]);
+
+    todoListAgent.onToolCall(async (params, tool, context) => when(tool.handler == "dynamic" && tool.name == "calculator", () => {
+        const callback = () => {
+
+        }
+        return callback;
+    }));
+//    todoListAgent.onToolCall(async (params, tool, context) => when(tool.handler == "dynamic" && tool.name == "getUserById", () => await getUserById(params.id)));
+
     function saveState(state: AgentState, filename: string) {
         const path = join(process.env["PWD"]!, filename + ".json");
         console.log("!path", path);
         fs.writeFileSync(path, JSON.stringify(state, null, 2), 'utf-8');
     }
 
-    todoListAgent.onToolCall<z.infer<typeof addTodo.schema>>((params, tool, { store }, when) => when(tool.name == addTodo.name && tool.handler == "dynamic", () => {
-        const newTodo: todo = {
-            id: nanoid(),
-            task: params.task,
-            completed: false
-        }
-        if (store) {
-            store.update((prev) => {
-                return { todos: [...prev.todos, newTodo] }
-            });
-            return `Todo added, current list: ${JSON.stringify(store.value)}`;
-        } else
-            return "An error occured, failed to get todo list";
-    }
-    ));
-
     todoListAgent.onModelInvocation(async (callAPI, context) => {
         let count = 0;
         const processChunck: CallAPIProcessChuck = async (chunck) => {
-            // if (count == 3) {
-            //     await context.stop();
-            //     saveState(context.state, `stopGeneration_${nanoid()}`);
-            // }
-            // // await new Promise(resolve => setTimeout(resolve, 300));
-            // count++;
+            if (count == 3) {
+                await context.stop();
+                saveState(context.state, `stopGeneration_${nanoid()}`);
+            }
+            // await new Promise(resolve => setTimeout(resolve, 300));
+            count++;
             return chunck;
         };
 

@@ -7,7 +7,7 @@ import { BadUsage, FragolaError, MaxStepHitError } from "./exceptions"
 import type z from "zod"
 import type { Prettify, StoreLike } from "./types"
 import OpenAI from "openai/index.js"
-import type { AgentEventId, AgentDefaultEventId, EventDefaultCallback, AgentAfterEventId } from "./event"
+import type { AgentEventId, AgentDefaultEventId, EventDefaultCallback, AgentAfterEventId, EventToolCall } from "./event"
 import type { CallAPI, CallAPIProcessChuck, ConversationUpdateCallback, callbackMap as eventDefaultCallbackMap, ModelInvocationCallback } from "./eventDefault";
 import { nanoid } from "nanoid"
 import type { AfterConversationUpdateCallback, AfterStateUpdateCallback, conversationUpdateReason, callbackMap as eventAfterCallbackMap } from "./eventAfter"
@@ -116,15 +116,21 @@ export class AgentContext<TGlobalStore extends StoreLike<any> = {}, TStore exten
         return this._options;
     }
 
-    /** Function to retrieve the agent's local store. */
+    /** Acess the agent's local store. */
     get store() {
         return this._store as Store<TStore> | undefined;
     }
 
-    /** Function to retrieve the global store shared across agents of the same Fragola instance. */
+    /** Returns the agent's local store casted as T. Recommanded when accessing the store from a tool */
+    getStore<T extends StoreLike<any>>(): Store<T> | undefined { return this._store ? this._store as unknown as Store<T> : undefined }
+
+    /** Access the global store shared across agents of the same Fragola instance. */
     get globalStore() {
         return this._globalStore as Store<TGlobalStore> | undefined;
     }
+
+    /** Returns the global store casted as T. Recommanded when accessing the global store from a tool */
+    getGlobalStore<T extends StoreLike<any>>(): Store<T> | undefined { return this._store ? this._store as unknown as Store<T> : undefined }
 
     /**
      * Sets the current instructions for the agent.
@@ -258,9 +264,7 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
     }
 
     private async updateConversation(callback: (prev: AgentState["conversation"]) => AgentState["conversation"], reason: conversationUpdateReason) {
-        this.conversationTmp = callback(this.state.conversation);
-        const newConversation = await this.applyEvents("conversationUpdate", { reason }) || this.conversationTmp;
-        await this.updateState((prev) => ({ ...prev, conversation: newConversation }));
+        await this.updateState((prev) => ({ ...prev, conversation: callback(this.state.conversation) }));
         await this.applyEvents("after:conversationUpdate", { reason });
     }
 
@@ -512,6 +516,7 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
                         throw new FragolaError("Tool arguments parsing fail");
                     }
                 }
+                const toolCallEvents = this.registeredEvents.get("toolCall");
                 // execute handler function
                 const handler = (() => {
                     if (tool.handler == "dynamic")
@@ -528,6 +533,9 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
                     switch (typeof content) {
                         case "string":
                             return content;
+                        case "function":
+                            return (content as Function).toString();
+                        case "undefined":
                         case "number":
                         case "boolean":
                         case "bigint":
@@ -581,14 +589,6 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
                         return (callback as callbackType)(...params) as any;
                     }
                 }
-                case "conversationUpdate": {
-                    let params: Parameters<ConversationUpdateCallback<TGlobalStore, TStore>> = [this.conversationTmp || [], _params!.reason, ...defaultParams];
-                    if (isAsyncFunction(callback)) {
-                        return await (callback as ConversationUpdateCallback<TGlobalStore, TStore>)(...params) as any;
-                    } else {
-                        return (callback as ConversationUpdateCallback<TGlobalStore, TStore>)(...params) as any;
-                    }
-                }
                 default: {
                     throw new FragolaError(`Internal error: event with name '${eventId}' is unknown`)
                 }
@@ -636,28 +636,9 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
         }
     }
 
-    onAfterConversationUpdate(callback: AfterConversationUpdateCallback<TGlobalStore, TStore>) { return this.on("after:conversationUpdate", callback) }
+    onToolCall<TParams = Record<any, any>>(callback: EventToolCall<TParams, TGlobalStore, TStore>) { return this.on("toolCall", callback)}
 
-    /**
-     * Registers a callback for the "conversationUpdate" event.
-     *
-     * @param callback - Function that receives:
-     *   - newConversation: The updated conversation messages.
-     *     - state: Returns the current agent state.
-     *     - store: A function returning the local store instance or undefined.
-     *     - globalStore: A function returning the global store instance or undefined.
-     * @returns the updated conversation messages (array or Promise).
-     *
-     * @example
-     * agent.onConversationUpdate((newConversation) => {
-     *   // Modify the last message before returning
-     *   if (newConversation.length > 0) {
-     *     newConversation[newConversation.length - 1].content += " (modified)";
-     *   }
-     *   return newConversation;
-     * });
-     */
-    onConversationUpdate(callback: ConversationUpdateCallback<TGlobalStore, TStore>) { return this.on("conversationUpdate", callback) }
+    onAfterConversationUpdate(callback: AfterConversationUpdateCallback<TGlobalStore, TStore>) { return this.on("after:conversationUpdate", callback) }
 
     onModelInvocation(callback: ModelInvocationCallback<TGlobalStore, TStore>) { return this.on("modelInvocation", callback) }
 

@@ -5,13 +5,13 @@ import type { ClientOptions } from "openai/index.js";
 import OpenAI from "openai/index.js";
 import type { Store } from "./store";
 
-export type GetStore = <TStore extends StoreLike<any>>() => Store<TStore> | undefined;
+export type ToolHandlerReturnType = maybePromise<any>;
 
 export interface Tool<T extends z.ZodType<any, any>> {
     name: string,
     description: string,
     namespace?: string,
-    handler: ((parameters: z.infer<T>, context: AgentContext<any, any>) => maybePromise<any>) | "dynamic",
+    handler: ((parameters: z.infer<T>, context: AgentContext<any, any>) => ToolHandlerReturnType) | "dynamic",
     schema: T
 }
 

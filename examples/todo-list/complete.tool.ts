@@ -11,7 +11,7 @@ const completeTodo = tool({
         id: z.string().describe("the id of the todo")
     }),
     handler: async (params, context) => {
-        const store = context.store as Store<todoStoreType> | undefined;
+        const store = context.getStore<todoStoreType>();
         if (store) {
             let todos = structuredClone(store.value.todos);
             let completed: boolean = false;

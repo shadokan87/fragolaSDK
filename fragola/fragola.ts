@@ -5,7 +5,8 @@ import type { ClientOptions } from "openai/index.js";
 import OpenAI from "openai/index.js";
 import type { Store } from "./store";
 
-export type ToolHandlerReturnType = maybePromise<any>;
+export type ToolHandlerReturnTypeNonAsync = any[] | Record<any, any> | Function | number | bigint | boolean;
+export type ToolHandlerReturnType = maybePromise<ToolHandlerReturnTypeNonAsync>;
 
 export interface Tool<T extends z.ZodType<any, any>> {
     name: string,

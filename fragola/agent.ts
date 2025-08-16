@@ -7,7 +7,7 @@ import { BadUsage, FragolaError, MaxStepHitError } from "./exceptions"
 import type z from "zod"
 import type { Prettify, StoreLike } from "./types"
 import OpenAI from "openai/index.js"
-import type { AgentEventId, AgentDefaultEventId, EventDefaultCallback, AgentAfterEventId, EventToolCall } from "./event"
+import { type AgentEventId, type AgentDefaultEventId, type EventDefaultCallback, type AgentAfterEventId, type EventToolCall, SKIP_EVENT } from "./event"
 import type { CallAPI, CallAPIProcessChuck, ConversationUpdateCallback, callbackMap as eventDefaultCallbackMap, ModelInvocationCallback } from "./eventDefault";
 import { nanoid } from "nanoid"
 import type { AfterConversationUpdateCallback, AfterStateUpdateCallback, conversationUpdateReason, callbackMap as eventAfterCallbackMap } from "./eventAfter"
@@ -329,7 +329,7 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
         this.state.stepCount = 0;
     }
 
-    reset(params: ResetParams = {initialConversation: []}) {
+    reset(params: ResetParams = { initialConversation: [] }) {
         if (this.state.status != "idle") {
             throw new BadUsage(
                 `Cannot reset while agent is '${this.state.status}'. ` +
@@ -439,9 +439,10 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
                 const _modelSettings = modelSettings || defaultModelSettings;
                 const openai = clientOpts ? new OpenAI(clientOpts) : this.openai;
 
+                const role: ChatCompletionCreateParamsBase["messages"][0]["role"] = this.opts.useDeveloperRole ? "developer" : "system";
                 let requestBody: ChatCompletionCreateParamsBase = {
                     ..._modelSettings,
-                    messages: [{ role: "system", content: this.opts.instructions }, ...this.state.conversation]
+                    messages: [{ role, content: this.opts.instructions }, ...this.state.conversation]
                 };
                 if (this.paramsTools?.length)
                     requestBody["tools"] = this.paramsTools;
@@ -517,18 +518,31 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
                     }
                 }
                 const toolCallEvents = this.registeredEvents.get("toolCall");
-                // execute handler function
-                const handler = (() => {
-                    if (!toolCallEvents?.length)
-                        return tool.handler;
-                    // if (tool.handler == "dynamic")
-                    //     return async () => "Success";
-                    // return tool.handler;
+                const content = (async () => {
+                    if (!toolCallEvents) {
+                        if (tool.handler == "dynamic")
+                            throw new BadUsage(`Tools with dynamic handlers must have at least 1 'toolCall' event that produces a result.`);
+                        // default tool behaviour
+                        return isAsyncFunction(tool.handler) ? await tool.handler(paramsParsed?.data, this.context) : tool.handler(paramsParsed?.data, this.context);
+                    }
+                    for (let i = 0; i < toolCallEvents.length; i++) {
+                        const _event = toolCallEvents[i];
+                        const result = isAsyncFunction(_event.callback) ? await _event.callback(paramsParsed?.data, tool as any, this.context)
+                            : _event.callback(paramsParsed?.data, tool as any, this.context);
+                        if (typeof result == "object" && (result as any)[SKIP_EVENT] == true) {
+                            continue ;
+                        }
+                        return result;
+                    }
+                    if (tool.handler == "dynamic")
+                        throw new BadUsage(`Tools with dynamic handlers must have at least 1 'toolCall' event that produces a result. (one or more events were found but returned 'skip')`);
+                    // default tool behaviour
+                    return isAsyncFunction(tool.handler) ? await tool.handler(paramsParsed?.data, this.context) : tool.handler(paramsParsed?.data, this.context);
                 })();
-                const isAsync = handler.constructor.name === "AsyncFunction";
-                const content = isAsync
-                    ? await handler(paramsParsed?.data, this.context)
-                    : handler(paramsParsed?.data, this.context);
+                // const isAsync = handler.constructor.name === "AsyncFunction";
+                // const content = isAsync
+                //     ? await handler(paramsParsed?.data, this.context)
+                //     : handler(paramsParsed?.data, this.context);
 
                 // add tool message to conversation
                 const contentString: string = (() => {
@@ -638,7 +652,7 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
         }
     }
 
-    onToolCall<TParams = Record<any, any>>(callback: EventToolCall<TParams, TGlobalStore, TStore>) { return this.on("toolCall", callback)}
+    onToolCall<TParams = Record<any, any>>(callback: EventToolCall<TParams, TGlobalStore, TStore>) { return this.on("toolCall", callback) }
 
     onAfterConversationUpdate(callback: AfterConversationUpdateCallback<TGlobalStore, TStore>) { return this.on("after:conversationUpdate", callback) }
 

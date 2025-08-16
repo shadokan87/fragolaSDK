@@ -5,7 +5,6 @@ import type { StoreLike } from "./types";
  */
 export type StoreChangeCallback<TStore = {}> = (
     value: StoreLike<TStore>,
-    reason: "update" | "set"
 ) => void;
 
 /**
@@ -45,7 +44,7 @@ export class Store<TStore = {}> {
      */
     update(callback: (prev: StoreLike<TStore>) => StoreLike<TStore>) {
         this.#value = callback(this.#value);
-        this.#storeChangeCallbacks.map(_callback => _callback(this.#value, "update"))
+        this.#storeChangeCallbacks.map(_callback => _callback(this.#value))
         return this;
     }
 
@@ -54,7 +53,7 @@ export class Store<TStore = {}> {
      */
     set(data: StoreLike<TStore>) {
         this.#value = data;
-        this.#storeChangeCallbacks.map(_callback => _callback(this.#value, "set"))
+        this.#storeChangeCallbacks.map(_callback => _callback(this.#value))
         return this;
     }
 }

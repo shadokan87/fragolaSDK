@@ -9,16 +9,22 @@ export type AgentDefaultEventId =
 
 export type AgentAfterEventId = `after:${AgentDefaultEventId | "conversationUpdate"}`;
 
-export const WHEN_EVENT_MODIFIER = Symbol('whenEventModifier');
+export const SKIP_EVENT = Symbol('skip_event');
+/**
+ * When returned from an event handler, the event will be ignored and the default behavior will be applied instead.
+ * 
+ * @returns An object with the SKIP_EVENT symbol that signals the event system to skip this event
+ */
+export const skip = () => ({SKIP_EVENT: true});
+export type eventResult<T> = T | typeof skip;
+
 export type AgentEventId = AgentDefaultEventId | AgentAfterEventId;
 
-type WhenEventModifier<T> = (expression: boolean, callback: maybePromise<T>) => { [WHEN_EVENT_MODIFIER]: boolean, expression: boolean, callback: maybePromise<T> };
-
 export type EventToolCall<TParams = Record<any, any>, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}>
-  = (params: TParams, tool: Tool<any>, context: AgentContext<TGlobalStore, TStore>, when: WhenEventModifier<ToolHandlerReturnType>)
-    => maybePromise<ToolHandlerReturnType | ReturnType<typeof when>>;
+  = (params: TParams, tool: Tool<any>, context: AgentContext<TGlobalStore, TStore>)
+    => maybePromise<eventResult<ToolHandlerReturnType>>
 
-export type EventAiMessage<TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> = (message: OpenAI.ChatCompletionAssistantMessageParam, isGenerating: boolean, context: AgentContext<TGlobalStore, TStore>) => maybePromise<OpenAI.ChatCompletionAssistantMessageParam | WhenEventModifier<OpenAI.ChatCompletionAssistantMessageParam>>;
+export type EventAiMessage<TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> = (message: OpenAI.ChatCompletionAssistantMessageParam, isGenerating: boolean, context: AgentContext<TGlobalStore, TStore>) => maybePromise<eventResult<OpenAI.ChatCompletionAssistantMessageParam>>;
 
 // const eventAiMessageTwo: EventAiMessage = (message, isGenerating) => when(true, () => {
 //   message.content = "(modified)";

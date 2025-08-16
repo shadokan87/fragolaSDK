@@ -519,9 +519,11 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
                 const toolCallEvents = this.registeredEvents.get("toolCall");
                 // execute handler function
                 const handler = (() => {
-                    if (tool.handler == "dynamic")
-                        return async () => "Success";
-                    return tool.handler;
+                    if (!toolCallEvents?.length)
+                        return tool.handler;
+                    // if (tool.handler == "dynamic")
+                    //     return async () => "Success";
+                    // return tool.handler;
                 })();
                 const isAsync = handler.constructor.name === "AsyncFunction";
                 const content = isAsync

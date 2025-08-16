@@ -17,6 +17,7 @@ import { createStateUtils } from "../../fragola/stateUtils";
 import fs from "fs";
 import { join } from "path";
 import type z from "zod";
+import { skip } from "../../fragola/event";
 
 async function main() {
     const clearScreen = () => {
@@ -97,7 +98,9 @@ async function main() {
         fs.writeFileSync(path, JSON.stringify(state, null, 2), 'utf-8');
     }
 
-    todoListAgent.onToolCall<z.infer<typeof addTodo.schema>>((params, tool, { store }, when) => when(tool.name == addTodo.name && tool.handler == "dynamic", () => {
+    todoListAgent.onToolCall<z.infer<typeof addTodo.schema>>((params, tool, { store }) => {
+        if (tool.name != addTodo.name)
+            return skip();
         const newTodo: todo = {
             id: nanoid(),
             task: params.task,
@@ -107,11 +110,10 @@ async function main() {
             store.update((prev) => {
                 return { todos: [...prev.todos, newTodo] }
             });
-            return `Todo added, current list: ${JSON.stringify(store.value)}`;
+            return {sucess: true, todos: store.value};
         } else
-            return "An error occured, failed to get todo list";
-    }
-    ));
+            return {error: "failed to retrive todo list"}
+    });
 
     todoListAgent.onModelInvocation(async (callAPI, context) => {
         let count = 0;

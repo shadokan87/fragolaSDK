@@ -1,7 +1,7 @@
 import { createHeaders, PORTKEY_GATEWAY_URL } from "portkey-ai";
-import { Fragola } from "../../fragola/fragola";
+import { Fragola, type DefineMetaData } from "../../fragola/fragola";
 import addTodo from "./add.tool";
-import { todoStore, type todo } from "./todoList.store";
+import { todoStore, type todo, type todoStoreType } from "./todoList.store";
 import readline from "readline";
 import removeTodo from "./remove.tool";
 import completeTodo from "./complete.tool";
@@ -11,13 +11,14 @@ import { multipleToolCall } from "../../fragola/tests/multipleToolCall";
 import { onlyOneToolAnswered } from "../../fragola/tests/onlyOneToolAnswered";
 import { userStore } from "./user.store";
 import type OpenAI from "openai";
-import type { CallAPIProcessChuck } from "../../fragola/eventDefault";
+import type { CallAPIProcessChuck, EventAiMessage } from "../../fragola/eventDefault";
 import type { ChatCompletionAssistantMessageParam } from "openai/resources";
 import { createStateUtils } from "../../fragola/stateUtils";
 import fs from "fs";
 import { join } from "path";
 import type z from "zod";
 import { skip } from "../../fragola/event";
+import { type ChatCompletionMessageParam } from "../../fragola/fragola";
 
 async function main() {
     const clearScreen = () => {
@@ -67,7 +68,19 @@ async function main() {
         })
     }, userStore);
 
-    const todoListAgent = fragola.agent({
+    type metaData = DefineMetaData<{
+        user: {
+            tags?: string[]
+        },
+        ai: {
+            isFinalOutput: boolean
+        },
+        tool: {
+            args: Record<any, any>
+        }
+    }>;
+
+    const todoListAgent = fragola.agent<metaData, todoStoreType>({
         name: "todo list assistant", instructions: "you are a todo list manager, you can add, remove or mark todos as completed. after each actions you should show the current list in markdown format with their completed states. when displaying the todos, use a simple list with checkbox, you may not use a table", tools: [addTodo, removeTodo, completeTodo],
         store: todoStore,
         stepOptions: {
@@ -80,12 +93,28 @@ async function main() {
             tool_choice: "auto",
         }
     });
+    todoListAgent.on("userMessage", (message, context) => {
+        message.meta?.tags
+        return message;
+    });
 
-    // todoListAgent.onAfterConversationUpdate((reason, {state}) => {
-    //     console.log(`reason: ${reason}, state: ${JSON.stringify(state.conversation.at(-1), null, 2)}`)
-    //     if (reason == "userMessage")
-    //         process.exit(1);
-    // });
+    todoListAgent.onAiMessage((message, isPartial, context) => {
+        if (message.meta) {
+            message.meta.isFinalOutput = !isPartial && !message.tool_calls;
+        }
+        return message;
+    });
+
+    todoListAgent.onAfterConversationUpdate((reason, { state }) => {
+        // state.conversation.forEach(msg => {
+        //     if (msg.role == "user") {
+        //         msg.
+        //     }
+        // })
+        // console.log(`reason: ${reason}, state: ${JSON.stringify(state.conversation.at(-1), null, 2)}`)
+        // if (reason == "userMessage")
+        //     process.exit(1);
+    });
 
     todoListAgent.onAfterStateUpdate(async (context) => {
         // await context.stop();
@@ -110,9 +139,9 @@ async function main() {
             store.update((prev) => {
                 return { todos: [...prev.todos, newtodo] }
             });
-            return {sucess: true, todos: store.value};
+            return { sucess: true, todos: store.value };
         } else
-            return {error: "failed to retrive todo list"}
+            return { error: "failed to retrive todo list" }
     });
 
     todoListAgent.onModelInvocation(async (callAPI, context) => {
@@ -130,7 +159,7 @@ async function main() {
 
         const aiMessage = await callAPI((chunck) => {
 
-        //     chunck.choices[0].delta.content = "salut";
+            //     chunck.choices[0].delta.content = "salut";
             return chunck;
         });
         return aiMessage;

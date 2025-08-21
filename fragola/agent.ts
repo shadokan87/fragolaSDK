@@ -1,5 +1,5 @@
 import { Store } from "./store"
-import type { Tool } from "./fragola"
+import type { ChatCompletionMessageParam, DefineMetaData, Tool } from "./fragola"
 import type { ChatCompletionCreateParamsBase } from "openai/resources/chat/completions.js"
 import { zodToJsonSchema } from "openai/_vendor/zod-to-json-schema/zodToJsonSchema.mjs"
 import { streamChunkToMessage, isAsyncFunction } from "./utils"
@@ -7,16 +7,16 @@ import { BadUsage, FragolaError, MaxStepHitError } from "./exceptions"
 import type z from "zod"
 import type { Prettify, StoreLike } from "./types"
 import OpenAI from "openai/index.js"
-import { type AgentEventId, type AgentDefaultEventId, type EventDefaultCallback, type AgentAfterEventId, type EventToolCall, SKIP_EVENT } from "./event"
-import type { CallAPI, CallAPIProcessChuck, ConversationUpdateCallback, callbackMap as eventDefaultCallbackMap, ModelInvocationCallback } from "./eventDefault";
+import { type AgentEventId, type AgentDefaultEventId, type EventDefaultCallback, type AgentAfterEventId, SKIP_EVENT } from "./event"
+import type { CallAPI, CallAPIProcessChuck, callbackMap as eventDefaultCallbackMap, EventToolCall, EventUserMessage, EventModelInvocation, EventAiMessage } from "./eventDefault";
 import { nanoid } from "nanoid"
-import type { AfterConversationUpdateCallback, AfterStateUpdateCallback, conversationUpdateReason, callbackMap as eventAfterCallbackMap } from "./eventAfter"
+import type { EventAfterConversationUpdate, AfterStateUpdateCallback, conversationUpdateReason, callbackMap as eventAfterCallbackMap } from "./eventAfter"
 import type { ChatCompletionAssistantMessageParam } from "openai/resources"
 
 export const createStore = <T extends StoreLike<any>>(data: StoreLike<T>) => new Store(data);
 
-export type AgentState = {
-    conversation: OpenAI.ChatCompletionMessageParam[],
+export type AgentState<TMetaData extends DefineMetaData<any> = {}> = {
+    conversation: ChatCompletionMessageParam<TMetaData>[],
     stepCount: number,
     status: "idle" | "generating" | "waiting",
 }
@@ -86,9 +86,9 @@ const AGENT_FRIEND = Symbol('AgentAccess');
 /**
  * Context of the agent which triggered the event or tool.
  */
-export class AgentContext<TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> {
+export class AgentContext<TMetaData extends DefineMetaData<any> = {}, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> {
     constructor(
-        private _state: AgentState,
+        private _state: AgentState<TMetaData>,
         private _options: AgentContexOptions,
         private _store: Store<TStore> | undefined,
         private _globalStore: Store<TGlobalStore> | undefined,
@@ -173,14 +173,14 @@ export type UserMessageQuery = Prettify<Omit<OpenAI.Chat.ChatCompletionUserMessa
  * @template TGlobalStore - The type of the global store.
  * @template TStore - The type of the local store.
  */
-type eventIdToCallback<TEventId extends AgentEventId, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> =
-    TEventId extends AgentDefaultEventId ? eventDefaultCallbackMap<TGlobalStore, TStore>[TEventId] :
-    TEventId extends AgentAfterEventId ? eventAfterCallbackMap<TGlobalStore, TStore>[TEventId] :
+type eventIdToCallback<TEventId extends AgentEventId, TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> =
+    TEventId extends AgentDefaultEventId ? eventDefaultCallbackMap<TMetaData, TGlobalStore, TStore>[TEventId] :
+    TEventId extends AgentAfterEventId ? eventAfterCallbackMap<TMetaData, TGlobalStore, TStore>[TEventId] :
     never
 
-type registeredEvent<TEventId extends AgentEventId, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = {
+type registeredEvent<TEventId extends AgentEventId, TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = {
     id: string,
-    callback: eventIdToCallback<TEventId, TGlobalStore, TStore>
+    callback: eventIdToCallback<TEventId, TMetaData, TGlobalStore, TStore>
 }
 
 type ConversationUpdateParams = {
@@ -194,7 +194,7 @@ type applyEventParams<K extends AgentEventId> =
     K extends "conversationUpdate" ? ConversationUpdateParams :
     never;
 
-export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> {
+export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> {
     public static defaultAgentState: AgentState = {
         conversation: [],
         stepCount: 0,
@@ -203,14 +203,16 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
 
     private openai: OpenAI;
     private paramsTools: ChatCompletionCreateParamsBase["tools"] = [];
-    private registeredEvents: Map<AgentEventId, registeredEvent<AgentEventId, TGlobalStore, TStore>[]> = new Map();
-    // Tmp values for applyEvents method
-    private conversationTmp: AgentState["conversation"] | undefined = undefined;
+    private registeredEvents: Map<AgentEventId, registeredEvent<AgentEventId, TMetaData, TGlobalStore, TStore>[]> = new Map();
     private abortController: AbortController | undefined = undefined;
     private stopRequested: boolean = false;
-    private context: AgentContext<TGlobalStore, TStore>;
+    private context: AgentContext<TMetaData, TGlobalStore, TStore>;
 
-    constructor(private opts: CreateAgentOptions<TStore>, private globalStore: Store<TGlobalStore> | undefined = undefined, openai: OpenAI, private state: AgentState = Agent.defaultAgentState) {
+    constructor(
+        private opts: CreateAgentOptions<TStore>,
+        private globalStore: Store<TGlobalStore> | undefined = undefined,
+        openai: OpenAI,
+        private state = Agent.defaultAgentState as AgentState<TMetaData>) {
         this.context = this.createAgentContext();
         this.openai = openai;
         this.toolsToModelSettingsTools();
@@ -263,7 +265,7 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
         await this.applyEvents("after:stateUpdate", null);
     }
 
-    private async updateConversation(callback: (prev: AgentState["conversation"]) => AgentState["conversation"], reason: conversationUpdateReason) {
+    private async updateConversation(callback: (prev: AgentState<TMetaData>["conversation"]) => AgentState<TMetaData>["conversation"], reason: conversationUpdateReason) {
         await this.updateState((prev) => ({ ...prev, conversation: callback(this.state.conversation) }));
         await this.applyEvents("after:conversationUpdate", { reason });
     }
@@ -364,8 +366,8 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
         return undefined;
     }
 
-    private createAgentContext<TGS extends StoreLike<any> = TGlobalStore, TS extends StoreLike<any> = TStore>(): AgentContext<TGS, TS> {
-        return new AgentContext<TGS, TS>(
+    private createAgentContext<TM extends DefineMetaData<any> = TMetaData, TGS extends StoreLike<any> = TGlobalStore, TS extends StoreLike<any> = TStore>(): AgentContext<TM, TGS, TS> {
+        return new AgentContext<TM, TGS, TS>(
             this.state,
             this.opts,
             this.opts.store as Store<TS> | undefined,
@@ -482,8 +484,8 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
             }
             if (events) {
                 for (const event of events) {
-                    let params: Parameters<ModelInvocationCallback<TGlobalStore, TStore>> = [callAPI, this.context];
-                    const callback = event.callback as ModelInvocationCallback<TGlobalStore, TStore>;
+                    let params: Parameters<EventModelInvocation<TMetaData, TGlobalStore, TStore>> = [callAPI, this.context];
+                    const callback = event.callback as EventModelInvocation<TMetaData, TGlobalStore, TStore>;
                     if (callback.constructor.name == "AsyncFunction")
                         aiMessage = await callback(...params);
                     else
@@ -538,9 +540,9 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
                             throw new BadUsage(`Tools with dynamic handlers must have at least 1 'toolCall' event that produces a result. (one or more events were found but returned 'skip')`);
                         // If we reach here, fall through to default behavior
                     }
-                    
+
                     // Default tool behavior (executed after breaking from eventProcessing)
-                    return isAsyncFunction(tool.handler) ? await tool.handler(paramsParsed?.data, this.context) : tool.handler(paramsParsed?.data, this.context);
+                    return isAsyncFunction(tool.handler) ? await tool.handler(paramsParsed?.data, this.context as any) : tool.handler(paramsParsed?.data, this.context as any);
                 })();
                 // const isAsync = handler.constructor.name === "AsyncFunction";
                 // const content = isAsync
@@ -583,24 +585,25 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
         return await this.step(query.step);
     }
 
-    private async applyEvents<TEventId extends AgentEventId>(eventId: TEventId, _params: applyEventParams<TEventId> | null): Promise<ReturnType<eventIdToCallback<TEventId, TGlobalStore, TStore>>> {
+    private async applyEvents<TEventId extends AgentEventId>(eventId: TEventId, _params: applyEventParams<TEventId> | null): Promise<ReturnType<eventIdToCallback<TEventId, TMetaData, TGlobalStore, TStore>>> {
         const events = this.registeredEvents.get(eventId);
+        type EventDefaultType = EventDefaultCallback<TMetaData, TGlobalStore, TStore>;
         if (!events)
-            return undefined as ReturnType<eventIdToCallback<TEventId, TGlobalStore, TStore>>;
+            return undefined as ReturnType<eventIdToCallback<TEventId, TMetaData, TGlobalStore, TStore>>;
         for (let i = 0; i < events.length; i++) {
             const callback = events[i].callback;
-            const defaultParams: Parameters<EventDefaultCallback<TGlobalStore, TStore>> = [this.createAgentContext()];
+            const defaultParams: Parameters<EventDefaultType> = [this.createAgentContext()];
             switch (eventId) {
                 case "after:stateUpdate": {
-                    let params: Parameters<EventDefaultCallback<TGlobalStore, TStore>> = defaultParams;
+                    let params: Parameters<EventDefaultType> = defaultParams;
                     if (isAsyncFunction(callback)) {
-                        return await (callback as EventDefaultCallback<TGlobalStore, TStore>)(...params) as any;
+                        return await (callback as EventDefaultType)(...params) as any;
                     } else {
-                        return (callback as EventDefaultCallback<TGlobalStore, TStore>)(...params) as any;
+                        return (callback as EventDefaultType)(...params) as any;
                     }
                 }
                 case "after:conversationUpdate": {
-                    type callbackType = AfterConversationUpdateCallback<TGlobalStore, TStore>;
+                    type callbackType = EventAfterConversationUpdate<TMetaData, TGlobalStore, TStore>;
                     let params: Parameters<callbackType> = [_params!.reason, ...defaultParams];
                     if (isAsyncFunction(callback)) {
                         return await (callback as callbackType)(...params) as any;
@@ -613,7 +616,7 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
                 }
             }
         }
-        return undefined as ReturnType<eventIdToCallback<TEventId, TGlobalStore, TStore>>;
+        return undefined as ReturnType<eventIdToCallback<TEventId, TMetaData, TGlobalStore, TStore>>;
     }
 
     /**
@@ -632,9 +635,9 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
      * // Later, to remove the listener:
      * unregister();
      */
-    on<TEventId extends AgentEventId>(eventId: TEventId, callback: eventIdToCallback<TEventId, TGlobalStore, TStore>
+    on<TEventId extends AgentEventId>(eventId: TEventId, callback: eventIdToCallback<TEventId, TMetaData, TGlobalStore, TStore>
     ) {
-        type EventTargetType = registeredEvent<TEventId, TGlobalStore, TStore>;
+        type EventTargetType = registeredEvent<TEventId, TMetaData, TGlobalStore, TStore>;
         let events = this.registeredEvents.get(eventId) || [] as EventTargetType[];
         const id = nanoid();
         events.push({
@@ -655,11 +658,15 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
         }
     }
 
-    onToolCall<TParams = Record<any, any>>(callback: EventToolCall<TParams, TGlobalStore, TStore>) { return this.on("toolCall", callback) }
+    onToolCall<TParams = Record<any, any>>(callback: EventToolCall<TParams, TMetaData, TGlobalStore, TStore>) { return this.on("toolCall", callback) }
 
-    onAfterConversationUpdate(callback: AfterConversationUpdateCallback<TGlobalStore, TStore>) { return this.on("after:conversationUpdate", callback) }
+    onAfterConversationUpdate(callback: EventAfterConversationUpdate<TMetaData, TGlobalStore, TStore>) { return this.on("after:conversationUpdate", callback) }
 
-    onModelInvocation(callback: ModelInvocationCallback<TGlobalStore, TStore>) { return this.on("modelInvocation", callback) }
+    onAiMessage(callback: EventAiMessage<TMetaData, TGlobalStore, TStore>) { return this.on("aiMessage", callback) }
 
-    onAfterStateUpdate(callback: AfterStateUpdateCallback<TGlobalStore, TStore>) { return this.on("after:stateUpdate", callback) }
+    onUserMessage(callback: EventUserMessage<TMetaData, TGlobalStore, TStore>) { return this.on("userMessage", callback) }
+
+    onModelInvocation(callback: EventModelInvocation<TMetaData, TGlobalStore, TStore>) { return this.on("modelInvocation", callback) }
+
+    onAfterStateUpdate(callback: AfterStateUpdateCallback<TMetaData, TGlobalStore, TStore>) { return this.on("after:stateUpdate", callback) }
 }

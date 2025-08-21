@@ -1,6 +1,7 @@
 import type { maybePromise, StoreLike } from "./types";
 import type { AgentAfterEventId, EventDefaultCallback } from "./event";
 import type { AgentContext } from "./agent";
+import type { DefineMetaData } from "./fragola";
 
 export type conversationUpdateReason = "userMessage" | "toolCall" | "partialAiMessage" | "AiMessage";
 
@@ -10,17 +11,17 @@ export type conversationUpdateReason = "userMessage" | "toolCall" | "partialAiMe
  * @template TGlobalStore - The type of the global store.
  * @template TStore - The type of the local store.
  */
-export type AfterConversationUpdateCallback<TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = (
+export type EventAfterConversationUpdate<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = (
     reason: conversationUpdateReason,
-      context: AgentContext<TGlobalStore, TStore>
+      context: AgentContext<TMetaData, TGlobalStore, TStore>
 ) => maybePromise<void>; 
 
-export type AfterStateUpdateCallback<TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = EventDefaultCallback<TGlobalStore, TStore>;
+export type AfterStateUpdateCallback<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = EventDefaultCallback<TMetaData, TGlobalStore, TStore>;
 
 //@prettier-ignore
-export type callbackMap<TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = {
+export type callbackMap<TMetaData extends DefineMetaData<any>,TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = {
     [K in AgentAfterEventId]:
-        K extends "after:conversationUpdate" ? AfterConversationUpdateCallback<TGlobalStore, TStore> :
-        K extends "after:stateUpdate" ? AfterStateUpdateCallback<TGlobalStore, TStore> :
+        K extends "after:conversationUpdate" ? EventAfterConversationUpdate<TMetaData, TGlobalStore, TStore> :
+        K extends "after:stateUpdate" ? AfterStateUpdateCallback<TMetaData, TGlobalStore, TStore> :
         never;
 };

@@ -5,7 +5,6 @@ import z from "zod";
 
 const completeTodo = tool({
     name: "complete",
-    namespace: "todo",
     description: "set a todo as completed",
     schema: z.object({
         id: z.string().describe("the id of the todo")

@@ -519,24 +519,27 @@ export class Agent<TGlobalStore extends StoreLike<any> = {}, TStore extends Stor
                 }
                 const toolCallEvents = this.registeredEvents.get("toolCall");
                 const content = (async () => {
-                    if (!toolCallEvents) {
-                        if (tool.handler == "dynamic")
-                            throw new BadUsage(`Tools with dynamic handlers must have at least 1 'toolCall' event that produces a result.`);
-                        // default tool behaviour
-                        return isAsyncFunction(tool.handler) ? await tool.handler(paramsParsed?.data, this.context) : tool.handler(paramsParsed?.data, this.context);
-                    }
-                    for (let i = 0; i < toolCallEvents.length; i++) {
-                        const _event = toolCallEvents[i];
-                        const result = isAsyncFunction(_event.callback) ? await _event.callback(paramsParsed?.data, tool as any, this.context)
-                            : _event.callback(paramsParsed?.data, tool as any, this.context);
-                        if (typeof result == "object" && (result as any)[SKIP_EVENT] == true) {
-                            continue ;
+                    eventProcessing: {
+                        if (!toolCallEvents) {
+                            if (tool.handler == "dynamic")
+                                throw new BadUsage(`Tools with dynamic handlers must have at least 1 'toolCall' event that produces a result.`);
+                            break eventProcessing; // Jump to default behavior
                         }
-                        return result;
+                        for (let i = 0; i < toolCallEvents.length; i++) {
+                            const _event = toolCallEvents[i];
+                            const result = isAsyncFunction(_event.callback) ? await _event.callback(paramsParsed?.data, tool as any, this.context)
+                                : _event.callback(paramsParsed?.data, tool as any, this.context);
+                            if (typeof result == "object" && (result as any)[SKIP_EVENT] == true) {
+                                continue;
+                            }
+                            return result;
+                        }
+                        if (tool.handler == "dynamic")
+                            throw new BadUsage(`Tools with dynamic handlers must have at least 1 'toolCall' event that produces a result. (one or more events were found but returned 'skip')`);
+                        // If we reach here, fall through to default behavior
                     }
-                    if (tool.handler == "dynamic")
-                        throw new BadUsage(`Tools with dynamic handlers must have at least 1 'toolCall' event that produces a result. (one or more events were found but returned 'skip')`);
-                    // default tool behaviour
+                    
+                    // Default tool behavior (executed after breaking from eventProcessing)
                     return isAsyncFunction(tool.handler) ? await tool.handler(paramsParsed?.data, this.context) : tool.handler(paramsParsed?.data, this.context);
                 })();
                 // const isAsync = handler.constructor.name === "AsyncFunction";

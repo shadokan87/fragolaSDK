@@ -117,17 +117,22 @@ async function main() {
 
     todoListAgent.onModelInvocation(async (callAPI, context) => {
         let count = 0;
-        const processChunck: CallAPIProcessChuck = async (chunck) => {
-            // if (count == 3) {
-            //     await context.stop();
-            //     saveState(context.state, `stopGeneration_${nanoid()}`);
-            // }
-            // // await new Promise(resolve => setTimeout(resolve, 300));
-            // count++;
-            return chunck;
-        };
+        // const processChunck: CallAPIProcessChuck = async (chunck) => {
+        //     // if (count == 3) {
+        //     //     await context.stop();
+        //     //     saveState(context.state, `stopGeneration_${nanoid()}`);
+        //     // }
+        //     // // await new Promise(resolve => setTimeout(resolve, 300));
+        //     // count++;
+        //     chunck.choices[0].delta.content = "salut";
+        //     return chunck;
+        // };
 
-        const aiMessage = await callAPI(processChunck);
+        const aiMessage = await callAPI((chunck) => {
+
+        //     chunck.choices[0].delta.content = "salut";
+            return chunck;
+        });
         return aiMessage;
     });
 

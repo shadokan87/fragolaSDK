@@ -11,7 +11,7 @@ export async function setOptionsTest() {
             name: `testTool-${i}`,
             description: "",
             schema: z.object({}),
-            handler: () => {
+            handler: async () => {
                 return `test tool number ${i} called successfully`
             }
         }))

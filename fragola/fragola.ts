@@ -72,8 +72,6 @@ export const stripUserMessageMeta = (userMessage: ChatCompletionUserMessageParam
 
 export const stripToolMessageMeta = (toolMessage: ChatCompletionToolMessageParam): OpenAI.ChatCompletionToolMessageParam => stripMeta(toolMessage) as OpenAI.ChatCompletionToolMessageParam;
 
-stripMeta([{ "role": "user", "content": "test", "meta": { "test": true } }])
-
 export class Fragola<TGlobalStore = {}> {
     private openai: OpenAI;
     constructor(clientOptions?: ClientOptions, private globalStore: Store<TGlobalStore> | undefined = undefined) {

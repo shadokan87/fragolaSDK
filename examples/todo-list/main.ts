@@ -93,6 +93,32 @@ async function main() {
             tool_choice: "auto",
         }
     });
+
+    // await todoListAgent.raw(async (openai, context) => {
+    //     await context.raw.setIdle();
+    //     let newState = context.state;
+    //     try {
+    //         await context.raw.setGenerating();
+    //         const response = await openai.chat.completions.create({
+    //             ...context.options.modelSettings,
+    //             stream: false,
+    //             // 'system' or 'developer' roles are not present in state.conversation, so we have to prepend the message
+    //             messages: [{ role: "system", content: context.options.instructions }, ...context.state.conversation, { role: "user", content: "write a random poem" }]
+    //         });
+    //         const newState: typeof context.state = {
+    //             ...context.state,
+    //             // we increment the state's stepCount manually to avoid an out of sync state
+    //             stepCount: context.state.stepCount + 1,
+    //             conversation: [...context.state.conversation, response.choices[0].message]
+    //         }
+    //     } catch (e) {
+    //         // handle errors if any
+    //     } finally {
+    //         await context.raw.setIdle();
+    //     }
+    //     return newState;
+    // });
+
     todoListAgent.on("userMessage", (message, context) => {
         message.meta?.tags
         return message;

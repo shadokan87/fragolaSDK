@@ -5,7 +5,7 @@ import { zodToJsonSchema } from "openai/_vendor/zod-to-json-schema/zodToJsonSche
 import { streamChunkToMessage, isAsyncFunction } from "./utils"
 import { BadUsage, FragolaError, MaxStepHitError } from "./exceptions"
 import type z from "zod"
-import type { Prettify, StoreLike } from "./types"
+import type { maybePromise, Prettify, StoreLike } from "./types"
 import OpenAI from "openai/index.js"
 import { type AgentEventId, type AgentDefaultEventId, type EventDefaultCallback, type AgentAfterEventId, SKIP_EVENT } from "./event"
 import type { CallAPI, CallAPIProcessChuck, callbackMap as eventDefaultCallbackMap, EventToolCall, EventUserMessage, EventModelInvocation, EventAiMessage } from "./eventDefault";
@@ -81,6 +81,8 @@ export type CreateAgentOptions<TStore extends StoreLike<any> = {}> = {
 
 export type ResetParams = Prettify<Pick<Required<CreateAgentOptions>, "initialConversation">>;
 
+export type AgentRaw<TMetaData extends DefineMetaData<any>, TGlobalStore, TStore> = (openai: OpenAI, context: AgentRawContext<TMetaData, TGlobalStore, TStore>) => maybePromise<AgentState<TMetaData>>;
+
 const AGENT_FRIEND = Symbol('AgentAccess');
 
 /**
@@ -151,6 +153,32 @@ export class AgentContext<TMetaData extends DefineMetaData<any> = {}, TGlobalSto
 
     async stop() {
         return await this.stopFn();
+    }
+}
+
+interface agentRawMethods {
+    setIdle: () => Promise<void>,
+    setWaiting: () => Promise<void>,
+    setGenerating: () => Promise<void>,
+    setState: (state: AgentState<any>) => Promise<void>
+}
+
+export class AgentRawContext<TMetaData extends DefineMetaData<any> = {}, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> extends AgentContext<TMetaData, TGlobalStore, TStore> {
+    constructor(
+        _state: AgentState<TMetaData>,
+        _options: AgentContexOptions,
+        _store: Store<TStore> | undefined,
+        _globalStore: Store<TGlobalStore> | undefined,
+        setInstructionsFn: (instructions: string) => void,
+        setOptionsFn: (options: SetOptionsParams) => void,
+        stopFn: () => Promise<void>,
+        private rawMethods: agentRawMethods
+    ) {
+        super(_state, _options, _store, _globalStore, setInstructionsFn, setOptionsFn, stopFn);
+    }
+
+    get raw() {
+        return this.rawMethods;
     }
 }
 
@@ -229,6 +257,37 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         }
     }
     getState() { return this.state };
+
+    //TODO: for future versions
+    // async raw(callback: AgentRaw<TMetaData, TGlobalStore, TStore>) {
+    //     const rawContext = new AgentRawContext(this.state,
+    //         this.opts,
+    //         this.opts.store as Store<TStore> | undefined,
+    //         this.globalStore as Store<TGlobalStore> | undefined,
+    //         (instructions) => {
+    //             this.opts["instructions"] = instructions;
+    //         },
+    //         (options) => {
+    //             this.opts = { ...options, name: this.opts.name, store: this.opts.store }
+    //         },
+    //         async () => await this.stop(), {
+    //         setGenerating: this.setGenerating,
+    //         setIdle: this.setIdle,
+    //         setWaiting: this.setWaiting,
+    //         setState: async (state: AgentState<any>) => {
+    //             this.updateState(() => state)
+    //         }
+    //     });
+
+    //     if (isAsyncFunction(callback)) {
+    //         const newState = await callback(this.openai, rawContext);
+    //         this.updateState(() => newState);
+    //     } else {
+    //         const newState = callback(this.openai, rawContext) as Awaited<ReturnType<typeof callback>>;
+    //         this.updateState(() => newState);
+    //     }
+    //     return this.state
+    // }
 
     private toolsToModelSettingsTools() {
         const result: ChatCompletionCreateParamsBase["tools"] = [];

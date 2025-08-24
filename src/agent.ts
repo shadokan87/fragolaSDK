@@ -160,7 +160,7 @@ interface agentRawMethods {
     setIdle: () => Promise<void>,
     setWaiting: () => Promise<void>,
     setGenerating: () => Promise<void>,
-    setState: (state: AgentState<any>) => Promise<void>
+    dispatchState: (state: AgentState<any>) => Promise<void>,
 }
 
 export class AgentRawContext<TMetaData extends DefineMetaData<any> = {}, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> extends AgentContext<TMetaData, TGlobalStore, TStore> {
@@ -258,36 +258,35 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
     }
     getState() { return this.state };
 
-    //TODO: for future versions
-    // async raw(callback: AgentRaw<TMetaData, TGlobalStore, TStore>) {
-    //     const rawContext = new AgentRawContext(this.state,
-    //         this.opts,
-    //         this.opts.store as Store<TStore> | undefined,
-    //         this.globalStore as Store<TGlobalStore> | undefined,
-    //         (instructions) => {
-    //             this.opts["instructions"] = instructions;
-    //         },
-    //         (options) => {
-    //             this.opts = { ...options, name: this.opts.name, store: this.opts.store }
-    //         },
-    //         async () => await this.stop(), {
-    //         setGenerating: this.setGenerating,
-    //         setIdle: this.setIdle,
-    //         setWaiting: this.setWaiting,
-    //         setState: async (state: AgentState<any>) => {
-    //             this.updateState(() => state)
-    //         }
-    //     });
+    async raw(callback: AgentRaw<TMetaData, TGlobalStore, TStore>) {
+        const rawContext = new AgentRawContext(this.state,
+            this.opts,
+            this.opts.store as Store<TStore> | undefined,
+            this.globalStore as Store<TGlobalStore> | undefined,
+            (instructions) => {
+                this.opts["instructions"] = instructions;
+            },
+            (options) => {
+                this.opts = { ...options, name: this.opts.name, store: this.opts.store }
+            },
+            async () => await this.stop(), {
+            setGenerating: this.setGenerating,
+            setIdle: this.setIdle,
+            setWaiting: this.setWaiting,
+            dispatchState: async (state: AgentState<any>) => {
+                this.updateState(() => state)
+            }
+        });
 
-    //     if (isAsyncFunction(callback)) {
-    //         const newState = await callback(this.openai, rawContext);
-    //         this.updateState(() => newState);
-    //     } else {
-    //         const newState = callback(this.openai, rawContext) as Awaited<ReturnType<typeof callback>>;
-    //         this.updateState(() => newState);
-    //     }
-    //     return this.state
-    // }
+        if (isAsyncFunction(callback)) {
+            const newState = await callback(this.openai, rawContext);
+            this.updateState(() => newState);
+        } else {
+            const newState = callback(this.openai, rawContext) as Awaited<ReturnType<typeof callback>>;
+            this.updateState(() => newState);
+        }
+        return this.state
+    }
 
     private toolsToModelSettingsTools() {
         const result: ChatCompletionCreateParamsBase["tools"] = [];
@@ -679,20 +678,17 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
     }
 
     /**
-     * Registers a callback for a specific agent event.
-     *
-     * @template TEventId - The type of the event ID (must extend AgentEventId).
-     * @param eventId - The event identifier to listen for.
-     * @param callback - The callback function to invoke when the event occurs. The callback type is inferred from the event ID and store types.
-     * @returns A function to unregister the event listener.
+     * Register a handler for a given event id.
+     * Returns an unsubscribe function that removes the registered handler.
      *
      * @example
-     * // Register a callback for a custom event
-     * const unregister = agent.on("before:conversationUpdate", (state, getStore, getGlobalStore) => {
-     *   // handle event
+     * // listen to userMessage events
+     * const off = agent.on('userMessage', (message, context) => {
+     *   // inspect or transform the message
+     *   return { ...message, content: message.content.trim() };
      * });
-     * // Later, to remove the listener:
-     * unregister();
+     * // later
+     * off();
      */
     on<TEventId extends AgentEventId>(eventId: TEventId, callback: eventIdToCallback<TEventId, TMetaData, TGlobalStore, TStore>
     ) {
@@ -717,15 +713,109 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         }
     }
 
+    /**
+     * Register a tool call event handler.
+     *
+     * This handler is invoked when the agent needs to execute a tool. Handlers may return a value
+     * that will be used as the tool result.
+     *
+     * @example
+     * // simple tool handler that returns an object as result
+     * agent.onToolCall(async (params, tool, context) => {
+     *   // dynamic tools do not have a handler function, so we skip them
+     *   if (params.handler == "dynamic") return skip();
+     *   // do something with params and tool
+     *   try {
+     *      const result = await tool.handler(params);
+     *      return { sucess: true, result }
+     * } catch(e) {
+     *      if (e extends Error)
+     *      return { error: e.message }
+     * }
+     * });
+     */
     onToolCall<TParams = Record<any, any>>(callback: EventToolCall<TParams, TMetaData, TGlobalStore, TStore>) { return this.on("toolCall", callback) }
 
+    /**
+     * Register a handler that runs after the conversation is updated.
+     *
+     * After-event handlers do not return a value. Use these to persist state, emit metrics or side-effects.
+     *
+     * @example
+     * agent.onAfterConversationUpdate((reason, context) => {
+     *   // persist conversation to a DB or telemetry
+     *   console.log('conversation updated because of', reason);
+     *   context.getStore()?.value.lastSaved = Date.now();
+     * });
+     */
     onAfterConversationUpdate(callback: EventAfterConversationUpdate<TMetaData, TGlobalStore, TStore>) { return this.on("after:conversationUpdate", callback) }
 
+    /**
+     * Register an AI message event handler.
+     *
+     * Called when an assistant message is generated or streaming. Handlers may return a modified
+     * message which will replace the message in the conversation.
+     *
+     * @example
+     * agent.onAiMessage((message, isGenerating, context) => {
+     *   if (!isGenerating && message.content.includes('debug')) {
+     *     // modify final assistant message
+     *      message.content += '(edited)';
+     *   }
+     *   return message;
+     * });
+     */
     onAiMessage(callback: EventAiMessage<TMetaData, TGlobalStore, TStore>) { return this.on("aiMessage", callback) }
 
+    /**
+     * Register a user message event handler.
+     *
+     * Called when a user message is appended to the conversation. Handlers may return a modified
+     * user message which will be used instead of the original.
+     *
+     * @example
+     * agent.onUserMessage((message, context) => {
+     *   // enrich user message with metadata
+     *   return { ...message, content: message.content.trim() };
+     * });
+     */
     onUserMessage(callback: EventUserMessage<TMetaData, TGlobalStore, TStore>) { return this.on("userMessage", callback) }
 
+    /**
+     * Register a model invocation event handler.
+     *
+     * This handler wraps the model call. It receives a `callAPI` function to perform the request and
+     * can return a modified assistant message. Handlers can also provide a `processChunk` function to
+     * edit streaming chunks before they are applied to the partial assistant message.
+     *
+     * @example
+     * // modify streaming chunks before they are applied
+     * agent.onModelInvocation(async (callAPI, context) => {
+     *   const processChunk: CallAPIProcessChuck = (chunk, partial) => {
+     *     // e.g. redact sensitive tokens or append extra tokens
+     *     chunck.choices[0].delta.content = '(modified)';
+     *     // perform modifications on `modified` here
+     *     return chunck;
+     *   };
+     *   // pass the processor to callAPI; it returns the final assistant message
+     *   const aiMsg = await callAPI(processChunk);
+     *   // post-process the final assistant message if needed
+     *   return { ...aiMsg, content: aiMsg.content + '\n\n(checked)' };
+     * });
+     */
     onModelInvocation(callback: EventModelInvocation<TMetaData, TGlobalStore, TStore>) { return this.on("modelInvocation", callback) }
 
+    /**
+     * Register a handler that runs after the agent state is updated.
+     *
+     * After-state-update handlers do not return a value. Use these for side-effects such as metrics
+     * or asynchronous persistence.
+     *
+     * @example
+     * agent.onAfterStateUpdate((context) => {
+     *   // e.g. emit metrics about step count
+     *   console.log('stepCount', context.state.stepCount);
+     * });
+     */
     onAfterStateUpdate(callback: AfterStateUpdateCallback<TMetaData, TGlobalStore, TStore>) { return this.on("after:stateUpdate", callback) }
 }

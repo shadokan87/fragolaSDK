@@ -5,7 +5,35 @@ import type { AgentDefaultEventId, eventResult } from "./event";
 import type { ClientOptions } from "openai/index.js";
 import type { ChatCompletionAssistantMessageParam, ChatCompletionUserMessageParam, DefineMetaData, Tool, ToolHandlerReturnTypeNonAsync } from "./fragola";
 
+/**
+ * Function called for each streaming chunk. Receives the original chunk and the current partial message.
+ * Return a (possibly modified) chunk. Use this to transform streaming data
+ * (filter tokens, redact, inject text, etc.).
+ *
+ * @example
+ * const processChunk: CallAPIProcessChuck = (chunk, partial) => {
+ *   // modify chunk here
+ *   return chunk;
+ * }
+ */
 export type CallAPIProcessChuck = (chunck: OpenAI.ChatCompletionChunk, partialMessage: OpenAI.ChatCompletionAssistantMessageParam) => maybePromise<OpenAI.ChatCompletionChunk>;
+
+/**
+ * Performs the model API call. You can pass an optional `processChunck` function to transform streaming chunks
+ * before they are appended to the partial message. `modelSettings` and `clientOptions` allow overriding
+ * the request parameters and the OpenAI client for this specific call.
+ *
+ * @example
+ * // edit chunks before they are applied and get the final assistant message
+ * agent.onModelInvocation(async (callAPI, context) => {
+ *   const processChunk: CallAPIProcessChuck = (chunk, partial) => {
+ *     // inspect/modify chunk
+ *     return chunk;
+ *   };
+ *   const aiMsg = await callAPI(processChunk);
+ *   return aiMsg;
+ * });
+ */
 export type CallAPI = (processChunck?: CallAPIProcessChuck, modelSettings?: CreateAgentOptions["modelSettings"], clientOptions?: ClientOptions) => Promise<OpenAI.ChatCompletionAssistantMessageParam>
 
 export type EventModelInvocation<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = (

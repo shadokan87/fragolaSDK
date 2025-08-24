@@ -1,5 +1,5 @@
 {
-  "name": "fragolav2",
+  "name": "fragola-ai-sdk",
   "module": "index.ts",
   "type": "module",
   "devDependencies": {

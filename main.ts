@@ -1,7 +1,7 @@
-import { Fragola } from "./fragola/fragola";
+import { Fragola } from "./src/fragola";
 import { PORTKEY_GATEWAY_URL, createHeaders } from "portkey-ai";
-import getWeatherForCity from "./fragola/tools/getWeatherForCity";
-import { createStore } from "./fragola/agent";
+import getWeatherForCity from "./src/tools/getWeatherForCity";
+import { createStore } from "./src/agent";
 
 export const weatherStore = createStore<{ lastWeather: Record<string, string> | undefined }>({
     lastWeather: undefined

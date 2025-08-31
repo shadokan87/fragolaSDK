@@ -5,7 +5,7 @@ import type { ClientOptions } from "openai/index.js";
 import OpenAI from "openai/index.js";
 import type { Store } from "./store";
 
-export type ToolHandlerReturnTypeNonAsync = any[] | Record<any, any> | Function | number | bigint | boolean;
+export type ToolHandlerReturnTypeNonAsync = any[] | Record<any, any> | Function | number | bigint | boolean | string;
 export type ToolHandlerReturnType = maybePromise<ToolHandlerReturnTypeNonAsync>;
 export type AllowedMetaKeys = "user" | "ai" | "tool";
 
@@ -33,7 +33,7 @@ export type ChatCompletionMessageParam<TMetaData extends DefineMetaData<any> = {
     | OpenAI.Chat.Completions.ChatCompletionFunctionMessageParam
     ;
 
-export interface Tool<T extends z.ZodType<any, any>> {
+export interface Tool<T extends z.ZodType<any, any> = any> {
     /**
      * The name of the tool.
      */
@@ -49,7 +49,7 @@ export interface Tool<T extends z.ZodType<any, any>> {
     /**
      * The Zod schema that validates the parameters for the tool.
      */
-    schema: T;
+    schema?: T;
 }
 
 export const tool = <T extends z.ZodType<any, any>>(params: Tool<T>) => params;

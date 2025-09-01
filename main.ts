@@ -47,18 +47,13 @@ async function main() {
     });
 
     weatherAgent.onUserMessage((message) => {
-        return skip();
+        // return skip();
         return { ...message, content: message.content + "all in the same" };
     });
 
     weatherAgent.onUserMessage((message) => {
-        return skip();
+        // return skip();
         return { ...message, content: message.content + " response" };
-    });
-
-    weatherAgent.onAiMessage((aiMessage) => {
-        aiMessage.content = "(modified)";
-        return aiMessage;
     });
 
     // weatherAgent.onAiMessage((aiMessage, isPartial, context) => {
@@ -70,8 +65,11 @@ async function main() {
     // });
 
     weatherAgent.onAfterStateUpdate(({ state }) => {
+        // const last = state.conversation.at(-1);
+        // if (last && last.role == "assistant")
+        //     console.log(last.content);
         console.log(state.status, JSON.stringify(state.conversation, null, 2));
-    })
+    });
 
     const { conversation } = await weatherAgent.userMessage({ content: "generate a random poem and call tool 1." });
 }

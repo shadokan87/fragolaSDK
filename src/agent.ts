@@ -1,8 +1,8 @@
 import { Store } from "./store"
-import type { ChatCompletionMessageParam, ChatCompletionUserMessageParam, DefineMetaData, Tool } from "./fragola"
+import { stripUserMessageMeta, type ChatCompletionAssistantMessageParam, type ChatCompletionMessageParam, type ChatCompletionUserMessageParam, type DefineMetaData, type Tool } from "./fragola"
 import type { ChatCompletionCreateParamsBase } from "openai/resources/chat/completions.js"
 import { zodToJsonSchema } from "openai/_vendor/zod-to-json-schema/zodToJsonSchema.mjs"
-import { streamChunkToMessage, isAsyncFunction } from "./utils"
+import { streamChunkToMessage, isAsyncFunction, isSkipEvent, skipEventFallback } from "./utils"
 import { BadUsage, FragolaError, MaxStepHitError } from "./exceptions"
 import type z from "zod"
 import type { maybePromise, Prettify, StoreLike } from "./types"
@@ -11,17 +11,8 @@ import { type AgentEventId, type AgentDefaultEventId, type EventDefaultCallback,
 import type { CallAPI, CallAPIProcessChuck, callbackMap as eventDefaultCallbackMap, EventToolCall, EventUserMessage, EventModelInvocation, EventAiMessage } from "./eventDefault";
 import { nanoid } from "nanoid"
 import type { EventAfterConversationUpdate, AfterStateUpdateCallback, conversationUpdateReason, callbackMap as eventAfterCallbackMap } from "./eventAfter"
+import { type registeredEvent, type eventIdToCallback, EventMap } from "./extendedJS/events/EventMap"
 
-namespace utils {
-    export const isSkipEvent = (data: any) => {
-        return typeof data == "object" && (data as any)[SKIP_EVENT] == true
-    }
-    export const skipEventFallback = <T>(data: any, fallback: T): T => {
-        if (isSkipEvent(data))
-            return fallback as T;
-        return data as T;
-    }
-}
 export const createStore = <T extends StoreLike<any>>(data: StoreLike<T>) => new Store(data);
 
 export type AgentState<TMetaData extends DefineMetaData<any> = {}> = {
@@ -200,26 +191,6 @@ export type StepParams = StepBy & StepOptions;
 
 export type UserMessageQuery = Prettify<Omit<OpenAI.Chat.ChatCompletionUserMessageParam, "role">> & { step?: StepParams };
 
-/**
- * Maps an event ID to its corresponding callback type based on the event category.
- *
- * - For default event IDs (`AgentDefaultEventId`), returns the callback type from `eventDefaultCallbackMap`.
- * - For other event IDs, resolves to `never`.
- *
- * @template TEventId - The type of the event ID.
- * @template TGlobalStore - The type of the global store.
- * @template TStore - The type of the local store.
- */
-type eventIdToCallback<TEventId extends AgentEventId, TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> =
-    TEventId extends AgentDefaultEventId ? eventDefaultCallbackMap<TMetaData, TGlobalStore, TStore>[TEventId] :
-    TEventId extends AgentAfterEventId ? eventAfterCallbackMap<TMetaData, TGlobalStore, TStore>[TEventId] :
-    never
-
-type registeredEvent<TEventId extends AgentEventId, TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = {
-    id: string,
-    callback: eventIdToCallback<TEventId, TMetaData, TGlobalStore, TStore>
-}
-
 type ConversationUpdateParams = {
     reason: conversationUpdateReason
 }
@@ -240,7 +211,8 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
 
     private openai: OpenAI;
     private paramsTools: ChatCompletionCreateParamsBase["tools"] = [];
-    private registeredEvents: Map<AgentEventId, registeredEvent<AgentEventId, TMetaData, TGlobalStore, TStore>[]> = new Map();
+    private registeredEvents: EventMap<AgentEventId, registeredEvent<AgentEventId, TMetaData, TGlobalStore, TStore>[], TMetaData, TGlobalStore, TStore> = new EventMap(() => this.context)
+    // private registeredEvents: Map<AgentEventId, registeredEvent<AgentEventId, TMetaData, TGlobalStore, TStore>[]> = new Map();
     private abortController: AbortController | undefined = undefined;
     private stopRequested: boolean = false;
     private context: AgentContext<TMetaData, TGlobalStore, TStore>;
@@ -504,44 +476,10 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
             const defaultProcessChunck: CallAPIProcessChuck = (chunck) => chunck;
             const defaultModelSettings: CreateAgentOptions<any>["modelSettings"] = this.opts.modelSettings;
 
-            type HandleAiMessage = (message: typeof aiMessage, isPartial: boolean) => maybePromise<typeof aiMessage>;
-            const defaultHandleAiMessage: HandleAiMessage = (message) => message;
-
             const callAPI: CallAPI = async (processChunck, modelSettings, clientOpts) => {
                 const _processChunck = processChunck || defaultProcessChunck;
                 const _modelSettings = modelSettings || defaultModelSettings;
                 const openai = clientOpts ? new OpenAI(clientOpts) : this.openai;
-
-                // Will return the callback that get us the final aiMessage after events are applied, or just the aiMessage
-                const handleAiMessage = (() => {
-                    if (!EaiMessage?.length)
-                        return defaultHandleAiMessage;
-                    const callback: HandleAiMessage = async (message, isPartial) => {
-                        type EventCallbackType = EventAiMessage<TMetaData, TGlobalStore, TStore>;
-                        let callbackResult: ReturnType<EventCallbackType>;
-                        let result: typeof aiMessage | undefined = undefined;
-
-                        for (let i = 0; i < EaiMessage.length; i++) {
-                            const event = EaiMessage[i];
-                            if (isAsyncFunction(event.callback)) {
-                                callbackResult = await (event.callback as EventCallbackType)(!result ? message : result, isPartial, this.context);
-                                if (utils.isSkipEvent(callbackResult))
-                                    continue;
-                                result = callbackResult as typeof aiMessage;
-                            } else {
-                                callbackResult = (event.callback as EventCallbackType)(!result ? message : result, isPartial, this.context);
-                                if (utils.isSkipEvent(callbackResult))
-                                    continue;
-                                result = callbackResult as typeof aiMessage;
-                            }
-                        }
-                        // It is possible that every events returns skip, in this case the aiMessage should be assigned to the default value
-                        if (!result)
-                            result = await defaultHandleAiMessage(message, isPartial);
-                        return result as typeof aiMessage;
-                    };
-                    return callback;
-                })();
 
                 const role: ChatCompletionCreateParamsBase["messages"][0]["role"] = this.opts.useDeveloperRole ? "developer" : "system";
                 let requestBody: ChatCompletionCreateParamsBase = {
@@ -568,7 +506,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                             partialMessage = streamChunkToMessage(_chunck as OpenAI.ChatCompletionChunk, partialMessage);
                         }
                         const updateReason: conversationUpdateReason = !chunck.choices[0].finish_reason ? "partialAiMessage" : "AiMessage";
-                        let partialMessageFinal = await handleAiMessage(partialMessage as typeof aiMessage, updateReason == "partialAiMessage");
+                        let partialMessageFinal = await this.registeredEvents.handleAiMessage(partialMessage as typeof aiMessage, updateReason == "partialAiMessage");
                         await this.appendMessages([partialMessageFinal as OpenAI.Chat.ChatCompletionMessageParam], replaceLast, updateReason);
                         !replaceLast && (this.setStepCount(this.state.stepCount + 1));
                         replaceLast = true;
@@ -590,9 +528,9 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                     let params: Parameters<EventModelInvocation<TMetaData, TGlobalStore, TStore>> = [callAPI, this.context];
                     const callback = event.callback as EventModelInvocation<TMetaData, TGlobalStore, TStore>;
                     if (callback.constructor.name == "AsyncFunction")
-                        aiMessage = utils.skipEventFallback(await callback(...params), await callAPI());
+                        aiMessage = skipEventFallback(await callback(...params), await callAPI());
                     else
-                        aiMessage = utils.skipEventFallback(callback(...params), await callAPI());
+                        aiMessage = skipEventFallback(callback(...params), await callAPI());
                 }
             } else
                 await callAPI();
@@ -634,7 +572,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                             const _event = toolCallEvents[i];
                             const result = isAsyncFunction(_event.callback) ? await _event.callback(paramsParsed?.data, tool as any, this.context)
                                 : _event.callback(paramsParsed?.data, tool as any, this.context);
-                            if (utils.isSkipEvent(result)) {
+                            if (isSkipEvent(result)) {
                                 continue;
                             }
                             return result;
@@ -678,19 +616,12 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
 
     async userMessage(query: UserMessageQuery): Promise<AgentState> {
         const { step, ...message } = query;
-        let _message = structuredClone(message) as Omit<ChatCompletionUserMessageParam, "role" | "meta">;
-
-        const EuserMessage = this.registeredEvents.get("userMessage");
-        if (EuserMessage?.length) {
-            for (let i = 0; i < EuserMessage.length; i++) {
-                const event = EuserMessage[i];
-                const callbackResult = await (event.callback as EventUserMessage<TMetaData, TGlobalStore, TStore>)(_message as any, this.context);
-                if (utils.isSkipEvent(callbackResult))
-                    continue;
-                _message = callbackResult as typeof _message;
-            }
-        }
-        await this.updateConversation((prev) => [...prev, { role: "user", ..._message }], "userMessage");
+        let _message: Omit<ChatCompletionUserMessageParam, "role">;
+        if (!this.registeredEvents.handleUserMessage)
+            _message = message;
+        else
+            _message = await this.registeredEvents.handleUserMessage(message);
+        await this.updateConversation((prev) => [...prev, stripUserMessageMeta({ role: "user", ..._message })], "userMessage");
         return await this.step(query.step);
     }
 

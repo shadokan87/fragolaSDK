@@ -1,10 +1,11 @@
 import type OpenAI from "openai";
+import { SKIP_EVENT } from "./event";
 
 export function isAsyncFunction(fn: Function): boolean {
     return fn.constructor.name === 'AsyncFunction';
 }
 
-export const streamChunkToMessage = (chunk: OpenAI.Chat.Completions.ChatCompletionChunk,message: Partial<OpenAI.Chat.ChatCompletionMessageParam> = {} as Partial<OpenAI.Chat.ChatCompletionMessageParam>) => {
+export const streamChunkToMessage = (chunk: OpenAI.Chat.Completions.ChatCompletionChunk, message: Partial<OpenAI.Chat.ChatCompletionMessageParam> = {} as Partial<OpenAI.Chat.ChatCompletionMessageParam>) => {
     let updatedMessage = structuredClone(message);
 
     // Handle role if present in delta
@@ -47,4 +48,13 @@ export const streamChunkToMessage = (chunk: OpenAI.Chat.Completions.ChatCompleti
     }
 
     return updatedMessage;
+}
+
+export const isSkipEvent = (data: any) => {
+    return typeof data == "object" && (data as any)[SKIP_EVENT] == true
+}
+export const skipEventFallback = <T>(data: any, fallback: T): T => {
+    if (isSkipEvent(data))
+        return fallback as T;
+    return data as T;
 }

@@ -156,7 +156,7 @@ export class AgentContext<TMetaData extends DefineMetaData<any> = {}, TGlobalSto
     }
 }
 
-interface agentRawMethods {
+export interface agentRawMethods {
     setIdle: () => Promise<void>,
     setWaiting: () => Promise<void>,
     setGenerating: () => Promise<void>,

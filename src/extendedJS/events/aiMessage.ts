@@ -1,7 +1,6 @@
 import type { AgentContext } from "../../agent";
-import type { AgentEventId } from "../../event";
 import type { EventAiMessage } from "../../eventDefault";
-import type { ChatCompletionAssistantMessageParam, DefineMetaData } from "../../fragola";
+import type { ChatCompletionAssistantMessageParam } from "../../fragola";
 import type { maybePromise, StoreLike } from "../../types";
 import { isSkipEvent } from "../../utils";
 import type { registeredEvent } from "./EventMap";

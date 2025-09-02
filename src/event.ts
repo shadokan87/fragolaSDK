@@ -1,8 +1,6 @@
-import type OpenAI from "openai/index.js";
-import type { AgentContext, AgentState } from "./agent";
-import type { Store } from "./store";
-import type { Prettify, StoreLike, maybePromise } from "./types";
-import type { ChatCompletionAssistantMessageParam, DefineMetaData, Tool, ToolHandlerReturnType, ToolHandlerReturnTypeNonAsync } from "./fragola";
+import type { AgentContext } from "./agent";
+import type { StoreLike, maybePromise } from "./types";
+import type { DefineMetaData } from "./fragola";
 
 export type AgentDefaultEventId =
   "apiCall" | "stateUpdate" | "modelInvocation" | "toolCall" | "aiMessage" | "userMessage";

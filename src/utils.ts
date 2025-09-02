@@ -6,7 +6,7 @@ export function isAsyncFunction(fn: Function): boolean {
 }
 
 export const streamChunkToMessage = (chunk: OpenAI.Chat.Completions.ChatCompletionChunk, message: Partial<OpenAI.Chat.ChatCompletionMessageParam> = {} as Partial<OpenAI.Chat.ChatCompletionMessageParam>) => {
-    let updatedMessage = structuredClone(message);
+    const updatedMessage = structuredClone(message);
 
     // Handle role if present in delta
     if (chunk.choices[0].delta?.role) {
@@ -36,7 +36,7 @@ export const streamChunkToMessage = (chunk: OpenAI.Chat.Completions.ChatCompleti
                     },
                 })
             } else {
-                let lastToolCallRef = updatedMessage.tool_calls.at(-1);
+                const lastToolCallRef = updatedMessage.tool_calls.at(-1);
                 if (lastToolCallRef && lastToolCallRef.function && toolCall.function?.arguments) {
                     lastToolCallRef.function = {
                         ...lastToolCallRef.function,

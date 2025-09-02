@@ -1,5 +1,4 @@
-import type { AgentContext, UserMessageQuery } from "../../agent";
-import type { AgentEventId } from "../../event";
+import type { AgentContext } from "../../agent";
 import type { ChatCompletionUserMessageParam } from "../../fragola";
 import type { StoreLike } from "../../types";
 import { isSkipEvent } from "../../utils";

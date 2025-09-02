@@ -1,6 +1,6 @@
 import z from "zod";
 import { Agent, type AgentContext, type CreateAgentOptions } from "./agent";
-import type { maybePromise, StoreLike } from "./types";
+import type { maybePromise } from "./types";
 import type { ClientOptions } from "openai/index.js";
 import OpenAI from "openai/index.js";
 import type { Store } from "./store";
@@ -57,6 +57,7 @@ export const tool = <T extends z.ZodType<any, any>>(params: Tool<T>) => params;
 export function stripMeta<T extends object>(data: (T & { meta?: any }) | Array<T & { meta?: any }>) {
     const _strip = (message: T & { meta?: any }) => {
         const { meta, ...messageWithoutMeta } = message;
+        void meta;
         return messageWithoutMeta;
     };
     if (Array.isArray(data))

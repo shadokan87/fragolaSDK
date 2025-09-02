@@ -1,7 +1,59 @@
 {
-  "name": "fragola-ai-sdk",
-  "module": "index.ts",
+  "name": "@fragola-ai/agentic",
+  "version": "0.0.1",
+  "description": "Fragola is a 100% openai format compatible library for building easy to complex agentic systems via an API that is minimalistic, event-driven and customizable with near zero abstractions.",
+  "main": "./dist/fragola.index.js",
+  "module": "./dist/fragola.index.js",
+  "types": "./dist/fragola.index.d.ts",
   "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/fragola.index.js",
+      "types": "./dist/fragola.index.d.ts"
+    },
+    "./store": {
+      "import": "./dist/store.index.js",
+      "types": "./dist/store.index.d.ts"
+    },
+    "./agent": {
+      "import": "./dist/agent.index.js",
+      "types": "./dist/agent.index.d.ts"
+    }
+  },
+  "files": [
+    "dist/**/*",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "ai",
+    "llm",
+    "agent",
+    "sdk",
+    "fragola",
+    "typescript",
+    "events",
+    "middleware",
+    "customizable",
+    "openai",
+    "compatible"
+  ],
+  "author": "Fragola AI",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fragola-ai/agent-sdk.git"
+  },
+  "bugs": {
+    "url": "https://github.com/fragola-ai/agent-sdk/issues"
+  },
+  "homepage": "https://github.com/fragola-ai/agent-sdk#readme",
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18"
+  },
   "devDependencies": {
     "@types/bun": "latest"
   },
@@ -17,6 +69,8 @@
     "zod": "^3.25.67"
   },
   "scripts": {
-    "lint": "bunx eslint ."
+    "lint": "bunx eslint .",
+    "build": "bun run build.ts",
+    "prepublishOnly": "bun run build"
   }
 }

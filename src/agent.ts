@@ -56,7 +56,7 @@ export const defaultStepOptions: StepOptions = {
 /**
  * Options for configuring the agent context.
  */
-interface AgentContexOptions {
+export interface AgentContexOptions {
     /** Optional settings for each step in the agent's process. */
     stepOptions?: StepOptions,
     /** The name assigned to the agent. */
@@ -71,7 +71,7 @@ interface AgentContexOptions {
     modelSettings: Prettify<Omit<ChatCompletionCreateParamsBase, "messages" | "tools">>,
 } //TODO: better comment for stepOptions with explaination for each fields
 
-type SetOptionsParams = Omit<AgentContexOptions, "name" | "initialConversation">;
+export type SetOptionsParams = Omit<AgentContexOptions, "name" | "initialConversation">;
 
 export type CreateAgentOptions<TStore extends StoreLike<any> = {}> = {
     store?: Store<TStore>,

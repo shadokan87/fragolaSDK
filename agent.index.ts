@@ -11,9 +11,9 @@ export type {
     UserMessageQuery,
     Agent,
     AgentAny
-} from "@src/agent";
+} from "./src/agent";
 
 export {
     AgentContext,
     AgentRawContext
-} from "@src/agent";
+} from "./src/agent";

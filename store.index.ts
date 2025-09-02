@@ -1,7 +1,7 @@
 export {
     Store
-} from "@src/store";
+} from "./src/store";
 
 export type {
     StoreChangeCallback
-} from "@src/store"
+} from "./src/store"

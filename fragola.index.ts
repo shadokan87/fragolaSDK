@@ -6,7 +6,7 @@ export {
     stripUserMessageMeta,
     stripToolMessageMeta,
     Fragola
-} from "@src/fragola";
+} from "./src/fragola";
 
 export type {
     ToolHandlerReturnTypeNonAsync,
@@ -19,4 +19,4 @@ export type {
     MessageMeta,
     ChatCompletionMessageParam,
     Tool
-} from "@src/fragola";
+} from "./src/fragola";

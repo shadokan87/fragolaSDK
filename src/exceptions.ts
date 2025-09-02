@@ -1,3 +1,5 @@
+import type { AgentAny } from "./agent";
+
 // Base exception class
 export class FragolaError extends Error {
     constructor(message: string) {
@@ -23,6 +25,16 @@ export class BadUsage extends FragolaError {
     constructor(message: string) {
         super(message);
         this.name = "BadUsage";
+        if (Error.captureStackTrace) {
+            Error.captureStackTrace(this, BadUsage)
+        }
+    }
+}
+
+export class GuardRailConstrain extends FragolaError {
+    constructor(message: string, agent: AgentAny) {
+        super(message);
+        this.name = "GuardRailConstrain";
         if (Error.captureStackTrace) {
             Error.captureStackTrace(this, BadUsage)
         }

@@ -472,7 +472,6 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
 
         if (shouldGenerate) {
             const EmodelInvocation = this.registeredEvents.get("modelInvocation");
-            const EaiMessage = this.registeredEvents.get("aiMessage");
             const defaultProcessChunck: CallAPIProcessChuck = (chunck) => chunck;
             const defaultModelSettings: CreateAgentOptions<any>["modelSettings"] = this.opts.modelSettings;
 

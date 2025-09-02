@@ -55,7 +55,6 @@ export class EventMap<
         switch (key) {
             case "aiMessage": {
                 this.#handleAiMessage = createHandleAiMessage(value as registeredEvent<"aiMessage", TMetaData, TGlobalStore, TStore>[], this.getContext as unknown as () => AgentContext<any>);
-                console.log("__UPDATE__", this.handleAiMessage.toString())
                 break;
             }
             case "userMessage": {
@@ -75,7 +74,6 @@ export class EventMap<
             switch (key) {
                 case "aiMessage": {
                     this.#handleAiMessage = defaultHandleAiMessage;
-                    console.log("__UPDATE__", this.handleAiMessage.toString())
                     break;
                 } case "userMessage": {
                     this.#handleUserMessage = undefined;

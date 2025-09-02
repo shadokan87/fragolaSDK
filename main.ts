@@ -1,8 +1,7 @@
 import { Fragola, tool, type Tool } from "./src/fragola";
 import { PORTKEY_GATEWAY_URL, createHeaders } from "portkey-ai";
-import { Agent, createStore, type AgentAny, type UserMessageQuery } from "./src/agent";
+import { createStore, type AgentAny, type UserMessageQuery } from "./src/agent";
 import z from "zod";
-import { skip } from "./src/event";
 
 export const weatherStore = createStore<{ lastWeather: Record<string, string> | undefined }>({
     lastWeather: undefined

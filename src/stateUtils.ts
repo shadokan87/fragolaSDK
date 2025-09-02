@@ -21,7 +21,7 @@ const getToolCallOrigin = (
             return true;
         }
         return false;
-    }) as OpenAI.ChatCompletionAssistantMessageParam | undefined;
+    });
     return found;
 };
 
@@ -64,34 +64,6 @@ export function createStateUtils(state: AgentState) {
             if (!lastMessage || !(lastMessage.role == "assistant" && !lastMessage.tool_calls && state.status == "idle"))
                 return undefined;
             return lastMessage;
-        },
-
-        /**
-         * Returns the last message in the conversation.
-         *
-         * @returns The last message in the conversation, or `undefined` if conversation is empty.
-         */
-        lastMessage: () => {
-            return state.conversation.at(-1);
-        },
-
-        /**
-         * Returns all messages of a specific role from the conversation.
-         *
-         * @param role - The role to filter by.
-         * @returns Array of messages matching the specified role.
-         */
-        messagesByRole: (role: OpenAI.ChatCompletionMessageParam['role']) => {
-            return state.conversation.filter(msg => msg.role === role);
-        },
-
-        /**
-         * Returns the conversation array directly.
-         *
-         * @returns The complete conversation history.
-         */
-        conversation: () => {
-            return state.conversation;
         }
     };
 }

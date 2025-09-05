@@ -1,19 +1,25 @@
 #!/usr/bin/env bun
-import { build } from 'bun';
+import { build } from 'esbuild';
 import { spawn } from 'child_process';
 import { promisify } from 'util';
 
 const execAsync = promisify(spawn);
 
-// Build JavaScript files with Bun
+// Build JavaScript files with esbuild
 await build({
-  entrypoints: ['./fragola.index.ts', './store.index.ts', './agent.index.ts'],
+  entryPoints: ['./fragola.index.ts', './store.index.ts', './agent.index.ts'],
   outdir: './dist',
-  target: 'node',
+  platform: 'node',
+  target: 'node18',
   format: 'esm',
   minify: true,
-  sourcemap: 'external',
-  naming: '[dir]/[name].[ext]',
+  sourcemap: true,
+  sourcesContent: true,
+  bundle: false,
+  metafile: true,
+}).catch((error) => {
+  console.error('Build failed:', error);
+  process.exit(1);
 });
 
 // Generate TypeScript declaration files

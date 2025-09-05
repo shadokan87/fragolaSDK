@@ -7,7 +7,12 @@ const execAsync = promisify(spawn);
 
 // Build JavaScript files with esbuild
 await build({
-  entryPoints: ['./fragola.index.ts', './store.index.ts', './agent.index.ts'],
+  entryPoints: [
+    './fragola.index.ts', 
+    './store.index.ts', 
+    './agent.index.ts',
+    './src/**/*.ts'
+  ],
   outdir: './dist',
   platform: 'node',
   target: 'node18',

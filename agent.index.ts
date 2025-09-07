@@ -18,4 +18,4 @@ export {
     AgentRawContext,
 } from "./src/agent";
 
-export * from "./src/event";
+export * as Event from "./src/event";

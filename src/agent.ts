@@ -549,7 +549,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                 // Find tool in options that matches the tool requested by last ai message
                 const tool = this.opts.tools?.find(tool => tool.name == toolCall.function.name);
                 if (!tool)
-                    throw new FragolaError("Tool arguments parsing fail");
+                    throw new FragolaError(`Tool ${toolCall.function.name} missing`);
 
                 let paramsParsed: z.SafeParseReturnType<any, any> | undefined;
                 if (tool.schema) {

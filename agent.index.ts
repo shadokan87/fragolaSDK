@@ -12,10 +12,11 @@ export type {
     Agent,
     AgentAny,
 } from "./src/agent";
-
+import { skip } from "./src/event";
 export {
     AgentContext,
     AgentRawContext,
 } from "./src/agent";
-
-export * as Event from "./src/event";
+export {
+    skip
+}

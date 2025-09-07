@@ -11,6 +11,7 @@ await build({
     './fragola.index.ts', 
     './store.index.ts', 
     './agent.index.ts',
+    './event.index.ts',
     './src/**/*.ts'
   ],
   outdir: './dist',

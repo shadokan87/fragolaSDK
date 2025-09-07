@@ -18,5 +18,5 @@ export type {
     ChatCompletionToolMessageParam,
     MessageMeta,
     ChatCompletionMessageParam,
-    Tool
+    Tool,
 } from "./src/fragola";

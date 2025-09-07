@@ -10,10 +10,12 @@ export type {
     StepParams,
     UserMessageQuery,
     Agent,
-    AgentAny
+    AgentAny,
 } from "./src/agent";
 
 export {
     AgentContext,
-    AgentRawContext
+    AgentRawContext,
 } from "./src/agent";
+
+export * from "./src/event";

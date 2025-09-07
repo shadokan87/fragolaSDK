@@ -277,7 +277,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                 function: {
                     name: tool.name,
                     description: tool.description,
-                    parameters: zodToJsonSchema(tool.schema)
+                    parameters: tool.schema ? zodToJsonSchema(tool.schema) : undefined
                 }
 
             })

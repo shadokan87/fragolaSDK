@@ -1,9 +1,11 @@
 import z from "zod";
-import { Agent, type AgentContext, type CreateAgentOptions } from "./agent";
+import { Agent, type AgentContext, type AgentOptions, type CreateAgentOptions } from "./agent";
 import type { maybePromise } from "./types";
 import type { ClientOptions } from "openai/index.js";
 import OpenAI from "openai/index.js";
 import type { Store } from "./store";
+import { BadUsage } from "./exceptions";
+import type { UserMessageQuery } from "dist/agent.index";
 
 export type ToolHandlerReturnTypeNonAsync = any[] | Record<any, any> | Function | number | bigint | boolean | string;
 export type ToolHandlerReturnType = maybePromise<ToolHandlerReturnTypeNonAsync>;
@@ -73,13 +75,41 @@ export const stripUserMessageMeta = (userMessage: ChatCompletionUserMessageParam
 
 export const stripToolMessageMeta = (toolMessage: ChatCompletionToolMessageParam): OpenAI.ChatCompletionToolMessageParam => stripMeta(toolMessage) as OpenAI.ChatCompletionToolMessageParam;
 
+const presetBadUsageMessage = `Nor 'preferedModel' or 'modelSettings.model' provided, 1 of both values are required for presets.`;
+
+export type JsonOptions<T extends z.ZodTypeAny = z.ZodTypeAny> = {
+    message: string;
+    /** A Zod schema describing the expected JSON shape returned by the AI/tool */
+    schema: T;
+    /** prefer calling a tool instead of using the AI completion */
+    preferToolCall?: boolean;
+    /** optional model settings passthrough */
+    modelSettings?: AgentOptions["modelSettings"];
+};
+
 export class Fragola<TGlobalStore = {}> {
     private openai: OpenAI;
-    constructor(clientOptions?: ClientOptions, private globalStore: Store<TGlobalStore> | undefined = undefined) {
+    constructor(private clientOptions?: ClientOptions & {preferedModel?: string}, private globalStore: Store<TGlobalStore> | undefined = undefined) {
         this.openai = clientOptions ? new OpenAI(clientOptions) : new OpenAI();
     }
 
     agent<TMetaData extends DefineMetaData<any> = {}, TStore = {}>(opts: CreateAgentOptions<TStore>): Agent<TMetaData, TGlobalStore, TStore> {
         return new Agent<TMetaData, TGlobalStore, TStore>(opts, this.globalStore, this.openai);
+    }
+
+    async boolean(evaluate: string, modelSettings?: AgentOptions["modelSettings"]) {
+        if (!this.clientOptions?.preferedModel && !modelSettings?.model) {
+            throw new BadUsage(presetBadUsageMessage);
+        }
+    }
+    async json<T extends z.ZodTypeAny>(query: JsonOptions<T>): Promise<z.infer<T>> {
+        // basic preset validation (same rule used by other methods)
+        if (!this.clientOptions?.preferedModel && !query.modelSettings?.model) {
+            throw new BadUsage(presetBadUsageMessage);
+        }
+
+        // AI/tool implementation intentionally omitted per request.
+        // This method's signature is generic and returns the inferred type from the provided Zod schema.
+        throw new Error("Fragola.json: AI/tool implementation not provided");
     }
 }

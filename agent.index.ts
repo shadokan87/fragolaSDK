@@ -1,7 +1,7 @@
 export type {
     AgentState,
     StepOptions,
-    AgentContexOptions,
+    AgentOptions,
     SetOptionsParams,
     CreateAgentOptions,
     ResetParams,

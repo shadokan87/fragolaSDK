@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import type { AgentState } from "./agent";
+import type {ChatCompletionMessageParam} from "./fragola";
 
 const getToolCallOrigin = (
     conversation: OpenAI.ChatCompletionMessageParam[],
@@ -25,7 +26,7 @@ const getToolCallOrigin = (
     return found;
 };
 
-export function createStateUtils(state: AgentState) {
+export function conversationUtils(conversation: OpenAI.ChatCompletionMessageParam[]) {
     return {
         /**
          * From a role 'tool' message, return its origin where requested by the model in the conversation
@@ -41,7 +42,7 @@ export function createStateUtils(state: AgentState) {
          * // toolCall will be { id: "tool_123", function: { name: "getWeather", arguments: "{}" } }
          */
         toolCallOrigin: (message: OpenAI.ChatCompletionToolMessageParam) => {
-            return getToolCallOrigin(state.conversation, message);
+            return getToolCallOrigin(conversation, message);
         },
 
         /**
@@ -60,10 +61,28 @@ export function createStateUtils(state: AgentState) {
          * }
          */
         finalOutput: () => {
-            const lastMessage = state.conversation.at(-1);
-            if (!lastMessage || !(lastMessage.role == "assistant" && !lastMessage.tool_calls && state.status == "idle"))
+            const lastMessage = conversation.at(-1);
+            if (!lastMessage || !(lastMessage.role == "assistant" && !lastMessage.tool_calls))
                 return undefined;
             return lastMessage;
+        },
+
+        /**
+         * Returns the last message in the conversation matching the provided role.
+         *
+         * @param role - One of "user", "tool", or "assistant".
+         * @returns The last message with the specified role, or `undefined` if none found.
+         *
+         * @example
+         * const utils = createStateUtils(state);
+         * const lastUser = utils.messageByRole("user");
+         */
+        messageByRole: (role: "user" | "tool" | "assistant"): OpenAI.ChatCompletionMessageParam | undefined => {
+            for (let i = conversation.length - 1; i >= 0; i--) {
+                const msg = conversation[i];
+                if (msg.role === role) return msg;
+            }
+            return undefined;
         }
     };
 }

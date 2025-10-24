@@ -61,7 +61,8 @@
   "devDependencies": {
     "@types/bun": "latest",
     "esbuild": "^0.25.9",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "vitest": "^4.0.1"
   },
   "peerDependencies": {
     "typescript": "^5.9.2"
@@ -78,6 +79,11 @@
     "lint": "bunx eslint .",
     "clean": "rm -rf dist",
     "build": "bun run build.ts",
-    "prepublishOnly": "bun run build"
+  "pretest": "cd test && rm -rf node_modules || true",
+  "test": "npm run build && cd test && bun i && vitest --run",
+  "pretest:ci": "cd test && bun i",
+  "test:ci": "npm run build && cd test && bun i && vitest --run",
+  "test:watch": "cd test && vitest",
+    "prepublishOnly": "bun run build && bun run test"
   }
 }

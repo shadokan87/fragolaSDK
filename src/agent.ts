@@ -56,7 +56,7 @@ export const defaultStepOptions: StepOptions = {
 /**
  * Options for configuring the agent context.
  */
-export interface AgentContexOptions {
+export interface AgentOptions {
     /** Optional settings for each step in the agent's process. */
     stepOptions?: StepOptions,
     /** The name assigned to the agent. */
@@ -71,13 +71,13 @@ export interface AgentContexOptions {
     modelSettings: Prettify<Omit<ChatCompletionCreateParamsBase, "messages" | "tools">>,
 } //TODO: better comment for stepOptions with explaination for each fields
 
-export type SetOptionsParams = Omit<AgentContexOptions, "name" | "initialConversation">;
+export type SetOptionsParams = Omit<AgentOptions, "name" | "initialConversation">;
 
 export type CreateAgentOptions<TStore extends StoreLike<any> = {}> = {
     store?: Store<TStore>,
     /** Optional initial conversation history for the agent. */
     initialConversation?: OpenAI.ChatCompletionMessageParam[],
-} & Prettify<AgentContexOptions>;
+} & Prettify<AgentOptions>;
 
 export type ResetParams = Prettify<Pick<Required<CreateAgentOptions>, "initialConversation">>;
 
@@ -91,7 +91,7 @@ const AGENT_FRIEND = Symbol('AgentAccess');
 export class AgentContext<TMetaData extends DefineMetaData<any> = {}, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> {
     constructor(
         private _state: AgentState<TMetaData>,
-        private _options: AgentContexOptions,
+        private _options: AgentOptions,
         private _store: Store<TStore> | undefined,
         private _globalStore: Store<TGlobalStore> | undefined,
         private setInstructionsFn: (instructions: string) => void,
@@ -103,7 +103,7 @@ export class AgentContext<TMetaData extends DefineMetaData<any> = {}, TGlobalSto
         setState: (newState: AgentState) => {
             this._state = newState;
         },
-        setOptions: (newOptions: AgentContexOptions) => {
+        setOptions: (newOptions: AgentOptions) => {
             this._options = newOptions;
         },
     };
@@ -166,7 +166,7 @@ export interface agentRawMethods {
 export class AgentRawContext<TMetaData extends DefineMetaData<any> = {}, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> extends AgentContext<TMetaData, TGlobalStore, TStore> {
     constructor(
         _state: AgentState<TMetaData>,
-        _options: AgentContexOptions,
+        _options: AgentOptions,
         _store: Store<TStore> | undefined,
         _globalStore: Store<TGlobalStore> | undefined,
         setInstructionsFn: (instructions: string) => void,

@@ -1,0 +1,9 @@
+{
+  "name": "fragolaSDK-test",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@fragola-ai/agentic-sdk-core": "file:.."
+  },
+  "scripts": {}
+}

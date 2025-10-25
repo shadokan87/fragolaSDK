@@ -31,11 +31,11 @@ export class BadUsage extends FragolaError {
     }
 }
 
-export class GuardRailConstrain extends FragolaError {
+export class GuardrailConstrain extends FragolaError {
     constructor(message: string, agent: AgentAny) {
         void agent; //TODO:
         super(message);
-        this.name = "GuardRailConstrain";
+        this.name = "GuardrailConstrain";
         if (Error.captureStackTrace) {
             Error.captureStackTrace(this, BadUsage)
         }

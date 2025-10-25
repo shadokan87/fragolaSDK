@@ -1,0 +1,86 @@
+import type OpenAI from "openai";
+import type { FragolaHook } from "./hook";
+import { nanoid } from "nanoid";
+const fs = require("fs").promises;
+const nodePath = require("path");
+const syncFs = require("fs");
+
+/**
+ * Creates a hook that automatically saves conversation state to the file system after each update.
+ * 
+ * The hook generates a filename based on the first user message content. When there are conflicting
+ * filenames, it will create a nonce to ensure uniqueness.
+ * 
+ * @param path - The directory path where conversation files will be saved
+ * @returns A hook that saves conversations as JSON files
+ * 
+ * @example
+ * ```typescript
+ * import { fileSystemSave } from "@fragola-ai/agentic-sdk-core/hook/presets";
+ * import { Fragola } from "@fragola-ai/agentic-sdk-core";
+ * 
+ * const fragola = new Fragola({ ... });
+ * 
+ * const agent = fragola.agent({
+ *     name: "assistant",
+ *     instructions: "you are a helpful assistant",
+ *     modelSettings: {
+ *         model: "gpt-oss-120b"
+ *     }
+ * }).use(fileSystemSave("./testHook"));
+ * 
+ * await agent.userMessage({content: "say hello"});
+ * // Creates: ./testHook/say hello.json
+ * 
+ * await agent.userMessage({content: "say hello again"});
+ * // Updates: ./testHook/say hello.json (same file, full conversation)
+ * ```
+ */
+export const fileSystemSave = (path: string): FragolaHook => {
+    return (agent) => {
+        let nonce: string | undefined = undefined;
+        agent.onAfterConversationUpdate(async (reason, context) => {
+            if (reason == "partialAiMessage")
+                return ;
+            const {conversation} = context.state;
+            let firstUserMessage: OpenAI.ChatCompletionUserMessageParam | undefined = undefined;
+            for (let i = 0;i < conversation.length; i++) {
+                if (conversation[i].role == "user") {
+                    firstUserMessage = conversation[i] as OpenAI.ChatCompletionUserMessageParam;
+                }
+            }
+            if (!firstUserMessage)
+                return ;
+            const label = (() => {
+                if (typeof firstUserMessage.content == "string") {
+                    return firstUserMessage.content.length > 10 
+                        ? firstUserMessage.content.substring(0, 3) + "..." + firstUserMessage.content.slice(-3)
+                        : firstUserMessage.content;
+                } else if (Array.isArray(firstUserMessage.content)) {
+                    const textContent = firstUserMessage.content
+                        .filter(item => item.type === "text")
+                        .map(item => item.text)
+                        .join(" ");
+                    return textContent.length > 10 
+                        ? textContent.substring(0, 3) + "..." + textContent.slice(-3)
+                        : textContent;
+                }
+                return "<no_label>";
+            })();
+            let fullPath = nodePath.join(path, label);
+            if (syncFs.existsSync(fullPath + ".json") && !nonce) {
+                nonce = nanoid();
+            }
+            if (nonce) {
+                fullPath = `${fullPath}-${nonce}`
+            }
+                try {
+                    await fs.mkdir(path, { recursive: true });
+                    await fs.writeFile(fullPath + ".json", JSON.stringify(conversation, null, 2), "utf8");
+                } catch (err) {
+                    // eslint-disable-next-line no-console
+                    console.error("Failed to save conversation:", err);
+                }
+        });
+    };
+}

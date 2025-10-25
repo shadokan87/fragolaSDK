@@ -12,6 +12,7 @@ import type { CallAPI, CallAPIProcessChuck, EventToolCall, EventUserMessage, Eve
 import { nanoid } from "nanoid"
 import type { EventAfterConversationUpdate, AfterStateUpdateCallback, conversationUpdateReason } from "./eventAfter"
 import { type registeredEvent, type eventIdToCallback, EventMap } from "./extendedJS/events/EventMap"
+import type { FragolaHook } from "./hook"
 
 export const createStore = <T extends StoreLike<any>>(data: StoreLike<T>) => new Store(data);
 
@@ -20,6 +21,16 @@ export type AgentState<TMetaData extends DefineMetaData<any> = {}> = {
     stepCount: number,
     status: "idle" | "generating" | "waiting",
 }
+
+export type JsonOptions<T extends z.ZodTypeAny = z.ZodTypeAny> = {
+    message: string;
+    /** A Zod schema describing the expected JSON shape returned by the AI/tool */
+    schema: T;
+    /** prefer calling a tool instead of using the AI completion */
+    preferToolCall?: boolean;
+    /** optional model settings passthrough */
+    modelSettings?: AgentOptions["modelSettings"];
+};
 
 /**
  * Options for controlling the agent's step execution behavior.
@@ -799,7 +810,29 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      *   console.log('stepCount', context.state.stepCount);
      * });
      */
-    onAfterStateUpdate(callback: AfterStateUpdateCallback<TMetaData, TGlobalStore, TStore>) { return this.on("after:stateUpdate", callback) }
+    onAfterStateUpdate(callback: AfterStateUpdateCallback<TMetaData, TGlobalStore, TStore>) { return this.on("after:stateUpdate", callback) };
+
+    /**
+     * Attach a hook to this agent.
+     *
+     * Hooks are functions that receive the agent instance and may register event handlers
+     * or otherwise augment the agent's behavior. This method applies the provided
+     * hook and returns the agent instance so calls can be chained.
+     *
+     * @param hook - A FragolaHook to attach to the agent
+     * @returns The agent instance (chainable)
+     *
+     * @example
+     * ```ts
+     * import { fileSystemSave } from "@src/hookPreset";
+     * const agent = fragola.agent({...}).use(fileSystemSave("./testHook"));
+     * // agent is returned so additional configuration/calls can be chained
+     * ```
+     */
+    use(hook: FragolaHook) {
+        hook(this as AgentAny);
+        return this;
+    }
 }
 
 export type AgentAny = Agent<any, any, any>;

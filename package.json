@@ -79,11 +79,11 @@
     "lint": "bunx eslint .",
     "clean": "rm -rf dist",
     "build": "bun run build.ts",
-  "pretest": "cd test && rm -rf node_modules || true",
-  "test": "npm run build && cd test && bun i && vitest --run",
-  "pretest:ci": "cd test && bun i",
-  "test:ci": "npm run build && cd test && bun i && vitest --run",
-  "test:watch": "cd test && vitest",
+    "pretest": "cd test && rm -rf node_modules || true",
+    "test": "npm run build && cd test && bun i && vitest --run",
+    "pretest:ci": "cd test && bun i",
+    "test:ci": "npm run build && cd test && bun i && vitest --run",
+    "test:watch": "cd test && vitest",
     "prepublishOnly": "bun run build && bun run test"
   }
 }

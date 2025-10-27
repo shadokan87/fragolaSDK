@@ -1,10 +1,10 @@
 import { Store } from "./store"
 import { stripUserMessageMeta, type ChatCompletionMessageParam, type ChatCompletionUserMessageParam, type DefineMetaData, type Tool } from "./fragola"
 import type { ChatCompletionCreateParamsBase } from "openai/resources/chat/completions.js"
-import { zodToJsonSchema } from "openai/_vendor/zod-to-json-schema/zodToJsonSchema.mjs"
 import { streamChunkToMessage, isAsyncFunction, isSkipEvent, skipEventFallback } from "./utils"
 import { BadUsage, FragolaError, MaxStepHitError } from "./exceptions"
-import type z from "zod"
+import type z from "zod";
+import { z as zod } from "zod";
 import type { maybePromise, Prettify, StoreLike } from "./types"
 import OpenAI from "openai/index.js"
 import { type AgentEventId, type EventDefaultCallback } from "./event"
@@ -12,7 +12,9 @@ import type { CallAPI, CallAPIProcessChuck, EventToolCall, EventUserMessage, Eve
 import { nanoid } from "nanoid"
 import type { EventAfterConversationUpdate, AfterStateUpdateCallback, conversationUpdateReason } from "./eventAfter"
 import { type registeredEvent, type eventIdToCallback, EventMap } from "./extendedJS/events/EventMap"
-import type { FragolaHook } from "./hook"
+import type { FragolaHook } from "./hook";
+import { zodToJsonSchema } from "openai/_vendor/zod-to-json-schema/zodToJsonSchema.js"
+import type { ResponseFormatJSONSchema } from "openai/resources"
 
 export const createStore = <T extends StoreLike<any>>(data: StoreLike<T>) => new Store(data);
 
@@ -45,9 +47,26 @@ export type StepOptions = Partial<{
 
     //TODO: unanswered tool behaviour fields
     // /** Determines how to handle unanswered tool calls: `answer` to process them, `skip` to ignore (default: "answer"). */
-    unansweredToolBehaviour: "answer" | "skip",
+    // unansweredToolBehaviour: "answer" | "skip",
     // /** The string to use when skipping a tool call (default: "(generation has been canceled, you may ignore this tool output)"). */
-    skipToolString: string
+    skipToolString: string,
+    /** Will override the agent model settings. `response_format` will always be ovrride when using `json` method*/
+    modelSettings?: ModelSettings,
+    /**
+//  * Run the agent in a fork (similar to a subshell) instead of mutating the original agent.
+//  *
+//  * When true, the agent will execute the last user message on a cloned copy of its state. Any changes
+//  * produced during the run are applied to that clone and returned as the run result,
+//  * while the original agent's state remains unchanged. Use this for speculative
+//  * execution, branching, or testing behaviors without persisting mutations to the
+//  * primary agent.
+//  *
+//  * The returned state reflects the clone's final state; no modifications are written
+//  * back to the original agent.
+//  *
+//  * @default false
+//  */
+    //     fork: boolean,
 }>;
 
 /**
@@ -60,9 +79,11 @@ export type StepOptions = Partial<{
 export const defaultStepOptions: StepOptions = {
     maxStep: 10,
     resetStepCountAfterUserMessage: true,
-    unansweredToolBehaviour: "answer",
+    // unansweredToolBehaviour: "answer",
     skipToolString: "Info: this too execution has been canceled. Do not assume it has been processed and inform the user that you are aware of it."
 }
+
+export type ModelSettings = Prettify<Omit<ChatCompletionCreateParamsBase, "messages" | "tools">>;
 
 /**
  * Options for configuring the agent context.
@@ -79,7 +100,7 @@ export interface AgentOptions {
     /** Optional array of tools available to the agent. */
     tools?: Tool<any>[],
     /** Model-specific settings excluding messages and tools. */
-    modelSettings: Prettify<Omit<ChatCompletionCreateParamsBase, "messages" | "tools">>,
+    modelSettings: ModelSettings
 } //TODO: better comment for stepOptions with explaination for each fields
 
 export type SetOptionsParams = Omit<AgentOptions, "name" | "initialConversation">;
@@ -201,6 +222,19 @@ type StepBy = Partial<{
 export type StepParams = StepBy & StepOptions;
 
 export type UserMessageQuery = Prettify<Omit<OpenAI.Chat.ChatCompletionUserMessageParam, "role">> & { step?: StepParams };
+
+export type JsonQuery<S extends z.ZodTypeAny = z.ZodTypeAny> = Prettify<UserMessageQuery & {
+    /** Set to true to use tool calling to extract json instead of classic 'response_format' */
+    preferToolCalling?: boolean
+    /** Zod schema describing the expected JSON shape for the response */
+    schema: S,
+    /** If set to true, `userMessage` events will not be applied for this query */
+    ignoreUserMessageEvents?: boolean,
+} & Omit<ResponseFormatJSONSchema.JSONSchema, "schema">>;
+
+export type JsonResult<S extends z.ZodTypeAny = z.ZodTypeAny, TMetaData extends DefineMetaData<any> = {}> = {
+    state: AgentState<TMetaData>
+} & z.SafeParseReturnType<unknown, z.infer<S>>;
 
 type ConversationUpdateParams = {
     reason: conversationUpdateReason
@@ -484,7 +518,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         if (shouldGenerate) {
             const EmodelInvocation = this.registeredEvents.get("modelInvocation");
             const defaultProcessChunck: CallAPIProcessChuck = (chunck) => chunck;
-            const defaultModelSettings: CreateAgentOptions<any>["modelSettings"] = this.opts.modelSettings;
+            const defaultModelSettings: ModelSettings = stepOptions.modelSettings ?? this.opts.modelSettings;
 
             const callAPI: CallAPI = async (processChunck, modelSettings, clientOpts) => {
                 const _processChunck = processChunck || defaultProcessChunck;
@@ -537,10 +571,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                 for (const event of EmodelInvocation) {
                     const params: Parameters<EventModelInvocation<TMetaData, TGlobalStore, TStore>> = [callAPI, this.context];
                     const callback = event.callback as EventModelInvocation<TMetaData, TGlobalStore, TStore>;
-                    if (callback.constructor.name == "AsyncFunction")
-                        aiMessage = skipEventFallback(await callback(...params), await callAPI());
-                    else
-                        aiMessage = skipEventFallback(callback(...params), await callAPI());
+                    aiMessage = await skipEventFallback(await callback(...params), callAPI);
                 }
             } else
                 await callAPI();
@@ -622,6 +653,49 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                 return await this.recursiveAgent(stepOptions, stop, iter + 1);
         }
         await this.setIdle();
+    }
+
+    async json<S extends z.ZodTypeAny = z.ZodTypeAny>(query: JsonQuery<S>): Promise<JsonResult<S, TMetaData>> {
+        const { step, preferToolCalling, name, schema, strict, description, ignoreUserMessageEvents, ...message } = query;
+        let _step = { ...step };
+        void step;
+        let _message: Omit<ChatCompletionUserMessageParam, "role">;
+        if (!this.registeredEvents.handleUserMessage || ignoreUserMessageEvents)
+            _message = message;
+        else
+            _message = await this.registeredEvents.handleUserMessage(message);
+        await this.updateConversation((prev) => [...prev, stripUserMessageMeta({ role: "user", ..._message })], "userMessage");
+        if (preferToolCalling) {
+
+        } else {
+            if (!_step?.modelSettings)
+                _step["modelSettings"] = { ...this.options.modelSettings }
+            let jsonSchema = zodToJsonSchema(schema);
+            _step.modelSettings.response_format = {
+                type: "json_schema", json_schema: {
+                    name,
+                    description,
+                    strict,
+                    schema: jsonSchema,
+                }
+            }
+        }
+        const state = await this.step(_step);
+        const lastAiMessage = this.lastAiMessage(state.conversation);
+        if (!lastAiMessage)
+            throw new FragolaError(`json format failed. Expected last index of conversation to be of role 'assistant'`);
+        if (typeof lastAiMessage.content != 'string') {
+            throw new FragolaError(`json format failed. Expected content of model response to be of type 'string', received '${typeof lastAiMessage.content}'`);
+        }
+        let jsonParsed: Object | undefined;
+        try {
+            jsonParsed = JSON.parse(lastAiMessage.content);
+            const parsed = schema.safeParse(jsonParsed);
+            return { ...parsed, state };
+        } catch (e) {
+            console.error(e);
+            throw new FragolaError(`json format failed. JSON.parse() of model response failed: `);
+        }
     }
 
     async userMessage(query: UserMessageQuery): Promise<AgentState> {
@@ -815,9 +889,8 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
     /**
      * Attach a hook to this agent.
      *
-     * Hooks are functions that receive the agent instance and may register event handlers
-     * or otherwise augment the agent's behavior. This method applies the provided
-     * hook and returns the agent instance so calls can be chained.
+     * Hooks receive the agent instance and may register event handlers
+     * or otherwise augment the agent's behavior.
      *
      * @param hook - A FragolaHook to attach to the agent
      * @returns The agent instance (chainable)

@@ -1,0 +1,12 @@
+[
+  {
+    "role": "user",
+    "content": "I am Eclipse, I live in paris. I am a software engineer working on an open source project"
+  },
+  {
+    "content": " {\"name\":\"Eclipse\",\"location\":\"paris\",\"profession\":\"software engineer\",\"age\":25}",
+    "refusal": null,
+    "role": "assistant",
+    "tool_calls": null
+  }
+]

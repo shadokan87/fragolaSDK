@@ -53,8 +53,8 @@ export const streamChunkToMessage = (chunk: OpenAI.Chat.Completions.ChatCompleti
 export const isSkipEvent = (data: any) => {
     return typeof data == "object" && (data as any)[SKIP_EVENT] == true
 }
-export const skipEventFallback = <T>(data: any, fallback: T): T => {
+export const skipEventFallback = async <T>(data: any, fallback: () => Promise<T>): Promise<T> => {
     if (isSkipEvent(data))
-        return fallback as T;
+        return await fallback();
     return data as T;
 }

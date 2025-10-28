@@ -1,9 +1,10 @@
 import type OpenAI from "openai";
-import type { FragolaHook } from "./hook";
+import type { FragolaHook } from "../";
 import { nanoid } from "nanoid";
 const fs = require("fs").promises;
 const nodePath = require("path");
 const syncFs = require("fs");
+
 
 /**
  * Hook that automatically saves the conversation to the file system after each update.
@@ -38,7 +39,6 @@ const syncFs = require("fs");
  */
 export const fileSystemSave = (path: string): FragolaHook => {
     return (agent) => {
-        let nonce: string | undefined = undefined;
         let fullPath: string | undefined = undefined;
 
         agent.onAfterConversationUpdate(async (reason, context) => {
@@ -77,13 +77,13 @@ export const fileSystemSave = (path: string): FragolaHook => {
                     fullPath = `${fullPath}.json`
                 }
             }
-                try {
-                    await fs.mkdir(path, { recursive: true });
-                    await fs.writeFile(fullPath, JSON.stringify(conversation, null, 2), "utf8");
-                } catch (err) {
-                    // eslint-disable-next-line no-console
-                    console.error("Failed to save conversation:", err);
-                }
+            try {
+                await fs.mkdir(path, { recursive: true });
+                await fs.writeFile(fullPath, JSON.stringify(conversation, null, 2), "utf8");
+            } catch (err) {
+                // eslint-disable-next-line no-console
+                console.error("Failed to save conversation:", err);
+            }
         });
     };
 }

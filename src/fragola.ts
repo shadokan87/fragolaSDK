@@ -1,5 +1,5 @@
 import z from "zod";
-import { Agent, type AgentContext, type AgentOptions, type CreateAgentOptions } from "./agent";
+import { Agent, type AgentContext, type AgentOptions, type CreateAgentOptions, type JsonQuery } from "./agent";
 import type { maybePromise } from "./types";
 import type { ClientOptions } from "openai/index.js";
 import OpenAI from "openai/index.js";
@@ -87,29 +87,91 @@ export type JsonOptions<T extends z.ZodTypeAny = z.ZodTypeAny> = {
     modelSettings?: AgentOptions["modelSettings"];
 };
 
+type PreferedModel = {
+    /**
+     * The model that will be used by default unless overridden in modelSettings.
+     */
+    model: string
+}
+
 export class Fragola<TGlobalStore = {}> {
     private openai: OpenAI;
-    constructor(private clientOptions?: ClientOptions & {preferedModel?: string}, private globalStore: Store<TGlobalStore> | undefined = undefined) {
-        this.openai = clientOptions ? new OpenAI(clientOptions) : new OpenAI();
+    constructor(private clientOptions: ClientOptions & PreferedModel, private globalStore: Store<TGlobalStore> | undefined = undefined) {
+        const opts = clientOptions ? (() => {
+            const copy = { ...clientOptions };
+            const { model, ...rest } = copy;
+            return rest;
+        })() : undefined;
+        this.openai = opts ? new OpenAI(opts) : new OpenAI();
     }
 
     agent<TMetaData extends DefineMetaData<any> = {}, TStore = {}>(opts: CreateAgentOptions<TStore>): Agent<TMetaData, TGlobalStore, TStore> {
-        return new Agent<TMetaData, TGlobalStore, TStore>(opts, this.globalStore, this.openai);
+        return new Agent<TMetaData, TGlobalStore, TStore>(opts, this.globalStore, this.openai, undefined, this as Fragola<any>);
     }
 
-    async boolean(evaluate: string, modelSettings?: AgentOptions["modelSettings"]) {
-        if (!this.clientOptions?.preferedModel && !modelSettings?.model) {
-            throw new BadUsage(presetBadUsageMessage);
-        }
+    get options() {
+        return this.clientOptions;
     }
-    async json<T extends z.ZodTypeAny>(query: JsonOptions<T>): Promise<z.infer<T>> {
+
+    async boolean(evaluate: string): Promise<boolean> {
+        const booleanSchema = z.object({
+            bool: z.boolean(),
+        });
+
+        const query: JsonQuery = {
+            name: "evaluate_statement",
+            content: evaluate,
+            description: "provide your answer for the 'bool' value",
+            schema: booleanSchema
+        };
+        const response = await this.json(query, {
+            name: "BooleanEvaluator",
+            description: "Preset agent that outputs a single JSON field {bool: boolean} indicating truthiness of the 'evaluate' statement.",
+            instructions: [
+                "You evaluate structured checks of the form '<Claim>: <user_input>'.",
+                "Return ONLY a JSON object with the following shape: {\"bool\": boolean}.",
+                "No extra text, no markdown, no explanations.",
+                "Interpretation rule: 'bool' is true when the claim accurately describes <user_input>; otherwise false.",
+                "Ambiguous/unknown -> false.",
+                "Examples:",
+                "- Input: 'This topic is about mathematics: what is 2 + 2?' -> {\"bool\": true}",
+                "- Input: 'This topic is about mathematics: write a love poem' -> {\"bool\": false}",
+                "- Input: 'This input contains slurs: [slur], get out of here! You are not welcome' -> {\"bool\": true}",
+                "- Input: 'This input contains slurs: have a great day' -> {\"bool\": false}",
+                "- Input: 'The topic is non professional: let's talk about weekend plans' -> {\"bool\": true}",
+                "- Input: 'The topic is non professional: how to deploy a Kubernetes cluster' -> {\"bool\": false}",
+                "- Input: 'This input contains profanity: what the hell is this?' -> {\"bool\": true}",
+                "- Input: 'This input contains profanity: good morning team' -> {\"bool\": false}",
+                "- Input: 'This input contains PII: My SSN is 123-45-6789' -> {\"bool\": true}",
+                "- Input: 'This input contains PII: The sky is blue' -> {\"bool\": false}",
+                "- Input: 'This input is spam: CLICK HERE for FREE $$$ now!!!' -> {\"bool\": true}",
+                "- Input: 'This input is spam: Could you review my PR?' -> {\"bool\": false}",
+                "- Input: 'This input is NSFW: explicit sexual content' -> {\"bool\": true}",
+                "- Input: 'This input is NSFW: how to write unit tests' -> {\"bool\": false}",
+                "- Input: 'This topic is about politics: Presidential election polling analysis' -> {\"bool\": true}",
+                "- Input: 'This topic is about politics: calculate the derivative of x^2' -> {\"bool\": false}",
+                "- Input: 'This topic is about health: best practices for sleep hygiene' -> {\"bool\": true}",
+                "- Input: 'This topic is about health: sorting algorithms' -> {\"bool\": false}",
+                "- Input: 'This input promotes self-harm: I want to hurt myself' -> {\"bool\": true}",
+                "- Input: 'This input promotes self-harm: I enjoy hiking' -> {\"bool\": false}",
+                "- Input: 'This input contains threats: I will hurt you' -> {\"bool\": true}",
+                "- Input: 'This input contains threats: Please take care' -> {\"bool\": false}",
+            ].join("\n"),
+        });
+        return response.success ? response.data.bool : false;
+    }
+
+    async json<S extends z.ZodTypeAny = z.ZodTypeAny>(query: JsonQuery<S>, options: CreateAgentOptions | undefined = undefined): Promise<z.SafeParseReturnType<unknown, z.infer<S>>> {
         // basic preset validation (same rule used by other methods)
-        if (!this.clientOptions?.preferedModel && !query.modelSettings?.model) {
+        if (!this.clientOptions?.model) {
             throw new BadUsage(presetBadUsageMessage);
         }
 
-        // AI/tool implementation intentionally omitted per request.
-        // This method's signature is generic and returns the inferred type from the provided Zod schema.
-        throw new Error("Fragola.json: AI/tool implementation not provided");
+        const { state, ...rest } = await this.agent(options ?? {
+            name: "JsonExtraction",
+            instructions: "You will be given a user message with instructions to extract informations into json format.",
+            description: "Simple agent to extract data from text to json"
+        }).json(query);
+        return rest;
     }
 }

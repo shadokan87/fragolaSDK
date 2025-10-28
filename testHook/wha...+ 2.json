@@ -1,0 +1,12 @@
+[
+  {
+    "role": "user",
+    "content": "say hello "
+  },
+  {
+    "annotations": [],
+    "content": "Hello! How can I assist you today?",
+    "refusal": null,
+    "role": "assistant"
+  }
+]

@@ -12,7 +12,7 @@ export function createHandleUserMessage<
         let message = _message;
         for (let i = 0; i < events.length; i++) {
             const event = events[i];
-            const callbackResult = await event.callback(message as any, getContext() as any);
+            const callbackResult = await event.callback({role: "user", ...message} as any, getContext() as any);
             if (isSkipEvent(callbackResult))
                 continue;
             message = callbackResult as typeof _message;

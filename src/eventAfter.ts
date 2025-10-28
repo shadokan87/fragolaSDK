@@ -3,7 +3,9 @@ import type { AgentAfterEventId, EventDefaultCallback } from "./event";
 import type { AgentContext } from "./agent";
 import type { DefineMetaData } from "./fragola";
 
-export type conversationUpdateReason = "userMessage" | "toolCall" | "partialAiMessage" | "AiMessage";
+export type conversationAddReason = "userMessage" | "toolCall" | "partialAiMessage" | "AiMessage";
+export type conversationRemoveReason = `remove:${conversationAddReason}`;
+export type conversationUpdateReason = conversationAddReason | conversationRemoveReason;
 
 /**
  * Callback type for handling logic after a conversation update event.

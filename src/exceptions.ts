@@ -31,13 +31,12 @@ export class BadUsage extends FragolaError {
     }
 }
 
-export class GuardrailConstrain extends FragolaError {
-    constructor(message: string, agent: AgentAny) {
-        void agent; //TODO:
+export class JsonModeError extends FragolaError {
+    constructor(message: string) {
         super(message);
-        this.name = "GuardrailConstrain";
+        this.name = "JsonModeError";
         if (Error.captureStackTrace) {
-            Error.captureStackTrace(this, BadUsage)
+            Error.captureStackTrace(this, JsonModeError)
         }
     }
 }

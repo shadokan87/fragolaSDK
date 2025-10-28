@@ -5,8 +5,6 @@ export type {
     SetOptionsParams,
     CreateAgentOptions,
     ResetParams,
-    AgentRaw,
-    agentRawMethods,
     StepParams,
     UserMessageQuery,
     Agent,
@@ -15,7 +13,6 @@ export type {
 import { skip } from "./src/event";
 export {
     AgentContext,
-    AgentRawContext,
 } from "./src/agent";
 export {
     skip

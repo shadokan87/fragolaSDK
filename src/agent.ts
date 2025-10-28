@@ -1,8 +1,8 @@
 import { Store } from "./store"
-import { stripUserMessageMeta, type ChatCompletionMessageParam, type ChatCompletionUserMessageParam, type DefineMetaData, type Tool } from "./fragola"
+import { Fragola, stripUserMessageMeta, type ChatCompletionMessageParam, type ChatCompletionUserMessageParam, type DefineMetaData, type Tool } from "./fragola"
 import type { ChatCompletionCreateParamsBase } from "openai/resources/chat/completions.js"
 import { streamChunkToMessage, isAsyncFunction, isSkipEvent, skipEventFallback } from "./utils"
-import { BadUsage, FragolaError, MaxStepHitError } from "./exceptions"
+import { BadUsage, FragolaError, JsonModeError, MaxStepHitError } from "./exceptions"
 import type z from "zod";
 import { z as zod } from "zod";
 import type { maybePromise, Prettify, StoreLike } from "./types"
@@ -12,7 +12,7 @@ import type { CallAPI, CallAPIProcessChuck, EventToolCall, EventUserMessage, Eve
 import { nanoid } from "nanoid"
 import type { EventAfterConversationUpdate, AfterStateUpdateCallback, conversationUpdateReason } from "./eventAfter"
 import { type registeredEvent, type eventIdToCallback, EventMap } from "./extendedJS/events/EventMap"
-import type { FragolaHook } from "./hook";
+import type { FragolaHook } from "@src/hook/index";
 import { zodToJsonSchema } from "openai/_vendor/zod-to-json-schema/zodToJsonSchema.js"
 import type { ResponseFormatJSONSchema } from "openai/resources"
 
@@ -52,21 +52,15 @@ export type StepOptions = Partial<{
     skipToolString: string,
     /** Will override the agent model settings. `response_format` will always be ovrride when using `json` method*/
     modelSettings?: ModelSettings,
+    //@ts-nocheck
     /**
-//  * Run the agent in a fork (similar to a subshell) instead of mutating the original agent.
-//  *
-//  * When true, the agent will execute the last user message on a cloned copy of its state. Any changes
-//  * produced during the run are applied to that clone and returned as the run result,
-//  * while the original agent's state remains unchanged. Use this for speculative
-//  * execution, branching, or testing behaviors without persisting mutations to the
-//  * primary agent.
-//  *
-//  * The returned state reflects the clone's final state; no modifications are written
-//  * back to the original agent.
-//  *
-//  * @default false
-//  */
-    //     fork: boolean,
+     * Execute the steps on a cloned agent using  so the original state is not changed.
+     * When true the call runs on a {@link Agent.fork} (clone) and returns the clone's output.
+     * Use for speculative execution, testing, or to extract structured output without
+     * mutating the main agent.
+     * @default false
+     */
+    fork: boolean,
 }>;
 
 /**
@@ -80,7 +74,7 @@ export const defaultStepOptions: StepOptions = {
     maxStep: 10,
     resetStepCountAfterUserMessage: true,
     // unansweredToolBehaviour: "answer",
-    skipToolString: "Info: this too execution has been canceled. Do not assume it has been processed and inform the user that you are aware of it."
+    // skipToolString: "Info: this too execution has been canceled. Do not assume it has been processed and inform the user that you are aware of it."
 }
 
 export type ModelSettings = Prettify<Omit<ChatCompletionCreateParamsBase, "messages" | "tools">>;
@@ -97,10 +91,12 @@ export interface AgentOptions {
     useDeveloperRole?: boolean,
     /** Instructions or guidelines for the agent's behavior. */
     instructions: string,
+    /** Description of the agent, a detailed description is recommanded if used for orchestration or as a sub-agent */
+    description: string,
     /** Optional array of tools available to the agent. */
     tools?: Tool<any>[],
     /** Model-specific settings excluding messages and tools. */
-    modelSettings: ModelSettings
+    modelSettings?: ModelSettings
 } //TODO: better comment for stepOptions with explaination for each fields
 
 export type SetOptionsParams = Omit<AgentOptions, "name" | "initialConversation">;
@@ -113,23 +109,32 @@ export type CreateAgentOptions<TStore extends StoreLike<any> = {}> = {
 
 export type ResetParams = Prettify<Pick<Required<CreateAgentOptions>, "initialConversation">>;
 
-export type AgentRaw<TMetaData extends DefineMetaData<any>, TGlobalStore, TStore> = (openai: OpenAI, context: AgentRawContext<TMetaData, TGlobalStore, TStore>) => maybePromise<AgentState<TMetaData>>;
-
 const AGENT_FRIEND = Symbol('AgentAccess');
 
+type ContextRaw = {
+    appendMessages: Agent["appendMessages"],
+    updateConversation: Agent["updateConversation"]
+}
 /**
  * Context of the agent which triggered the event or tool.
  */
 export class AgentContext<TMetaData extends DefineMetaData<any> = {}, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> {
+    #raw: ContextRaw
+    #instance: Fragola
     constructor(
         private _state: AgentState<TMetaData>,
         private _options: AgentOptions,
         private _store: Store<TStore> | undefined,
         private _globalStore: Store<TGlobalStore> | undefined,
+        instance: Fragola,
         private setInstructionsFn: (instructions: string) => void,
         private setOptionsFn: (options: SetOptionsParams) => void,
-        private stopFn: () => Promise<void>
-    ) { }
+        private stopFn: () => Promise<void>,
+        raw: ContextRaw,
+    ) {
+        this.#instance = instance,
+        this.#raw = raw;
+    }
 
     [AGENT_FRIEND] = {
         setState: (newState: AgentState) => {
@@ -150,10 +155,16 @@ export class AgentContext<TMetaData extends DefineMetaData<any> = {}, TGlobalSto
         return this._options;
     }
 
+    get raw() {
+        return this.#raw
+    }
+
     /** Acess the agent's local store. */
     get store() {
         return this._store as Store<TStore> | undefined;
     }
+
+    get instance() { return this.#instance }
 
     /** Returns the agent's local store casted as T. Recommanded when accessing the store from a tool */
     getStore<T extends StoreLike<any>>(): Store<T> | undefined { return this._store ? this._store as unknown as Store<T> : undefined }
@@ -188,31 +199,31 @@ export class AgentContext<TMetaData extends DefineMetaData<any> = {}, TGlobalSto
     }
 }
 
-export interface agentRawMethods {
-    setIdle: () => Promise<void>,
-    setWaiting: () => Promise<void>,
-    setGenerating: () => Promise<void>,
-    dispatchState: (state: AgentState<any>) => Promise<void>,
-}
+// export interface agentRawMethods {
+//     setIdle: () => Promise<void>,
+//     setWaiting: () => Promise<void>,
+//     setGenerating: () => Promise<void>,
+//     dispatchState: (state: AgentState<any>) => Promise<void>,
+// }
 
-export class AgentRawContext<TMetaData extends DefineMetaData<any> = {}, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> extends AgentContext<TMetaData, TGlobalStore, TStore> {
-    constructor(
-        _state: AgentState<TMetaData>,
-        _options: AgentOptions,
-        _store: Store<TStore> | undefined,
-        _globalStore: Store<TGlobalStore> | undefined,
-        setInstructionsFn: (instructions: string) => void,
-        setOptionsFn: (options: SetOptionsParams) => void,
-        stopFn: () => Promise<void>,
-        private rawMethods: agentRawMethods
-    ) {
-        super(_state, _options, _store, _globalStore, setInstructionsFn, setOptionsFn, stopFn);
-    }
+// export class AgentRawContext<TMetaData extends DefineMetaData<any> = {}, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> extends AgentContext<TMetaData, TGlobalStore, TStore> {
+//     constructor(
+//         _state: AgentState<TMetaData>,
+//         _options: AgentOptions,
+//         _store: Store<TStore> | undefined,
+//         _globalStore: Store<TGlobalStore> | undefined,
+//         setInstructionsFn: (instructions: string) => void,
+//         setOptionsFn: (options: SetOptionsParams) => void,
+//         stopFn: () => Promise<void>,
+//         private rawMethods: agentRawMethods
+//     ) {
+//         super(_state, _options, _store, _globalStore, setInstructionsFn, setOptionsFn, stopFn);
+//     }
 
-    get raw() {
-        return this.rawMethods;
-    }
-}
+//     get raw() {
+//         return this.rawMethods;
+//     }
+// }
 
 type StepBy = Partial<{
     /** To execute only up to N steps even if `maxStep` is not hit*/
@@ -247,6 +258,8 @@ type applyEventParams<K extends AgentEventId> =
     K extends "conversationUpdate" ? ConversationUpdateParams :
     never;
 
+const FORK_FRIEND = Symbol("fork_friend");
+
 export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> {
     public static defaultAgentState: AgentState = {
         conversation: [],
@@ -261,17 +274,31 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
     private abortController: AbortController | undefined = undefined;
     private stopRequested: boolean = false;
     private context: AgentContext<TMetaData, TGlobalStore, TStore>;
+    private hooks: FragolaHook[] = [];
+    #state: AgentState<TMetaData>;
+    #id: string;
+    #forkOf: string | undefined = undefined;
+    #instance: Fragola
 
     constructor(
         private opts: CreateAgentOptions<TStore>,
         private globalStore: Store<TGlobalStore> | undefined = undefined,
         openai: OpenAI,
-        private state = Agent.defaultAgentState as AgentState<TMetaData>) {
+        forkOf: string | undefined = undefined,
+        instance: Fragola,
+        state = Agent.defaultAgentState as AgentState<TMetaData>,
+    ) {
+
+        this.#id = nanoid();
+        this.#state = state; 
+        this.#forkOf = forkOf;
+        this.#instance = instance;
         this.context = this.createAgentContext();
         this.openai = openai;
+
         this.toolsToModelSettingsTools();
         if (opts.initialConversation != undefined)
-            this.state.conversation = structuredClone(opts.initialConversation);
+            this.#state.conversation = structuredClone(opts.initialConversation);
         if (!opts.stepOptions)
             this.opts["stepOptions"] = defaultStepOptions;
         else {
@@ -282,37 +309,96 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
             this.validateStepOptions(this.opts.stepOptions);
         }
     }
-    getState() { return this.state };
 
-    async raw(callback: AgentRaw<TMetaData, TGlobalStore, TStore>) {
-        const rawContext = new AgentRawContext(this.state,
-            this.opts,
-            this.opts.store as Store<TStore> | undefined,
-            this.globalStore as Store<TGlobalStore> | undefined,
-            (instructions) => {
-                this.opts["instructions"] = instructions;
-            },
-            (options) => {
-                this.opts = { ...options, name: this.opts.name, store: this.opts.store }
-            },
-            async () => await this.stop(), {
-            setGenerating: this.setGenerating,
-            setIdle: this.setIdle,
-            setWaiting: this.setWaiting,
-            dispatchState: async (state: AgentState<any>) => {
-                this.updateState(() => state)
-            }
-        });
-
-        if (isAsyncFunction(callback)) {
-            const newState = await callback(this.openai, rawContext);
-            this.updateState(() => newState);
-        } else {
-            const newState = callback(this.openai, rawContext) as Awaited<ReturnType<typeof callback>>;
-            this.updateState(() => newState);
-        }
-        return this.state
+    private setRegisteredEvents = (map: typeof this.registeredEvents) => {
+        this.registeredEvents = map;
     }
+
+    [FORK_FRIEND] = {
+        setRegisteredEvents: this.setRegisteredEvents,
+        getRegisteredEvents: () => this.registeredEvents
+    }
+
+    get state() { return this.#state };
+
+    fork() {
+        const clonedOpts = structuredClone(this.opts);
+        if (this.opts.store) {
+            delete clonedOpts.store;
+            clonedOpts["store"] = createStore(this.opts.store.value);
+        }
+
+        const clonedState = structuredClone(this.#state);
+        const forked = new Agent<TMetaData, TGlobalStore, TStore>(
+            clonedOpts,
+            this.globalStore,
+            this.openai,
+            this.#id,
+            this.#instance,
+            clonedState,
+        );
+
+        this.hooks.forEach(hook => forked.use(hook));
+        const forkedRegisteredEvents = forked[FORK_FRIEND].getRegisteredEvents();
+
+        if (this.registeredEvents.size !== 0) {
+            // Build merged entries starting from any events already present on the forked agent
+            const mergedEntries: [AgentEventId, registeredEvent<AgentEventId, TMetaData, TGlobalStore, TStore>[]][] = [];
+
+            // Copy existing fork events (if any) to mergedEntries
+            for (const [k, v] of forkedRegisteredEvents.entries()) {
+                mergedEntries.push([k, v.map(e => ({ ...e }))]);
+            }
+
+            // Merge events from the original agent, but skip events whose id already exists in the fork
+            for (const [k, v] of this.registeredEvents.entries()) {
+                const existing = mergedEntries.find(([key]) => key === k);
+                if (existing) {
+                    const existingIds = new Set(existing[1].map(e => e.id));
+                    const toAdd = v
+                        .filter(ev => !existingIds.has(ev.id))
+                        .map(ev => ({ ...ev }));
+                    existing[1].push(...toAdd);
+                } else {
+                    mergedEntries.push([k, v.map(ev => ({ ...ev }))]);
+                }
+            }
+
+            const cloneRegisteredEvents = new EventMap(() => forked.context, mergedEntries);
+            forked[FORK_FRIEND].setRegisteredEvents(cloneRegisteredEvents);
+        }
+        return forked;
+    }
+
+    // async raw(callback: AgentRaw<TMetaData, TGlobalStore, TStore>) {
+    //     const rawContext = new AgentRawContext(this.#state,
+    //         this.opts,
+    //         this.opts.store as Store<TStore> | undefined,
+    //         this.globalStore as Store<TGlobalStore> | undefined,
+    //         (instructions) => {
+    //             this.opts["instructions"] = instructions;
+    //         },
+    //         (options) => {
+    //             this.opts = { ...options, name: this.opts.name, store: this.opts.store }
+    //         },
+    //         async () => await this.stop(), {
+    //         setGenerating: this.setGenerating,
+    //         setIdle: this.setIdle,
+    //         setWaiting: this.setWaiting,
+    //         dispatchState: async (state: AgentState<any>) => {
+    //             this.updateState(() => state)
+    //         }
+    //     });
+
+    //     if (isAsyncFunction(callback)) {
+    //         const newState = await callback(this.openai, rawContext);
+    //         this.updateState(() => newState);
+    //     } else {
+    //         const newState = callback(this.openai, rawContext) as Awaited<ReturnType<typeof callback>>;
+    //         this.updateState(() => newState);
+    //     }
+    //     return this.#state
+    // }
 
     private toolsToModelSettingsTools() {
         const result: ChatCompletionCreateParamsBase["tools"] = [];
@@ -343,14 +429,14 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
     private async setWaiting() { await this.updateState(prev => ({ ...prev, status: "waiting" })) }
 
 
-    private async updateState(callback: (prev: typeof this.state) => typeof this.state) {
-        this.state = callback(this.state);
-        this.context[AGENT_FRIEND].setState(this.state);
+    private async updateState(callback: (prev: AgentState<TMetaData>) => AgentState<TMetaData>) {
+        this.#state = callback(this.#state);
+        this.context[AGENT_FRIEND].setState(this.#state);
         await this.applyEvents("after:stateUpdate", null);
     }
 
     private async updateConversation(callback: (prev: AgentState<TMetaData>["conversation"]) => AgentState<TMetaData>["conversation"], reason: conversationUpdateReason) {
-        await this.updateState((prev) => ({ ...prev, conversation: callback(this.state.conversation) }));
+        await this.updateState((prev) => ({ ...prev, conversation: callback(this.#state.conversation) }));
         await this.applyEvents("after:conversationUpdate", { reason });
     }
 
@@ -363,9 +449,9 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      * @throws {BadUsage} When called while agent is not idle (generating or waiting).
      */
     setOptions(options: SetOptionsParams) {
-        if (this.state.status !== "idle") {
+        if (this.#state.status !== "idle") {
             throw new BadUsage(
-                `Cannot change options while agent is '${this.state.status}'. ` +
+                `Cannot change options while agent is '${this.#state.status}'. ` +
                 `Options can only be changed when agent status is 'idle'.`
             );
         }
@@ -388,6 +474,10 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
     }
 
     async step(stepParams?: StepParams) {
+        if (this.stopRequested) {
+            this.abortController = undefined;
+            this.stopRequested = false
+        }
         let overrideStepOptions: StepOptions | undefined = undefined;
         if (stepParams) {
             const { by, ...rest } = stepParams;
@@ -399,26 +489,26 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         if (overrideStepOptions)
             this.validateStepOptions(overrideStepOptions);
         const stepOptions: Required<StepOptions> = overrideStepOptions ? { ...defaultStepOptions, ...overrideStepOptions } as Required<StepOptions> : this.stepOptions();
-        if (this.state.conversation.length != 0)
+        if (this.#state.conversation.length != 0)
             await this.recursiveAgent(stepOptions, () => {
                 if (stepParams?.by != undefined)
-                    return this.state.stepCount == (this.state.stepCount + stepParams.by);
+                    return this.#state.stepCount == (this.#state.stepCount + stepParams.by);
                 return false;
             }).finally(() => {
                 this.abortController = undefined;
                 this.stopRequested = false;
             });
-        return this.state;
+        return this.#state;
     }
 
     resetStepCount() {
-        this.state.stepCount = 0;
+        this.#state.stepCount = 0;
     }
 
     reset(params: ResetParams = { initialConversation: [] }) {
-        if (this.state.status != "idle") {
+        if (this.#state.status != "idle") {
             throw new BadUsage(
-                `Cannot reset while agent is '${this.state.status}'. ` +
+                `Cannot reset while agent is '${this.#state.status}'. ` +
                 `Agent can only be reset when agent status is 'idle'.`
             );
         }
@@ -452,17 +542,22 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
 
     private createAgentContext<TM extends DefineMetaData<any> = TMetaData, TGS extends StoreLike<any> = TGlobalStore, TS extends StoreLike<any> = TStore>(): AgentContext<TM, TGS, TS> {
         return new AgentContext<TM, TGS, TS>(
-            this.state,
+            this.#state,
             this.opts,
             this.opts.store as Store<TS> | undefined,
             this.globalStore as Store<TGS> | undefined,
+            this.#instance,
             (instructions) => {
                 this.opts["instructions"] = instructions;
             },
             (options) => {
                 this.opts = { ...options, name: this.opts.name, store: this.opts.store }
             },
-            async () => await this.stop()
+            async () => await this.stop(),
+            {
+                appendMessages: (...args: Parameters<typeof this.appendMessages>) => this.appendMessages(...args),
+                updateConversation: (...args: Parameters<typeof this.updateConversation>) => this.updateConversation(...args)
+            }
         );
     }
 
@@ -482,15 +577,15 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         }
 
         if (stepOptions.resetStepCountAfterUserMessage) {
-            if (this.state.conversation.at(-1)?.role == "user")
+            if (this.#state.conversation.at(-1)?.role == "user")
                 this.setStepCount(0);
         }
-        if (this.state.stepCount == stepOptions.maxStep)
+        if (this.#state.stepCount == stepOptions.maxStep)
             throw new MaxStepHitError(``);
 
         this.abortController = new AbortController();
 
-        const lastMessage: OpenAI.ChatCompletionMessageParam | undefined = this.state.conversation.at(-1);
+        const lastMessage: OpenAI.ChatCompletionMessageParam | undefined = this.#state.conversation.at(-1);
         let aiMessage: OpenAI.ChatCompletionAssistantMessageParam;
         let lastAiMessage: OpenAI.ChatCompletionAssistantMessageParam | undefined = undefined;
         let toolCalls: OpenAI.Chat.Completions.ChatCompletionMessageToolCall[] = [];
@@ -499,7 +594,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
             if (lastMessage?.role == "user")
                 return true;
             if (lastMessage?.role == "tool") {
-                lastAiMessage = this.lastAiMessage(this.state.conversation);
+                lastAiMessage = this.lastAiMessage(this.#state.conversation);
                 if (!lastAiMessage)
                     throw new FragolaError("Invalid conversation, found 'tool' role without previous 'assistant' role.");
                 if (!lastAiMessage.tool_calls)
@@ -507,7 +602,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
 
                 // Some tool calls may be already answered, we filter them out
                 toolCalls = lastAiMessage.tool_calls.filter(toolCall => {
-                    return !this.state.conversation.some(message => message.role == "tool" && message.tool_call_id == toolCall.id)
+                    return !this.#state.conversation.some(message => message.role == "tool" && message.tool_call_id == toolCall.id)
                 });
                 // Generation can happen only if all tool_calls have been answered, if not the case, tool calls will be answered and the generation can happen in the next recursive turn
                 return toolCalls.length == 0;
@@ -518,7 +613,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         if (shouldGenerate) {
             const EmodelInvocation = this.registeredEvents.get("modelInvocation");
             const defaultProcessChunck: CallAPIProcessChuck = (chunck) => chunck;
-            const defaultModelSettings: ModelSettings = stepOptions.modelSettings ?? this.opts.modelSettings;
+            const defaultModelSettings: ModelSettings = stepOptions.modelSettings ?? this.modelSettings();
 
             const callAPI: CallAPI = async (processChunck, modelSettings, clientOpts) => {
                 const _processChunck = processChunck || defaultProcessChunck;
@@ -528,7 +623,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                 const role: ChatCompletionCreateParamsBase["messages"][0]["role"] = this.opts.useDeveloperRole ? "developer" : "system";
                 const requestBody: ChatCompletionCreateParamsBase = {
                     ..._modelSettings,
-                    messages: [{ role, content: this.opts.instructions }, ...this.state.conversation]
+                    messages: [{ role, content: this.opts.instructions }, ...this.#state.conversation]
                 };
                 if (this.paramsTools?.length)
                     requestBody["tools"] = this.paramsTools;
@@ -552,7 +647,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                         const updateReason: conversationUpdateReason = !chunck.choices[0].finish_reason ? "partialAiMessage" : "AiMessage";
                         const partialMessageFinal = await this.registeredEvents.handleAiMessage(partialMessage as typeof aiMessage, updateReason == "partialAiMessage");
                         await this.appendMessages([partialMessageFinal as OpenAI.Chat.ChatCompletionMessageParam], replaceLast, updateReason);
-                        if (!replaceLast) this.setStepCount(this.state.stepCount + 1);
+                        if (!replaceLast) this.setStepCount(this.#state.stepCount + 1);
                         replaceLast = true;
                     }
                     this.abortController = undefined;
@@ -561,7 +656,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                     this.abortController = undefined;
                     aiMessage = response.choices[0].message as typeof aiMessage;
                     await this.appendMessages([aiMessage], false, "AiMessage");
-                    this.setStepCount(this.state.stepCount + 1);
+                    this.setStepCount(this.#state.stepCount + 1);
                 }
                 if (aiMessage.role == "assistant" && aiMessage.tool_calls && aiMessage.tool_calls.length)
                     toolCalls = aiMessage.tool_calls;
@@ -655,6 +750,15 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         await this.setIdle();
     }
 
+    private modelSettings(): ModelSettings {
+        if (!this.options.modelSettings) {
+            return {
+                model: this.#instance.options.model,
+            }
+        }
+        return this.options.modelSettings;
+    }
+
     async json<S extends z.ZodTypeAny = z.ZodTypeAny>(query: JsonQuery<S>): Promise<JsonResult<S, TMetaData>> {
         const { step, preferToolCalling, name, schema, strict, description, ignoreUserMessageEvents, ...message } = query;
         let _step = { ...step };
@@ -669,7 +773,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
 
         } else {
             if (!_step?.modelSettings)
-                _step["modelSettings"] = { ...this.options.modelSettings }
+                _step["modelSettings"] = { ...this.modelSettings() }
             let jsonSchema = zodToJsonSchema(schema);
             _step.modelSettings.response_format = {
                 type: "json_schema", json_schema: {
@@ -683,9 +787,9 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         const state = await this.step(_step);
         const lastAiMessage = this.lastAiMessage(state.conversation);
         if (!lastAiMessage)
-            throw new FragolaError(`json format failed. Expected last index of conversation to be of role 'assistant'`);
+            throw new JsonModeError(`Expected last index of conversation to be of role 'assistant'`);
         if (typeof lastAiMessage.content != 'string') {
-            throw new FragolaError(`json format failed. Expected content of model response to be of type 'string', received '${typeof lastAiMessage.content}'`);
+            throw new JsonModeError(`Expected content of model response to be of type 'string', received '${typeof lastAiMessage.content}'`);
         }
         let jsonParsed: Object | undefined;
         try {
@@ -694,7 +798,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
             return { ...parsed, state };
         } catch (e) {
             console.error(e);
-            throw new FragolaError(`json format failed. JSON.parse() of model response failed: `);
+            throw new JsonModeError(`JSON.parse() of model response failed: `);
         }
     }
 
@@ -702,10 +806,18 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         const { step, ...message } = query;
         void step;
         let _message: Omit<ChatCompletionUserMessageParam, "role">;
+        let error: any | undefined = undefined;
         if (!this.registeredEvents.handleUserMessage)
             _message = message;
-        else
+        else {
+            try {
             _message = await this.registeredEvents.handleUserMessage(message);
+            } catch(e) {
+                error = e;
+            }
+        }
+        if (error)
+            throw error;
         await this.updateConversation((prev) => [...prev, stripUserMessageMeta({ role: "user", ..._message })], "userMessage");
         return await this.step(query.step);
     }
@@ -904,6 +1016,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      */
     use(hook: FragolaHook) {
         hook(this as AgentAny);
+        this.hooks.push(hook);
         return this;
     }
 }

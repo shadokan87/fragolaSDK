@@ -1,36 +1,55 @@
-import { fileSystemSave } from "@src/hookPreset";
 import { Fragola, type DefineMetaData } from "./src/fragola";
 import z from "zod";
-import type { JsonQuery } from "@src/agent";
+import { createStore, type JsonQuery } from "@src/agent";
+import { date } from "node_modules/zod/dist/types/v4/mini/coerce";
+import { guardrail, GuardrailConstrain, type Guardrail, type GuardRailMeta } from "@src/hook/presets/guardrail";
+import { fileSystemSave } from "@src/hook/presets/fileSystemSave";
 
 const fragola = new Fragola({
     baseURL: process.env.TEST_BASEURL,
-    apiKey: process.env.TEST_API_KEY
+    apiKey: process.env.TEST_API_KEY,
+    model: "gpt-4.1-mini"
 });
 
-const agent = fragola.agent({
+const store = createStore({
+    "test": true
+});
+
+type meta = DefineMetaData<{
+    "user": GuardRailMeta
+}>;
+
+// demo json mode
+const agent = fragola.agent<meta, typeof store.value>({
     name: "assistant",
     instructions: "you are a helpful assistant",
-    modelSettings: {
-        model: "grok-4-fast-reasoning"
-    }
-}).use(fileSystemSave("./testHook"));
-
-// await agent.userMessage({content: "say hello" });
-const schema = z.object({
-    name: z.string().optional(),
-    location: z.string().describe("where the person is located").optional(),
-    profession: z.string().describe("the person profession").optional(),
-    age: z.number()
+    description: "assistant agent",
+    store
 });
 
-const jsonQuery: JsonQuery = {
-    name: "user information",
-    content: "I am Eclipse, I live in paris. I am a software engineer working on an open source project",
-    description: "extract the user informations",
-    schema,
-    strict: true,
-};
+const jsonAgent = agent.fork();
+agent.use(fileSystemSave("./testHook"));
 
-const response = await agent.json(jsonQuery);
-console.log(JSON.stringify(response, null, 2));
+const isAboutMath: Guardrail = (async (fail, userMessage, {instance}) => {
+    const topicIsMath = await instance.boolean(`This user message topic is about mathematics: ${userMessage.content}`);
+
+    if (topicIsMath)
+        return fail(`${userMessage.content} contain math questions, try again with another question`);
+});
+
+agent.use(guardrail([isAboutMath], "keepAndAnnotate"));
+
+try {
+    console.log("#br1");
+    const response = await agent.userMessage({content: "what is 2 + 2"});
+    console.log("#br2");
+    console.log(JSON.stringify(response, null, 2));
+} catch(e) {
+    console.log("#br3");
+    console.error(e);
+    if (e instanceof GuardrailConstrain) {
+        console.error(`Message rejected, trying again ...`);
+        const state = await agent.userMessage({content: "say hello "});
+        console.log("state", JSON.stringify(state, null, 2));
+    }
+}

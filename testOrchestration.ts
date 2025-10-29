@@ -1,4 +1,4 @@
-import { Fragola, type DefineMetaData } from "./src/fragola";
+import { Fragola, tool, type DefineMetaData } from "./src/fragola";
 import z from "zod";
 import { createStore, type JsonQuery } from "@src/agent";
 import { date } from "node_modules/zod/dist/types/v4/mini/coerce";
@@ -25,21 +25,26 @@ const isAboutMath: Guardrail = (async (fail, userMessage, { instance }) => {
     if (topicIsMath)
         return fail(`${userMessage.content} contain math questions, try again with another question`);
 });
-    const summaryAgent = fragola.agent({
-        name: "summaryAgent",
-        instructions: "summary agent instructions",
-        description: "summary agent"
-    });
-    const computerUse = fragola.agent({
-        name: "computerUse",
-        instructions: "computer use agent instructions",
-        description: "computer use agent"
-    });
-    const searchWeb = fragola.agent({
-        name: "searchWeb",
-        instructions: "search web agent instructions",
-        description: "search web agent"
-    });
+const summaryAgent = fragola.agent({
+    name: "summaryAgent",
+    instructions: "summary agent instructions",
+    description: "summary agent"
+});
+const computerUse = fragola.agent({
+    name: "computerUse",
+    instructions: "computer use agent instructions",
+    description: "computer use agent"
+});
+const searchWeb = fragola.agent({
+    name: "searchWeb",
+    instructions: "search web agent instructions",
+    description: "search web agent",
+    tools: [tool({
+        name: "test",
+        description: "test",
+        handler: "dynamic"
+    })]
+});
 const agent = fragola.agent<meta, typeof store.value>({
     name: "assistant",
     instructions: "you are a helpful assistant",
@@ -51,7 +56,7 @@ agent.use(orchestration((lead) => {
     return {
         participants: [lead, summaryAgent, searchWeb, computerUse],
         flow: [
-            [lead, { to: "*"}],
+            [lead, { to: "*" }],
             [searchWeb, { to: computerUse, bidirectional: true }],
             [searchWeb, { to: summaryAgent }],
             [summaryAgent, { to: lead }]
@@ -66,6 +71,8 @@ agent.use(orchestration((lead) => {
         })
     }
 })).use(fileSystemSave("./testHook"));
+
+console.log(agent.options.instructions);
 
 // agent.use(guardrail([isAboutMath], "keepAndAnnotate"));
 // // agent.use(orchestration((flow, lead) => {

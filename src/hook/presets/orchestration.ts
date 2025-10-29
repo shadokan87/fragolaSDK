@@ -120,31 +120,27 @@ export const orchestration = (build: OrchestrationBuilder): FragolaHook => {
             }
             const systemPromptTemplate = `
 <orchestration>
-You are part of a multi-agent orchestration.
+<instructions>You are part of a multi-agent orchestration.
 You can send messages to other agents using the 'message_agent' tool.
-Here are the other agents you can communicate with.
-<agents_description>
-{{agents_descriptions}}
-</agents_description>
+Here are the other agents you can communicate with.</instructions>
+<agents_list>{{agents_list}}
+</agents_list>
 </orchestration>`;
             const agentToolTemplate = `
 <tool name="{{name}}">
     <description>
         {{description}}
     </description>
-</tool>
-                    `;
+</tool>`;
             const agentDescriptionTemplate = `
 <agent name="{{name}}">
     <description>
     {{description}}
     </description>
-<tools>
-{{tools}}
+<tools>{{tools}}
 </tools>
-</agent>
-`;
-            type systemPromptVariables = Record<"agents_descriptions", string>;
+</agent>`;
+            type systemPromptVariables = Record<"agents_list", string>;
             type agentToolVariables = Record<"name" | "description", string>;
             type agentDescriptionVariables = Record<"name" | "description" | "tools", string>;
 
@@ -158,13 +154,13 @@ Here are the other agents you can communicate with.
                         tools: dest.to.options.tools ? dest.to.options.tools.map(tool => (new Prompt(agentToolTemplate, {
                             name: tool.name,
                             description: tool.description
-                        } as agentToolVariables).value)).join("\n") : ""
+                        } as agentToolVariables).value)).join("") : ""
                     } as agentDescriptionVariables);
                     agentsDescription.push(agentDescription)
                 }
 
                 const systemPrompt: Prompt = new Prompt(systemPromptTemplate, {
-                    agents_descriptions: agentsDescription.map(prompt => prompt.value).join("\n")
+                    agents_list: agentsDescription.map(prompt => prompt.value).join("")
                 } as systemPromptVariables);
                 k.setOptions({...k.options, instructions: k.options.instructions + `\n${systemPrompt.value}`});
             }

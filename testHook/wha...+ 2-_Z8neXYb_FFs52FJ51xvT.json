@@ -1,0 +1,13 @@
+[
+  {
+    "role": "user",
+    "content": "what is 2 + 2",
+    "meta": {
+      "guardrail": {
+        "rejected": true,
+        "guard": "isAboutMath",
+        "reason": "what is 2 + 2 contain math questions, try again with another question"
+      }
+    }
+  }
+]

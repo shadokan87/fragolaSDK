@@ -319,6 +319,10 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         getRegisteredEvents: () => this.registeredEvents
     }
 
+    get id() {
+        return this.#id
+    }
+
     get state() { return this.#state };
 
     fork() {

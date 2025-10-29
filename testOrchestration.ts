@@ -20,7 +20,26 @@ type meta = DefineMetaData<{
     "user": GuardRailMeta
 }>;
 
-// demo json mode
+const isAboutMath: Guardrail = (async (fail, userMessage, { instance }) => {
+    const topicIsMath = await instance.boolean(`This user message topic is about mathematics: ${userMessage.content}`);
+    if (topicIsMath)
+        return fail(`${userMessage.content} contain math questions, try again with another question`);
+});
+    const summaryAgent = fragola.agent({
+        name: "summaryAgent",
+        instructions: "summary agent instructions",
+        description: "summary agent"
+    });
+    const computerUse = fragola.agent({
+        name: "computerUse",
+        instructions: "computer use agent instructions",
+        description: "computer use agent"
+    });
+    const searchWeb = fragola.agent({
+        name: "searchWeb",
+        instructions: "search web agent instructions",
+        description: "search web agent"
+    });
 const agent = fragola.agent<meta, typeof store.value>({
     name: "assistant",
     instructions: "you are a helpful assistant",
@@ -28,35 +47,25 @@ const agent = fragola.agent<meta, typeof store.value>({
     store
 });
 
-agent.use(fileSystemSave("./testHook"));
-
-const isAboutMath: Guardrail = (async (fail, userMessage, { instance }) => {
-    const topicIsMath = await instance.boolean(`This user message topic is about mathematics: ${userMessage.content}`);
-    if (topicIsMath)
-        return fail(`${userMessage.content} contain math questions, try again with another question`);
-});
-const summaryAgent = agent.fork();
-const computerUse = agent.fork();
-const searchWeb = agent.fork();
-
 agent.use(orchestration((lead) => {
     return {
         participants: [lead, summaryAgent, searchWeb, computerUse],
         flow: [
-            [lead, "*"],
-            [searchWeb, { to: computerUse }],
+            [lead, { to: "*"}],
+            [searchWeb, { to: computerUse, bidirectional: true }],
             [searchWeb, { to: summaryAgent }],
             [summaryAgent, { to: lead }]
         ],
         // Intercept and control agents communications. Messages can be rejected or modified similar to `onUserMessage` event
         onMessage: ((source, dest, message, reject) => {
-            if (dest.state.status != "idle")
-                return reject(`Cannot send a message to agent ${dest.options.name} while is generating`);
-            else
-                return message;
+            return message;
+            // if (dest.state.status != "idle")
+            //     return reject(`Cannot send a message to agent ${dest.options.name} while is generating`);
+            // else
+            //     return message;
         })
     }
-}));
+})).use(fileSystemSave("./testHook"));
 
 // agent.use(guardrail([isAboutMath], "keepAndAnnotate"));
 // // agent.use(orchestration((flow, lead) => {

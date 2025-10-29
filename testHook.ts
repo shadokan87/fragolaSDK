@@ -4,6 +4,7 @@ import { createStore, type JsonQuery } from "@src/agent";
 import { date } from "node_modules/zod/dist/types/v4/mini/coerce";
 import { guardrail, GuardrailConstrain, type Guardrail, type GuardRailMeta } from "@src/hook/presets/guardrail";
 import { fileSystemSave } from "@src/hook/presets/fileSystemSave";
+import { orchestration, type OrchestrationType } from "@src/hook/presets/orchestration";
 
 const fragola = new Fragola({
     baseURL: process.env.TEST_BASEURL,
@@ -27,29 +28,35 @@ const agent = fragola.agent<meta, typeof store.value>({
     store
 });
 
-const jsonAgent = agent.fork();
 agent.use(fileSystemSave("./testHook"));
 
-const isAboutMath: Guardrail = (async (fail, userMessage, {instance}) => {
+const isAboutMath: Guardrail = (async (fail, userMessage, { instance }) => {
     const topicIsMath = await instance.boolean(`This user message topic is about mathematics: ${userMessage.content}`);
-
     if (topicIsMath)
         return fail(`${userMessage.content} contain math questions, try again with another question`);
 });
 
 agent.use(guardrail([isAboutMath], "keepAndAnnotate"));
+// agent.use(orchestration((flow, lead) => {
+//     return [
+//         flow(lead, "*", "bidirection"),
+//         flow(searchWeb, computerUse),
+//         flow(searchWeb, summaryAgent),
+//         flow(summaryAgent, lead)
+//     ]
+// }));
 
 try {
     console.log("#br1");
-    const response = await agent.userMessage({content: "what is 2 + 2"});
+    const response = await agent.userMessage({ content: "what is 2 + 2" });
     console.log("#br2");
     console.log(JSON.stringify(response, null, 2));
-} catch(e) {
+} catch (e) {
     console.log("#br3");
     console.error(e);
     if (e instanceof GuardrailConstrain) {
         console.error(`Message rejected, trying again ...`);
-        const state = await agent.userMessage({content: "say hello "});
-        console.log("state", JSON.stringify(state, null, 2));
+        // const state = await agent.userMessage({content: "say hello "});
+        // console.log("state", JSON.stringify(state, null, 2));
     }
 }

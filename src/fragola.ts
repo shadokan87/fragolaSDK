@@ -162,7 +162,6 @@ export class Fragola<TGlobalStore = {}> {
     }
 
     async json<S extends z.ZodTypeAny = z.ZodTypeAny>(query: JsonQuery<S>, options: CreateAgentOptions | undefined = undefined): Promise<z.SafeParseReturnType<unknown, z.infer<S>>> {
-        // basic preset validation (same rule used by other methods)
         if (!this.clientOptions?.model) {
             throw new BadUsage(presetBadUsageMessage);
         }

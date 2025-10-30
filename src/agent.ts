@@ -1,4 +1,4 @@
-import { Store } from "./store"
+import { createStore, Store } from "./store"
 import { Fragola, stripUserMessageMeta, type ChatCompletionMessageParam, type ChatCompletionUserMessageParam, type DefineMetaData, type Tool } from "./fragola"
 import type { ChatCompletionCreateParamsBase } from "openai/resources/chat/completions.js"
 import { streamChunkToMessage, isAsyncFunction, isSkipEvent, skipEventFallback } from "./utils"
@@ -15,8 +15,6 @@ import { type registeredEvent, type eventIdToCallback, EventMap } from "./extend
 import type { FragolaHook } from "@src/hook/index";
 import { zodToJsonSchema } from "openai/_vendor/zod-to-json-schema/zodToJsonSchema.js"
 import type { ResponseFormatJSONSchema } from "openai/resources"
-
-export const createStore = <T extends StoreLike<any>>(data: StoreLike<T>) => new Store(data);
 
 export type AgentState<TMetaData extends DefineMetaData<any> = {}> = {
     conversation: ChatCompletionMessageParam<TMetaData>[],

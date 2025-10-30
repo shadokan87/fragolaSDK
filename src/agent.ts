@@ -459,6 +459,8 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         }
         this.opts = { ...this.opts, ...options };
         this.context[AGENT_FRIEND].setOptions({ ...this.context.options, ...options });
+        this.toolsToModelSettingsTools();
+
     }
 
     get options() { return this.opts }

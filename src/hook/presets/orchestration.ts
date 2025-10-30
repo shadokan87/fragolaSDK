@@ -4,6 +4,9 @@ import type { UserMessageQuery } from "@src/agent";
 import type { maybePromise } from "@src/types";
 import { FragolaError } from "@src/exceptions";
 import { Prompt } from "@fragola-ai/prompt";
+import z from "zod";
+import { tool } from "@src/fragola";
+import { conversationUtils } from "@src/stateUtils";
 
 export namespace OrchestrationType {
     export type participants = AgentAny[];
@@ -36,7 +39,7 @@ export class OrchestrationBadConfig extends FragolaError {
 export const orchestration = (build: OrchestrationBuilder): FragolaHook => {
     return (lead) => {
         // 3) Build the orchestration config from the lead agent
-        const { participants, flow } = build(lead as AgentAny);
+        const { participants, flow, onMessage } = build(lead as AgentAny);
 
         // Basic sanity checks (dev-time guardrails; no heavy logic here)
         // These are optional and can be removed if undesired
@@ -117,7 +120,7 @@ Here are the other agents you can communicate with.</instructions>
     </description>
 </tool>`;
             const agentDescriptionTemplate = `
-<agent name="{{name}}">
+<agent name="{{name}}" id="{{id}}">
     <description>
     {{description}}
     </description>
@@ -126,15 +129,44 @@ Here are the other agents you can communicate with.</instructions>
 </agent>`;
             type systemPromptVariables = Record<"agents_list", string>;
             type agentToolVariables = Record<"name" | "description", string>;
-            type agentDescriptionVariables = Record<"name" | "description" | "tools", string>;
+            type agentDescriptionVariables = Record<"name" | "description" | "tools" | "id", string>;
+            const messageAgentSchema = z.object({
+                id: z.string().describe("The id of the agent"),
+                message: z.string().describe("The message to send")
+            });
 
             for (const [k, v] of communicationMap) {
                 const agentsDescription: Prompt[] = [];
+                k.setOptions({
+                    ...k.options,
+                    tools: [...k.options.tools || [], tool({
+                        name: "message_agent",
+                        description: "send a message to another agent",
+                        schema: messageAgentSchema,
+                        handler: async (params) => {
+                            const dest: AgentAny | undefined = v.find(agent => (agent.to as AgentAny).id == params.id)?.to as AgentAny;
+                            if (!dest)
+                                return `Agent with id ${params.id} does not exist`;
+                            const userMessage = onMessage ? await onMessage(k, dest, {
+                                content: params.message
+                            }, (reason) => reason) : {
+                                content: params.message
+                            };
+
+                            if (typeof userMessage == "string")
+                                return `Your message request have been rejected for the following reason: ${userMessage}`;
+                            const destState = await dest.userMessage(userMessage);
+                            const finalOutput = conversationUtils(destState.conversation).finalOutput();
+                            return finalOutput ?? `Message delivered to agent with id ${params.id}. But the agent failed to produce an output (undefined) output`
+                        }
+                    })]
+                })
 
                 for (const dest of v as { to: AgentAny }[]) {
                     const agentDescription = new Prompt(agentDescriptionTemplate, {
                         name: dest.to.options.name,
                         description: dest.to.options.description,
+                        id: dest.to.id,
                         tools: dest.to.options.tools ? dest.to.options.tools.map(tool => (new Prompt(agentToolTemplate, {
                             name: tool.name,
                             description: tool.description
@@ -159,17 +191,6 @@ Here are the other agents you can communicate with.</instructions>
             // console.log(JSON.stringify(commArray, null, 2));
 
         }
-
-        // 4) SKELETON ONLY — no behavior yet.
-        // TODO: Example wiring outline (not implemented):
-        // - For each [source, rule] in flow:
-        //   - If rule === "*": set up broadcast from source to all others
-        //   - Else: set up directed relay between source -> rule.agent
-        //   - If rule.bidirectional: also set up rule.agent -> source
-        // - Use participants[i].onUserMessage / onAiMessage / onAfterConversationUpdate as needed
-
-        void participants;
-        void flow;
     };
 }
 // Participants are a list of agents (lead is typically included as the first item)

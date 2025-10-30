@@ -12,6 +12,8 @@ await build({
     './store.index.ts', 
     './agent.index.ts',
     './event.index.ts',
+    './hook.index.ts',
+    './hook.presets.index.ts',
     './src/**/*.ts'
   ],
   outdir: './dist',

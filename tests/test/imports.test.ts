@@ -27,7 +27,6 @@ import type {
 // exports from `agent.index.ts`
 import {
 	AgentContext,
-	AgentRawContext,
     //@ts-ignore
 	skip as skipFromAgent
 } from '@fragola-ai/agentic-sdk-core/agent';
@@ -35,16 +34,12 @@ import {
 import type {
 	AgentState,
 	StepOptions,
-	AgentContexOptions,
 	SetOptionsParams,
 	CreateAgentOptions,
 	ResetParams,
-	AgentRaw,
-	agentRawMethods,
 	StepParams,
 	UserMessageQuery,
 	Agent as AgentType,
-	AgentAnyaaa
 } from '@fragola-ai/agentic-sdk-core/agent';
 
 // exports from `store.index.ts`
@@ -62,7 +57,6 @@ import type {
 } from '@fragola-ai/agentic-sdk-core/event';
 
 import { describe, it, expect } from 'vitest';
-console.log("!type: ", typeof AgentContext);
 describe('package import surface', () => {
 	it('resolves runtime exports without throwing', () => {
 		// runtime exports (types are erased at runtime)
@@ -70,7 +64,6 @@ describe('package import surface', () => {
 		expect(typeof tool === 'function').toBeTruthy();
 		expect(typeof Store === 'function').toBeTruthy();
 		expect(typeof AgentContext === 'function').toBeTruthy();
-		expect(typeof AgentRawContext === 'function').toBeTruthy();
 		expect(SKIP_EVENT).toBeDefined();
 		// skip functions
 		expect(typeof skipFromAgent === 'function').toBeTruthy();

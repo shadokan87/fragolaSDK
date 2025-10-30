@@ -1,17 +1,6 @@
-// Example usage (skeleton):
-// agent.use(orchestration((lead) => ({
-//     participants: [lead, searchWeb, summaryAgent, computerUse],
-//     // Use a Map keyed by Agent instances for flow
-//     flow: new Map([
-//         [lead, "*"],
-//         [searchWeb, { agent: computerUse }],
-//         [searchWeb, { agent: summaryAgent, bidirectional: lead.state.conversation.length ? true : false }],
-//         [summaryAgent, { agent: lead }],
-//     ])
-// })));
 import { type AgentAny } from "@src/agent";
 import type { FragolaHook } from "..";
-import type { UserMessageQuery } from "dist/agent.index";
+import type { UserMessageQuery } from "@src/agent";
 import type { maybePromise } from "@src/types";
 import { FragolaError } from "@src/exceptions";
 import { Prompt } from "@fragola-ai/prompt";
@@ -31,7 +20,7 @@ export namespace OrchestrationType {
     }
 }
 
-type OrchestrationBuilder = (lead: AgentAny) => OrchestrationType.config;
+export type OrchestrationBuilder = (lead: AgentAny) => OrchestrationType.config;
 
 export class OrchestrationBadConfig extends FragolaError {
     constructor(message: string, cause: string) {
@@ -43,12 +32,7 @@ export class OrchestrationBadConfig extends FragolaError {
         }
     }
 }
-// High-order hook: accepts a builder, returns a FragolaHook.
-// Callback order at runtime:
-// 1) You call orchestration(builder)
-// 2) agent.use(hook) invokes the returned function with the "lead" agent
-// 3) We call builder(lead) to get { participants, flow }
-// 4) Optionally register events across participants using the flow (TODOs below)
+
 export const orchestration = (build: OrchestrationBuilder): FragolaHook => {
     return (lead) => {
         // 3) Build the orchestration config from the lead agent

@@ -1,9 +1,9 @@
 import type OpenAI from "openai";
 import type { FragolaHook } from "../";
 import { nanoid } from "nanoid";
-const fs = require("fs").promises;
-const nodePath = require("path");
-const syncFs = require("fs");
+import fs from "fs/promises";
+import nodePath from "path";
+import syncFs from "fs";
 
 
 /**

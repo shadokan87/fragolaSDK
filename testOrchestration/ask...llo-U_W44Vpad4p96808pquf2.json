@@ -1,0 +1,33 @@
+[
+  {
+    "role": "user",
+    "content": "ask greetingAgent to say hello"
+  },
+  {
+    "annotations": [],
+    "content": null,
+    "refusal": null,
+    "role": "assistant",
+    "tool_calls": [
+      {
+        "function": {
+          "arguments": "{\"id\":\"8QCC0oPA8ESRqMBR1zbr0\",\"message\":\"Please say hello to the user.\"}",
+          "name": "message_agent"
+        },
+        "id": "call_DpVOvJUkEAwMGYtkh2QVqtXS",
+        "type": "function"
+      }
+    ]
+  },
+  {
+    "role": "tool",
+    "content": "Your message request have been rejected for the following reason: The agent is busy. try again later",
+    "tool_call_id": "call_DpVOvJUkEAwMGYtkh2QVqtXS"
+  },
+  {
+    "annotations": [],
+    "content": "The greeting agent is currently busy. Please try again in a moment. If you'd like, I can assist you with something else in the meantime.",
+    "refusal": null,
+    "role": "assistant"
+  }
+]

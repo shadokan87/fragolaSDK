@@ -1,0 +1,33 @@
+[
+  {
+    "role": "user",
+    "content": "ask greetingAgent to say hello"
+  },
+  {
+    "annotations": [],
+    "content": null,
+    "refusal": null,
+    "role": "assistant",
+    "tool_calls": [
+      {
+        "function": {
+          "arguments": "{\"id\":\"yfdXcLnRLDZ0I87VGGICH\",\"message\":\"Say hello\"}",
+          "name": "message_agent"
+        },
+        "id": "call_uG9sWPY0rq5WKuSS6ME8XkQc",
+        "type": "function"
+      }
+    ]
+  },
+  {
+    "role": "tool",
+    "content": "Your message request have been rejected for the following reason: You don't have the permissions to message this agent",
+    "tool_call_id": "call_uG9sWPY0rq5WKuSS6ME8XkQc"
+  },
+  {
+    "annotations": [],
+    "content": "I'm sorry, but I currently do not have permission to send messages to the greetings agent. Is there anything else I can assist you with?",
+    "refusal": null,
+    "role": "assistant"
+  }
+]

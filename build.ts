@@ -24,7 +24,7 @@ await build({
   minify: true,
   sourcemap: true,
   sourcesContent: true,
-  bundle: false,
+  bundle: true,
   metafile: true,
   plugins: [aliasSrcPlugin()],
 }).catch((error) => {

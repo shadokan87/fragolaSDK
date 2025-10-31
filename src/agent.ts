@@ -173,7 +173,7 @@ export class AgentContext<TMetaData extends DefineMetaData<any> = {}, TGlobalSto
     }
 
     /** Returns the global store casted as T. Recommanded when accessing the global store from a tool */
-    getGlobalStore<T extends StoreLike<any>>(): Store<T> | undefined { return this._store ? this._store as unknown as Store<T> : undefined }
+    getGlobalStore<T extends StoreLike<any>>(): Store<T> | undefined { return this._globalStore ? this._globalStore as unknown as Store<T> : undefined }
 
     /**
      * Sets the current instructions for the agent.

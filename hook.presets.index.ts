@@ -1,1 +1,1 @@
-export * from "./src/hook/presets/index.ts";
+export * from "./src/hook/presets/index";

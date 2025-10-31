@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 import { build } from 'esbuild';
+import { aliasSrcPlugin } from './esbuild.aliasSrcPlugin.js';
 import { spawn } from 'child_process';
 import { promisify } from 'util';
 
@@ -25,6 +26,7 @@ await build({
   sourcesContent: true,
   bundle: false,
   metafile: true,
+  plugins: [aliasSrcPlugin()],
 }).catch((error) => {
   console.error('Build failed:', error);
   process.exit(1);

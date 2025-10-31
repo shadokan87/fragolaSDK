@@ -1,0 +1,12 @@
+[
+  {
+    "role": "user",
+    "content": "ask greetingAgent to say hello"
+  },
+  {
+    "annotations": [],
+    "content": "{\"recipient_id\":\"0bo30Y5NkczkIOtvh7nyk\",\"recipient_type\":\"agent\",\"message\":\"Please say hello to the user.\"}",
+    "refusal": null,
+    "role": "assistant"
+  }
+]

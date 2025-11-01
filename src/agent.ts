@@ -109,9 +109,14 @@ export type ResetParams = Prettify<Pick<Required<CreateAgentOptions>, "initialCo
 
 const AGENT_FRIEND = Symbol('AgentAccess');
 
+// Define the signature type
+type AppendMessagesFn = (messages: OpenAI.ChatCompletionMessageParam[], replaceLast?: boolean, reason?: conversationUpdateReason) => Promise<void>;
+type UpdateConversationFn = (callback: (prev: AgentState<any>["conversation"]) => AgentState<any>["conversation"], reason: conversationUpdateReason) => Promise<void>;
+
+// Use these types for your ContextRaw
 export type ContextRaw = {
-    appendMessages: Agent["appendMessages"],
-    updateConversation: Agent["updateConversation"]
+    appendMessages: AppendMessagesFn,
+    updateConversation: UpdateConversationFn
 }
 /**
  * Context of the agent which triggered the event or tool.
@@ -559,6 +564,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
             },
             async () => await this.stop(),
             {
+                //@ts-ignore
                 appendMessages: (...args: Parameters<typeof this.appendMessages>) => this.appendMessages(...args),
                 updateConversation: (...args: Parameters<typeof this.updateConversation>) => this.updateConversation(...args)
             }

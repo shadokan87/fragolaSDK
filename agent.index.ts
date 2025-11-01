@@ -9,6 +9,7 @@ export type {
     UserMessageQuery,
     Agent,
     AgentAny,
+    ContextRaw
 } from "./src/agent";
 import { skip } from "./src/event";
 export {

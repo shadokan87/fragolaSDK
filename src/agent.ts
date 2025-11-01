@@ -109,7 +109,7 @@ export type ResetParams = Prettify<Pick<Required<CreateAgentOptions>, "initialCo
 
 const AGENT_FRIEND = Symbol('AgentAccess');
 
-type ContextRaw = {
+export type ContextRaw = {
     appendMessages: Agent["appendMessages"],
     updateConversation: Agent["updateConversation"]
 }

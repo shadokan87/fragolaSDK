@@ -1,6 +1,6 @@
 {
   "name": "@fragola-ai/agentic-sdk-core",
-  "version": "0.1.2a",
+  "version": "0.1.3a",
   "description": "Fragola is a 100% openai format compatible library for building easy to complex agentic systems via an API that is minimalistic, event-driven and customizable with near zero abstractions.",
   "main": "./dist/fragola.index.js",
   "module": "./dist/fragola.index.js",

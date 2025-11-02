@@ -2,7 +2,7 @@ import OpenAI from "openai";
 import type { AgentState } from "./agent";
 import type {ChatCompletionMessageParam} from "./fragola";
 
-const getToolCallOrigin = (
+export const getToolCallOrigin = (
     conversation: OpenAI.ChatCompletionMessageParam[],
     message: OpenAI.ChatCompletionToolMessageParam
 ): OpenAI.ChatCompletionMessageToolCall | undefined => {

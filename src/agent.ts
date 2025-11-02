@@ -136,7 +136,7 @@ export class AgentContext<TMetaData extends DefineMetaData<any> = {}, TGlobalSto
         raw: ContextRaw,
     ) {
         this.#instance = instance,
-        this.#raw = raw;
+            this.#raw = raw;
     }
 
     [AGENT_FRIEND] = {
@@ -293,7 +293,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
     ) {
 
         this.#id = nanoid();
-        this.#state = state; 
+        this.#state = state;
         this.#forkOf = forkOf;
         this.#instance = instance;
         this.context = this.createAgentContext();
@@ -624,8 +624,9 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
             const EmodelInvocation = this.registeredEvents.get("modelInvocation");
             const defaultProcessChunck: CallAPIProcessChuck = (chunck) => chunck;
             const defaultModelSettings: ModelSettings = stepOptions.modelSettings ?? this.modelSettings();
-
+            let apiCalled: boolean = false;
             const callAPI: CallAPI = async (processChunck, modelSettings, clientOpts) => {
+                apiCalled = true;
                 const _processChunck = processChunck || defaultProcessChunck;
                 const _modelSettings = modelSettings || defaultModelSettings;
                 const openai = clientOpts ? new OpenAI(clientOpts) : this.openai;
@@ -677,7 +678,10 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                     const params: Parameters<EventModelInvocation<TMetaData, TGlobalStore, TStore>> = [callAPI, this.context];
                     const callback = event.callback as EventModelInvocation<TMetaData, TGlobalStore, TStore>;
                     aiMessage = await skipEventFallback(await callback(...params), callAPI);
-                    await this.appendMessages([aiMessage], false, "AiMessage");
+                    if (!apiCalled) {
+                        await this.appendMessages([aiMessage], false, "AiMessage");
+                        this.setStepCount(this.#state.stepCount + 1);
+                    }
                 }
             } else
                 await callAPI();
@@ -822,8 +826,8 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
             _message = message;
         else {
             try {
-            _message = await this.registeredEvents.handleUserMessage(message);
-            } catch(e) {
+                _message = await this.registeredEvents.handleUserMessage(message);
+            } catch (e) {
                 error = e;
             }
         }

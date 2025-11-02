@@ -677,6 +677,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                     const params: Parameters<EventModelInvocation<TMetaData, TGlobalStore, TStore>> = [callAPI, this.context];
                     const callback = event.callback as EventModelInvocation<TMetaData, TGlobalStore, TStore>;
                     aiMessage = await skipEventFallback(await callback(...params), callAPI);
+                    await this.appendMessages([aiMessage], false, "AiMessage");
                 }
             } else
                 await callAPI();

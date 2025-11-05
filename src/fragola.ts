@@ -1,10 +1,11 @@
 import z from "zod";
-import { Agent, type AgentContext, type AgentOptions, type CreateAgentOptions, type JsonQuery } from "./agent";
-import type { maybePromise } from "./types";
+import { Agent, type AgentOptions, type CreateAgentOptions, type JsonQuery } from "./agent";
+import type { maybePromise, StoreLike } from "./types";
 import type { ClientOptions } from "openai/index.js";
 import OpenAI from "openai/index.js";
 import type { Store } from "./store";
 import { BadUsage } from "./exceptions";
+import type { AgentContext } from "./agentContext";
 
 export type ToolHandlerReturnTypeNonAsync = any[] | Record<any, any> | Function | number | bigint | boolean | string;
 export type ToolHandlerReturnType = maybePromise<ToolHandlerReturnTypeNonAsync>;
@@ -93,8 +94,11 @@ type PreferedModel = {
     model: string
 }
 
-export class Fragola<TGlobalStore = {}> {
+export const FRAGOLA_FRIEND = Symbol("Fragola_friend")
+
+export class Fragola<TGlobalStore extends StoreLike<any> = {}> {
     private openai: OpenAI;
+    private namespaceStore: Map<string, Store<any>> = new Map();
     constructor(private clientOptions: ClientOptions & PreferedModel, private globalStore: Store<TGlobalStore> | undefined = undefined) {
         const opts = clientOptions ? (() => {
             const copy = { ...clientOptions };
@@ -103,6 +107,15 @@ export class Fragola<TGlobalStore = {}> {
         })() : undefined;
         this.openai = opts ? new OpenAI(opts) : new OpenAI();
     }
+    [FRAGOLA_FRIEND] = {
+        getGlobalStore: <T extends StoreLike<any>>(namespace?: string): Store<T> | undefined => {
+            let store = namespace ? this.namespaceStore.get(namespace) : this.globalStore;
+            if (store)
+                return store as unknown as Store<T>;
+            return undefined;
+        }
+    }
+
 
     agent<TMetaData extends DefineMetaData<any> = {}, TStore = {}>(opts: CreateAgentOptions<TStore>): Agent<TMetaData, TGlobalStore, TStore> {
         return new Agent<TMetaData, TGlobalStore, TStore>(opts, this.globalStore, this.openai, undefined, this as Fragola<any>);

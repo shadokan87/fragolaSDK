@@ -1,5 +1,5 @@
 import { createStore, Store } from "./store"
-import { Fragola, stripUserMessageMeta, type ChatCompletionMessageParam, type ChatCompletionUserMessageParam, type DefineMetaData, type Tool } from "./fragola"
+import { Fragola, FRAGOLA_FRIEND, stripUserMessageMeta, type ChatCompletionMessageParam, type ChatCompletionUserMessageParam, type DefineMetaData, type Tool } from "./fragola"
 import type { ChatCompletionCreateParamsBase } from "openai/resources/chat/completions.js"
 import { streamChunkToMessage, isAsyncFunction, isSkipEvent, skipEventFallback } from "./utils"
 import { BadUsage, FragolaError, JsonModeError, MaxStepHitError } from "./exceptions"
@@ -15,6 +15,7 @@ import { type registeredEvent, type eventIdToCallback, EventMap } from "./extend
 import type { FragolaHook } from "@src/hook/index";
 import { zodToJsonSchema } from "openai/_vendor/zod-to-json-schema/zodToJsonSchema.js"
 import type { ResponseFormatJSONSchema } from "openai/resources"
+import { AgentContext, IAgentContext, type _AgentContext } from "./agentContext"
 
 export type AgentState<TMetaData extends DefineMetaData<any> = {}> = {
     conversation: ChatCompletionMessageParam<TMetaData>[],
@@ -97,7 +98,7 @@ export interface AgentOptions {
     modelSettings?: ModelSettings
 } //TODO: better comment for stepOptions with explaination for each fields
 
-export type SetOptionsParams = Omit<AgentOptions, "name" | "initialConversation">;
+export type SetOptionsParams = Omit<AgentOptions, "name" | "initialConversation" | "fork">;
 
 export type CreateAgentOptions<TStore extends StoreLike<any> = {}> = {
     store?: Store<TStore>,
@@ -109,122 +110,92 @@ export type ResetParams = Prettify<Pick<Required<CreateAgentOptions>, "initialCo
 
 const AGENT_FRIEND = Symbol('AgentAccess');
 
-// Define the signature type
-type AppendMessagesFn = (messages: OpenAI.ChatCompletionMessageParam[], replaceLast?: boolean, reason?: conversationUpdateReason) => Promise<void>;
-type UpdateConversationFn = (callback: (prev: AgentState<any>["conversation"]) => AgentState<any>["conversation"], reason: conversationUpdateReason) => Promise<void>;
-
 // Use these types for your ContextRaw
 export type ContextRaw = {
     appendMessages: AppendMessagesFn,
     updateConversation: UpdateConversationFn
 }
-/**
- * Context of the agent which triggered the event or tool.
- */
-export class AgentContext<TMetaData extends DefineMetaData<any> = {}, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> {
-    #raw: ContextRaw
-    #instance: Fragola
-    constructor(
-        private _state: AgentState<TMetaData>,
-        private _options: AgentOptions,
-        private _store: Store<TStore> | undefined,
-        private _globalStore: Store<TGlobalStore> | undefined,
-        instance: Fragola,
-        private setInstructionsFn: (instructions: string) => void,
-        private setOptionsFn: (options: SetOptionsParams) => void,
-        private stopFn: () => Promise<void>,
-        raw: ContextRaw,
-    ) {
-        this.#instance = instance,
-            this.#raw = raw;
-    }
-
-    [AGENT_FRIEND] = {
-        setState: (newState: AgentState) => {
-            this._state = newState;
-        },
-        setOptions: (newOptions: AgentOptions) => {
-            this._options = newOptions;
-        },
-    };
-
-    /** The current state of the agent. */
-    get state() {
-        return this._state;
-    }
-
-    /** The configuration options for the agent context. */
-    get options() {
-        return this._options;
-    }
-
-    get raw() {
-        return this.#raw
-    }
-
-    /** Acess the agent's local store. */
-    get store() {
-        return this._store as Store<TStore> | undefined;
-    }
-
-    get instance() { return this.#instance }
-
-    /** Returns the agent's local store casted as T. Recommanded when accessing the store from a tool */
-    getStore<T extends StoreLike<any>>(): Store<T> | undefined { return this._store ? this._store as unknown as Store<T> : undefined }
-
-    /** Access the global store shared across agents of the same Fragola instance. */
-    get globalStore() {
-        return this._globalStore as Store<TGlobalStore> | undefined;
-    }
-
-    /** Returns the global store casted as T. Recommanded when accessing the global store from a tool */
-    getGlobalStore<T extends StoreLike<any>>(): Store<T> | undefined { return this._globalStore ? this._globalStore as unknown as Store<T> : undefined }
-
-    /**
-     * Sets the current instructions for the agent.
-     * @param instructions - The new instructions as a string.
-     */
-    setInstructions(instructions: string) {
-        this.setInstructionsFn(instructions);
-    }
-
-    /**
-     * Updates the agent's options.
-     * **note**: the `name` property is ommited
-     * @param options - The new options to set, as a SetOptionsParams object.
-     */
-    setOptions(options: SetOptionsParams) {
-        this.setOptionsFn(options);
-    }
-
-    async stop() {
-        return await this.stopFn();
-    }
-}
-
-// export interface agentRawMethods {
-//     setIdle: () => Promise<void>,
-//     setWaiting: () => Promise<void>,
-//     setGenerating: () => Promise<void>,
-//     dispatchState: (state: AgentState<any>) => Promise<void>,
-// }
-
-// export class AgentRawContext<TMetaData extends DefineMetaData<any> = {}, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> extends AgentContext<TMetaData, TGlobalStore, TStore> {
+// /**
+//  * Context of the agent which triggered the event or tool.
+//  */
+// export class AgentContext<TMetaData extends DefineMetaData<any> = {}, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> {
+//     #raw: ContextRaw
+//     #instance: Fragola<TGlobalStore>
 //     constructor(
-//         _state: AgentState<TMetaData>,
-//         _options: AgentOptions,
-//         _store: Store<TStore> | undefined,
-//         _globalStore: Store<TGlobalStore> | undefined,
-//         setInstructionsFn: (instructions: string) => void,
-//         setOptionsFn: (options: SetOptionsParams) => void,
-//         stopFn: () => Promise<void>,
-//         private rawMethods: agentRawMethods
+//         private _state: AgentState<TMetaData>,
+//         private _options: AgentOptions,
+//         private _store: Store<TStore> | undefined,
+//         private _globalStore: Store<TGlobalStore> | undefined,
+//         instance: Fragola,
+//         private setInstructionsFn: (instructions: string) => void,
+//         private setOptionsFn: (options: SetOptionsParams) => void,
+//         private stopFn: () => Promise<void>,
+//         raw: ContextRaw,
 //     ) {
-//         super(_state, _options, _store, _globalStore, setInstructionsFn, setOptionsFn, stopFn);
+//         this.#instance = instance as unknown as Fragola<TGlobalStore>,
+//             this.#raw = raw;
+//     }
+
+//     [AGENT_FRIEND] = {
+//         setState: (newState: AgentState) => {
+//             this._state = newState;
+//         },
+//         setOptions: (newOptions: AgentOptions) => {
+//             this._options = newOptions;
+//         },
+//     };
+
+//     /** The current state of the agent. */
+//     get state() {
+//         return this._state;
+//     }
+
+//     /** The configuration options for the agent context. */
+//     get options() {
+//         return this._options;
 //     }
 
 //     get raw() {
-//         return this.rawMethods;
+//         return this.#raw
+//     }
+
+//     /** Acess the agent's local store. */
+//     get store() {
+//         return this._store as Store<TStore> | undefined;
+//     }
+
+//     get instance() { return this.#instance }
+
+//     /** Returns the agent's local store casted as T. Recommanded when accessing the store from a tool */
+//     getStore<T extends StoreLike<any>>(): Store<T> | undefined { return this._store ? this._store as unknown as Store<T> : undefined }
+
+//     /** Access the global store shared across agents of the same Fragola instance. */
+//     get globalStore() {
+//         return this._globalStore as Store<TGlobalStore> | undefined;
+//     }
+
+//     /** Returns the global store casted as T. Recommanded when accessing the global store from a tool */
+//     getGlobalStore<T extends StoreLike<any>>(): Store<T> | undefined { return this._globalStore ? this._globalStore as unknown as Store<T> : undefined }
+
+//     /**
+//      * Sets the current instructions for the agent.
+//      * @param instructions - The new instructions as a string.
+//      */
+//     setInstructions(instructions: string) {
+//         this.setInstructionsFn(instructions);
+//     }
+
+//     /**
+//      * Updates the agent's options.
+//      * **note**: the `name` property is ommited
+//      * @param options - The new options to set, as a SetOptionsParams object.
+//      */
+//     setOptions(options: SetOptionsParams) {
+//         this.setOptionsFn(options);
+//     }
+
+//     async stop() {
+//         return await this.stopFn();
 //     }
 // }
 
@@ -273,15 +244,14 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
     private openai: OpenAI;
     private paramsTools: ChatCompletionCreateParamsBase["tools"] = [];
     private registeredEvents: EventMap<AgentEventId, registeredEvent<AgentEventId, TMetaData, TGlobalStore, TStore>[], TMetaData, TGlobalStore, TStore> = new EventMap(() => this.context)
-    // private registeredEvents: Map<AgentEventId, registeredEvent<AgentEventId, TMetaData, TGlobalStore, TStore>[]> = new Map();
     private abortController: AbortController | undefined = undefined;
     private stopRequested: boolean = false;
-    private context: AgentContext<TMetaData, TGlobalStore, TStore>;
     private hooks: FragolaHook[] = [];
     #state: AgentState<TMetaData>;
     #id: string;
     #forkOf: string | undefined = undefined;
-    #instance: Fragola
+    #instance: Fragola<TGlobalStore>;
+    namespaceStore: Map<string, Store<any>> = new Map();
 
     constructor(
         private opts: CreateAgentOptions<TStore>,
@@ -295,8 +265,8 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         this.#id = nanoid();
         this.#state = state;
         this.#forkOf = forkOf;
-        this.#instance = instance;
-        this.context = this.createAgentContext();
+        this.#instance = instance as unknown as Fragola<TGlobalStore>;
+        // this.context = this.createAgentContext();
         this.openai = openai;
 
         this.toolsToModelSettingsTools();
@@ -312,6 +282,41 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
             this.validateStepOptions(this.opts.stepOptions);
         }
     }
+
+    private context = (() => {
+        const _this = this;
+        return new class extends AgentContext<TMetaData, TGlobalStore, TStore> {
+            get state() { return _this.state; }
+            get options() { return _this.options; }
+            get raw() {
+                return {
+                    appendMessages: (...args: Parameters<typeof _this.appendMessages>) => _this.appendMessages(...args),
+                    updateConversation: (...args: Parameters<typeof _this.updateConversation>) => _this.updateConversation(...args)
+                };
+            }
+            get store() { return _this.opts.store as Store<TStore>; }
+            get instance() { return _this.#instance }
+            getStore<T extends StoreLike<any>>(namespace?: string): Store<T> | undefined {
+                let store = namespace ? _this.namespaceStore.get(namespace) : _this.options.store;
+                if (store)
+                    return store as unknown as Store<T>;
+                return undefined;
+            }
+            getGlobalStore<T extends StoreLike<any>>(namespace?: string): Store<T> | undefined {
+                return _this.#instance[FRAGOLA_FRIEND].getGlobalStore(namespace);
+            }
+            get globalStore() { return this.getGlobalStore<TGlobalStore>() }
+            setInstructions(instructions: string): void {
+                _this.opts.instructions = instructions;
+            }
+            setOptions(options: SetOptionsParams): void {
+                _this.setOptions(options);
+            }
+            async stop(): Promise<void> {
+                await _this.stop();
+            }
+        }
+    })();
 
     private setRegisteredEvents = (map: typeof this.registeredEvents) => {
         this.registeredEvents = map;
@@ -341,7 +346,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
             this.globalStore,
             this.openai,
             this.#id,
-            this.#instance,
+            this.#instance as Fragola<any>,
             clonedState,
         );
 
@@ -377,36 +382,6 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         return forked;
     }
 
-    // async raw(callback: AgentRaw<TMetaData, TGlobalStore, TStore>) {
-    //     const rawContext = new AgentRawContext(this.#state,
-    //         this.opts,
-    //         this.opts.store as Store<TStore> | undefined,
-    //         this.globalStore as Store<TGlobalStore> | undefined,
-    //         (instructions) => {
-    //             this.opts["instructions"] = instructions;
-    //         },
-    //         (options) => {
-    //             this.opts = { ...options, name: this.opts.name, store: this.opts.store }
-    //         },
-    //         async () => await this.stop(), {
-    //         setGenerating: this.setGenerating,
-    //         setIdle: this.setIdle,
-    //         setWaiting: this.setWaiting,
-    //         dispatchState: async (state: AgentState<any>) => {
-    //             this.updateState(() => state)
-    //         }
-    //     });
-
-    //     if (isAsyncFunction(callback)) {
-    //         const newState = await callback(this.openai, rawContext);
-    //         this.updateState(() => newState);
-    //     } else {
-    //         const newState = callback(this.openai, rawContext) as Awaited<ReturnType<typeof callback>>;
-    //         this.updateState(() => newState);
-    //     }
-    //     return this.#state
-    // }
-
     private toolsToModelSettingsTools() {
         const result: ChatCompletionCreateParamsBase["tools"] = [];
         this.opts.tools?.forEach(tool => {
@@ -438,7 +413,6 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
 
     private async updateState(callback: (prev: AgentState<TMetaData>) => AgentState<TMetaData>) {
         this.#state = callback(this.#state);
-        this.context[AGENT_FRIEND].setState(this.#state);
         await this.applyEvents("after:stateUpdate", null);
     }
 
@@ -463,7 +437,6 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
             );
         }
         this.opts = { ...this.opts, ...options };
-        this.context[AGENT_FRIEND].setOptions({ ...this.context.options, ...options });
         this.toolsToModelSettingsTools();
 
     }
@@ -547,28 +520,6 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
             }
         }
         return undefined;
-    }
-
-    private createAgentContext<TM extends DefineMetaData<any> = TMetaData, TGS extends StoreLike<any> = TGlobalStore, TS extends StoreLike<any> = TStore>(): AgentContext<TM, TGS, TS> {
-        return new AgentContext<TM, TGS, TS>(
-            this.#state,
-            this.opts,
-            this.opts.store as Store<TS> | undefined,
-            this.globalStore as Store<TGS> | undefined,
-            this.#instance,
-            (instructions) => {
-                this.opts["instructions"] = instructions;
-            },
-            (options) => {
-                this.opts = { ...options, name: this.opts.name, store: this.opts.store }
-            },
-            async () => await this.stop(),
-            {
-                //@ts-ignore
-                appendMessages: (...args: Parameters<typeof this.appendMessages>) => this.appendMessages(...args),
-                updateConversation: (...args: Parameters<typeof this.updateConversation>) => this.updateConversation(...args)
-            }
-        );
     }
 
     private setStepCount(value: number) {
@@ -844,7 +795,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
             return undefined as ReturnType<eventIdToCallback<TEventId, TMetaData, TGlobalStore, TStore>>;
         for (let i = 0; i < events.length; i++) {
             const callback = events[i].callback;
-            const defaultParams: Parameters<EventDefaultType> = [this.createAgentContext()];
+            const defaultParams: Parameters<EventDefaultType> = [this.context];
             switch (eventId) {
                 case "after:stateUpdate": {
                     const params: Parameters<EventDefaultType> = defaultParams;

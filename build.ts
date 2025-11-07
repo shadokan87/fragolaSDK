@@ -47,4 +47,19 @@ await new Promise((resolve, reject) => {
   });
 });
 
+// Resolve path aliases in declaration files
+console.log('Resolving path aliases in declaration files...');
+const tscAliasProcess = spawn('npx', ['tsc-alias', '-p', 'tsconfig.build.json'], { stdio: 'inherit' });
+
+await new Promise((resolve, reject) => {
+  tscAliasProcess.on('close', (code) => {
+    if (code === 0) {
+      console.log('Path aliases resolved successfully!');
+      resolve(code);
+    } else {
+      reject(new Error(`tsc-alias failed with code ${code}`));
+    }
+  });
+});
+
 console.log('Build completed!');

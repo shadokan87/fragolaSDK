@@ -1,5 +1,5 @@
-import { createStore, Store } from "./store"
-import { Fragola, FRAGOLA_FRIEND, stripUserMessageMeta, type ChatCompletionMessageParam, type ChatCompletionUserMessageParam, type DefineMetaData, type Tool } from "./fragola"
+import { createStore, Store } from "@src/store"
+import { Fragola, stripUserMessageMeta, type ChatCompletionMessageParam, type ChatCompletionUserMessageParam, type DefineMetaData, type Tool } from "./fragola"
 import type { ChatCompletionCreateParamsBase } from "openai/resources/chat/completions.js"
 import { streamChunkToMessage, isAsyncFunction, isSkipEvent, skipEventFallback } from "./utils"
 import { BadUsage, FragolaError, JsonModeError, MaxStepHitError } from "./exceptions"
@@ -15,7 +15,7 @@ import { type registeredEvent, type eventIdToCallback, EventMap } from "./extend
 import type { FragolaHook } from "@src/hook/index";
 import { zodToJsonSchema } from "openai/_vendor/zod-to-json-schema/zodToJsonSchema.js"
 import type { ResponseFormatJSONSchema } from "openai/resources"
-import { AgentContext, IAgentContext, type _AgentContext } from "./agentContext"
+import { AgentContext } from "@src/agentContext"
 
 export type AgentState<TMetaData extends DefineMetaData<any> = {}> = {
     conversation: ChatCompletionMessageParam<TMetaData>[],
@@ -110,94 +110,13 @@ export type ResetParams = Prettify<Pick<Required<CreateAgentOptions>, "initialCo
 
 const AGENT_FRIEND = Symbol('AgentAccess');
 
+// type AppendMessagesFn = (messages: OpenAI.ChatCompletionMessageParam[], replaceLast?: boolean, reason?: conversationUpdateReason) => Promise<void>;
+// type UpdateConversationFn = (callback: (prev: AgentState<any>["conversation"]) => AgentState<any>["conversation"], reason: conversationUpdateReason) => Promise<void>;
 // Use these types for your ContextRaw
-export type ContextRaw = {
-    appendMessages: AppendMessagesFn,
-    updateConversation: UpdateConversationFn
+export type ContextRaw<TMetaData extends DefineMetaData<any> = {}> = {
+    appendMessages(messages: OpenAI.ChatCompletionMessageParam[], replaceLast: boolean | undefined, reason: conversationUpdateReason): Promise<void>,
+    updateConversation(callback: (prev: AgentState<TMetaData>["conversation"]) => AgentState<TMetaData>["conversation"], reason: conversationUpdateReason): Promise<void>
 }
-// /**
-//  * Context of the agent which triggered the event or tool.
-//  */
-// export class AgentContext<TMetaData extends DefineMetaData<any> = {}, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> {
-//     #raw: ContextRaw
-//     #instance: Fragola<TGlobalStore>
-//     constructor(
-//         private _state: AgentState<TMetaData>,
-//         private _options: AgentOptions,
-//         private _store: Store<TStore> | undefined,
-//         private _globalStore: Store<TGlobalStore> | undefined,
-//         instance: Fragola,
-//         private setInstructionsFn: (instructions: string) => void,
-//         private setOptionsFn: (options: SetOptionsParams) => void,
-//         private stopFn: () => Promise<void>,
-//         raw: ContextRaw,
-//     ) {
-//         this.#instance = instance as unknown as Fragola<TGlobalStore>,
-//             this.#raw = raw;
-//     }
-
-//     [AGENT_FRIEND] = {
-//         setState: (newState: AgentState) => {
-//             this._state = newState;
-//         },
-//         setOptions: (newOptions: AgentOptions) => {
-//             this._options = newOptions;
-//         },
-//     };
-
-//     /** The current state of the agent. */
-//     get state() {
-//         return this._state;
-//     }
-
-//     /** The configuration options for the agent context. */
-//     get options() {
-//         return this._options;
-//     }
-
-//     get raw() {
-//         return this.#raw
-//     }
-
-//     /** Acess the agent's local store. */
-//     get store() {
-//         return this._store as Store<TStore> | undefined;
-//     }
-
-//     get instance() { return this.#instance }
-
-//     /** Returns the agent's local store casted as T. Recommanded when accessing the store from a tool */
-//     getStore<T extends StoreLike<any>>(): Store<T> | undefined { return this._store ? this._store as unknown as Store<T> : undefined }
-
-//     /** Access the global store shared across agents of the same Fragola instance. */
-//     get globalStore() {
-//         return this._globalStore as Store<TGlobalStore> | undefined;
-//     }
-
-//     /** Returns the global store casted as T. Recommanded when accessing the global store from a tool */
-//     getGlobalStore<T extends StoreLike<any>>(): Store<T> | undefined { return this._globalStore ? this._globalStore as unknown as Store<T> : undefined }
-
-//     /**
-//      * Sets the current instructions for the agent.
-//      * @param instructions - The new instructions as a string.
-//      */
-//     setInstructions(instructions: string) {
-//         this.setInstructionsFn(instructions);
-//     }
-
-//     /**
-//      * Updates the agent's options.
-//      * **note**: the `name` property is ommited
-//      * @param options - The new options to set, as a SetOptionsParams object.
-//      */
-//     setOptions(options: SetOptionsParams) {
-//         this.setOptionsFn(options);
-//     }
-
-//     async stop() {
-//         return await this.stopFn();
-//     }
-// }
 
 type StepBy = Partial<{
     /** To execute only up to N steps even if `maxStep` is not hit*/
@@ -251,7 +170,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
     #id: string;
     #forkOf: string | undefined = undefined;
     #instance: Fragola<TGlobalStore>;
-    namespaceStore: Map<string, Store<any>> = new Map();
+    #namespaceStore: Map<string, Store<any>> = new Map();
 
     constructor(
         private opts: CreateAgentOptions<TStore>,
@@ -283,7 +202,23 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         }
     }
 
-    private context = (() => {
+    private addStore(store: Store<any>): void {
+        if (!store.namespace)
+            throw new FragolaError(`Namespace must be defined in your store to use addStore.`);
+        if (this.#namespaceStore.has(store.namespace))
+            throw new FragolaError(`Store with namespace ${store.namespace} already added.`);
+        this.#namespaceStore.set(store.namespace, store);
+    }
+
+    private removeStore(namespace: string): void {
+        if (!this.#namespaceStore.has(namespace)) {
+            console.warn(`Tried to remove store with namespace '${namespace}' that doesn't exist.`)
+            return;
+        }
+        this.#namespaceStore.delete(namespace);
+    }
+
+    public context = (() => {
         const _this = this;
         return new class extends AgentContext<TMetaData, TGlobalStore, TStore> {
             get state() { return _this.state; }
@@ -297,15 +232,17 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
             get store() { return _this.opts.store as Store<TStore>; }
             get instance() { return _this.#instance }
             getStore<T extends StoreLike<any>>(namespace?: string): Store<T> | undefined {
-                let store = namespace ? _this.namespaceStore.get(namespace) : _this.options.store;
+                let store = namespace ? _this.#namespaceStore.get(namespace) : _this.options.store;
                 if (store)
                     return store as unknown as Store<T>;
                 return undefined;
             }
-            getGlobalStore<T extends StoreLike<any>>(namespace?: string): Store<T> | undefined {
-                return _this.#instance[FRAGOLA_FRIEND].getGlobalStore(namespace);
+            addStore(store: Store<any>): void {
+                _this.addStore(store);
             }
-            get globalStore() { return this.getGlobalStore<TGlobalStore>() }
+            removeStore(namespace: string): void {
+                _this.removeStore(namespace);
+            }
             setInstructions(instructions: string): void {
                 _this.opts.instructions = instructions;
             }

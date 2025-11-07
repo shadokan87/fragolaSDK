@@ -3,9 +3,9 @@ import { Agent, type AgentOptions, type CreateAgentOptions, type JsonQuery } fro
 import type { maybePromise, StoreLike } from "./types";
 import type { ClientOptions } from "openai/index.js";
 import OpenAI from "openai/index.js";
-import type { Store } from "./store";
+import type { Store } from "@src/store";
 import { BadUsage } from "./exceptions";
-import type { AgentContext } from "./agentContext";
+import type { AgentContext } from "@src/agentContext";
 
 export type ToolHandlerReturnTypeNonAsync = any[] | Record<any, any> | Function | number | bigint | boolean | string;
 export type ToolHandlerReturnType = maybePromise<ToolHandlerReturnTypeNonAsync>;
@@ -98,7 +98,7 @@ export const FRAGOLA_FRIEND = Symbol("Fragola_friend")
 
 export class Fragola<TGlobalStore extends StoreLike<any> = {}> {
     private openai: OpenAI;
-    private namespaceStore: Map<string, Store<any>> = new Map();
+    #namespaceStore: Map<string, Store<any>> = new Map();
     constructor(private clientOptions: ClientOptions & PreferedModel, private globalStore: Store<TGlobalStore> | undefined = undefined) {
         const opts = clientOptions ? (() => {
             const copy = { ...clientOptions };
@@ -107,15 +107,6 @@ export class Fragola<TGlobalStore extends StoreLike<any> = {}> {
         })() : undefined;
         this.openai = opts ? new OpenAI(opts) : new OpenAI();
     }
-    [FRAGOLA_FRIEND] = {
-        getGlobalStore: <T extends StoreLike<any>>(namespace?: string): Store<T> | undefined => {
-            let store = namespace ? this.namespaceStore.get(namespace) : this.globalStore;
-            if (store)
-                return store as unknown as Store<T>;
-            return undefined;
-        }
-    }
-
 
     agent<TMetaData extends DefineMetaData<any> = {}, TStore = {}>(opts: CreateAgentOptions<TStore>): Agent<TMetaData, TGlobalStore, TStore> {
         return new Agent<TMetaData, TGlobalStore, TStore>(opts, this.globalStore, this.openai, undefined, this as Fragola<any>);
@@ -171,6 +162,44 @@ export class Fragola<TGlobalStore extends StoreLike<any> = {}> {
             ].join("\n"),
         });
         return response.success ? response.data.bool : false;
+    }
+    /** Acess the instance default global store. */
+    get store(): Store<TGlobalStore> | undefined {
+        return this.globalStore;
+    }
+
+    /**
+     * Returns the instance (global) store or a namespaced store casted as T.
+     * Recommended when accessing the store from outside an agent context.
+     * @param namespace - The namespace of the store to access (optional).
+     */
+    getStore<T extends StoreLike<any> = {}>(namespace?: string): Store<T> | undefined {
+        const store = namespace ? this.#namespaceStore.get(namespace) : this.globalStore;
+        return store as unknown as Store<T> | undefined;
+    }
+
+    /**
+     * Add a namespaced store to the Fragola instance so agents can access it via getStore(namespace).
+     * @param store - The store to add (must have a namespace defined).
+     */
+    addStore(store: Store<any>): void {
+        if (!store.namespace)
+            throw new BadUsage("Cannot add a store without a namespace. Use createStore(value, namespace) to create a namespaced store.");
+        if (this.#namespaceStore.has(store.namespace))
+            throw new BadUsage(`A store with namespace '${store.namespace}' already exists.`);
+        this.#namespaceStore.set(store.namespace, store);
+    }
+
+    /**
+     * Remove a namespaced store from the Fragola instance.
+     * @param namespace - The namespace of the store to remove
+     */
+    removeStore(namespace: string): void {
+        if (!this.#namespaceStore.has(namespace)) {
+            console.warn(`Tried to remove store with namespace '${namespace}' that doesn't exist.`);
+            return;
+        }
+        this.#namespaceStore.delete(namespace);
     }
 
     async json<S extends z.ZodTypeAny = z.ZodTypeAny>(query: JsonQuery<S>, options: CreateAgentOptions | undefined = undefined): Promise<z.SafeParseReturnType<unknown, z.infer<S>>> {

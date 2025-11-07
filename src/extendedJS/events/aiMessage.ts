@@ -1,4 +1,4 @@
-import type { AgentContext } from "../../agent";
+import type { AgentContext } from "@src/agentContext";
 import type { EventAiMessage } from "../../eventDefault";
 import type { ChatCompletionAssistantMessageParam } from "../../fragola";
 import type { maybePromise, StoreLike } from "../../types";

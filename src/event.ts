@@ -1,4 +1,4 @@
-import type { AgentContext } from "./agent";
+import type { AgentContext } from "@src/agentContext";
 import type { StoreLike, maybePromise } from "./types";
 import type { DefineMetaData } from "./fragola";
 

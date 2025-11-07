@@ -1,7 +1,7 @@
 import { FragolaError } from "@src/exceptions";
 import type OpenAI from "openai";
 import type { FragolaHook } from "..";
-import type { AgentContext } from "@src/agent";
+import type { AgentContext } from "@src/agentContext";
 import type { maybePromise } from "@src/types";
 
 // Guardrail

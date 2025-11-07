@@ -1,6 +1,6 @@
 import type { maybePromise, StoreLike } from "./types";
 import type { AgentAfterEventId, EventDefaultCallback } from "./event";
-import type { AgentContext } from "./agent";
+import type { AgentContext } from "@src/agentContext";
 import type { DefineMetaData } from "./fragola";
 
 export type conversationAddReason = "userMessage" | "toolCall" | "partialAiMessage" | "AiMessage";

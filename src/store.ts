@@ -1,7 +1,7 @@
 import type { StoreLike } from "./types";
 
 
-export const createStore = <T extends StoreLike<any>>(data: StoreLike<T>) => new Store(data);
+export const createStore = <T extends StoreLike<any>>(data: StoreLike<T>, namespace?: string): Store<T> => new Store(data, namespace);
 
 /**
  * Callback type for store change events.
@@ -15,12 +15,19 @@ export type StoreChangeCallback<TStore = {}> = (
  * Use this to keep track of information that your agent or tools need to remember or share.
  * You can get the current value, replace it, or update it based on the previous value.
  */
-export class Store<TStore = {}> {
+export class Store<TStore extends StoreLike<any> = {}> {
     #value: StoreLike<TStore>;
     #storeChangeCallbacks: StoreChangeCallback<StoreLike<TStore>>[] = [];
+    #namespace: string | undefined;
 
-    constructor(value: StoreLike<TStore>) {
+    constructor(value: StoreLike<TStore>, namespace?: string) {
         this.#value = value;
+        if (namespace)
+            this.#namespace = namespace;
+    }
+
+    get namespace() {
+        return this.#namespace;
     }
 
     /**

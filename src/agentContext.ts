@@ -9,17 +9,27 @@ export abstract class AgentContext<TMetaData extends DefineMetaData<any> = {}, T
     /** The configuration options for the agent context. */
     abstract get options(): AgentOptions;
     /** Raw methods for advanced context manipulation */
-    abstract get raw(): ContextRaw;
+    abstract get raw(): ContextRaw<TMetaData>;
     /** Acess the agent's default local store. */
     abstract get store(): Store<TStore>;
+    /**
+     * Add a store that has a namespace. Can be accessed with `getStore` method.
+     * @param store - The store to add
+     */
+    abstract addStore(store: Store<any>): void;
+
+    /**
+     * Remove a store by its namespace.
+     * @param namespace - The namespace of the store to remove
+     */
+    abstract removeStore(namespace: string): void;
     /** Return the Fragola instance which created this agent */
     abstract get instance(): Fragola<TGlobalStore>;
-    /** Returns the agent's local store or namespace store casted as T. Recommanded when accessing the store from a hook */
+    /**
+     * Returns the agent's local store or namespace store casted as T. Recommended when accessing the store from a hook.
+     * @param namespace - The namespace of the store to access (optional).
+     */
     abstract getStore<T extends StoreLike<any> = {}>(namespace?: string): Store<T> | undefined;
-    /** Returns the instance (global) store or namespaces store casted as T. Recommanded when accessing the store from a hook */
-    abstract getGlobalStore<T extends StoreLike<any>>(namespace?: string): Store<T> | undefined;
-    /** Acess the instance (global) default store. */
-    abstract get globalStore(): Store<TGlobalStore> | undefined;
 
     /**
      * Sets the current instructions for the agent.

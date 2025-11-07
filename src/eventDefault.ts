@@ -1,5 +1,6 @@
 import type OpenAI from "openai/index.js";
-import type { CreateAgentOptions, AgentContext } from "./agent";
+import type { CreateAgentOptions } from "./agent";
+import type { AgentContext } from "@src/agentContext";
 import type { maybePromise, StoreLike } from "./types";
 import type { AgentDefaultEventId, eventResult } from "./event";
 import type { ClientOptions } from "openai/index.js";

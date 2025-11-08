@@ -1,5 +1,5 @@
 import type { AgentOptions, AgentState, ContextRaw, SetOptionsParams } from "./agent";
-import type { DefineMetaData, Fragola } from "./fragola";
+import type { DefineMetaData, Fragola, Tool } from "./fragola";
 import type { StoreLike } from "./types";
 import type { Store } from "./store";
 
@@ -18,6 +18,16 @@ export abstract class AgentContext<TMetaData extends DefineMetaData<any> = {}, T
      */
     abstract addStore(store: Store<any>): void;
 
+    /**
+     * Updates the agent's tool list using a callback.
+     *
+     * @param callback - Function that receives the current tools and returns the updated list.
+     *
+     * @example
+     * agent.context.updateTools(prev => [...prev, newTool]);
+     * agent.context.updateTools(prev => prev.filter(tool => tool.name !== "oldTool"));
+     */
+    abstract updateTools(callback: (prev: Tool[]) => Tool[]): void;
     /**
      * Remove a store by its namespace.
      * @param namespace - The namespace of the store to remove

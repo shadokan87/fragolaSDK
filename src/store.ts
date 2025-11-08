@@ -1,7 +1,7 @@
 import type { StoreLike } from "./types";
 
 
-export const createStore = <T extends StoreLike<any>>(data: StoreLike<T>, namespace?: string): Store<T> => new Store(data, namespace);
+export const createStore = <T extends StoreLike<any> = {}>(data: StoreLike<T>, namespace?: string): Store<T> => new Store(data, namespace);
 
 /**
  * Callback type for store change events.

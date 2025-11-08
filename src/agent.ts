@@ -1,7 +1,7 @@
-import { createStore, Store } from "@src/store"
+import { createStore, Store } from "@src/store";
 import { Fragola, stripUserMessageMeta, type ChatCompletionMessageParam, type ChatCompletionUserMessageParam, type DefineMetaData, type Tool } from "./fragola"
 import type { ChatCompletionCreateParamsBase } from "openai/resources/chat/completions.js"
-import { streamChunkToMessage, isAsyncFunction, isSkipEvent, skipEventFallback } from "./utils"
+import { streamChunkToMessage, isAsyncFunction, isSkipEvent, skipEventFallback, getToolName, getToolArgs } from "./utils"
 import { BadUsage, FragolaError, JsonModeError, MaxStepHitError } from "./exceptions"
 import type z from "zod";
 import { z as zod } from "zod";
@@ -251,6 +251,11 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
             }
             async stop(): Promise<void> {
                 await _this.stop();
+            }
+            updateTools(callback: (prev: Tool[]) => Tool[]): void {
+                const updatedTools = callback(_this.opts.tools ?? []);
+                _this.opts.tools = updatedTools;
+                _this.toolsToModelSettingsTools();
             }
         }
     })();
@@ -587,13 +592,13 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                 }
 
                 // Find tool in options that matches the tool requested by last ai message
-                const tool = this.opts.tools?.find(tool => tool.name == toolCall.function.name);
+                const tool = this.opts.tools?.find(tool => tool.name == getToolName(toolCall));
                 if (!tool)
-                    throw new FragolaError(`Tool ${toolCall.function.name} missing`);
+                    throw new FragolaError(`Tool ${getToolName(toolCall)} missing`);
 
                 let paramsParsed: z.SafeParseReturnType<any, any> | undefined;
                 if (tool.schema) {
-                    paramsParsed = (tool.schema as z.Schema).safeParse(JSON.parse(toolCall.function.arguments));
+                    paramsParsed = (tool.schema as z.Schema).safeParse(JSON.parse(getToolArgs(toolCall)));
                     if (!paramsParsed.success) {
                         //TODO: implement retry system for bad arguments
                         throw new FragolaError("Tool arguments parsing fail");

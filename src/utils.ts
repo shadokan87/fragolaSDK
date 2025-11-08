@@ -5,6 +5,20 @@ export function isAsyncFunction(fn: Function): boolean {
     return fn.constructor.name === 'AsyncFunction';
 }
 
+export const getToolName = (tool: OpenAI.ChatCompletionMessageToolCall) => {
+    if ("function" in tool) {
+        return tool.function.name;
+    }
+    return tool.custom.name;
+}
+
+export const getToolArgs = (tool: OpenAI.ChatCompletionMessageToolCall) => {
+    if ("function" in tool) {
+        return tool.function.arguments;
+    }
+    return tool.custom.input;
+}
+
 export const streamChunkToMessage = (chunk: OpenAI.Chat.Completions.ChatCompletionChunk, message: Partial<OpenAI.Chat.ChatCompletionMessageParam> = {} as Partial<OpenAI.Chat.ChatCompletionMessageParam>) => {
     const updatedMessage = structuredClone(message);
 
@@ -37,12 +51,13 @@ export const streamChunkToMessage = (chunk: OpenAI.Chat.Completions.ChatCompleti
                 })
             } else {
                 const lastToolCallRef = updatedMessage.tool_calls.at(-1);
-                if (lastToolCallRef && lastToolCallRef.function && toolCall.function?.arguments) {
+                if (lastToolCallRef && "function" in lastToolCallRef && lastToolCallRef.function && toolCall.function?.arguments) {
                     lastToolCallRef.function = {
                         ...lastToolCallRef.function,
                         arguments: lastToolCallRef.function.arguments + toolCall.function.arguments
                     }
                 }
+                //TODO: custom tools openai api change
             }
         }
     }

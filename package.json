@@ -1,6 +1,6 @@
 {
   "name": "@fragola-ai/agentic-sdk-core",
-  "version": "0.1.8a",
+  "version": "0.1.9a",
   "description": "Fragola is a 100% OpenAI-compatible library for building AI-first software with minimal abstractions. Fragola help you create software such as programming assistants, vertical AI SaaS products, and automation workflows through an event-driven architecture and extensible hook system. Create custom hooks or leverage community-built extensions to rapidly expand agent capabilities.",
   "main": "./dist/fragola.index.js",
   "module": "./dist/fragola.index.js",
@@ -82,7 +82,7 @@
     "@fragola-ai/prompt": "^1.0.4",
     "eslint": "^9.34.0",
     "nanoid": "^5.1.5",
-    "openai": "^5.6.0",
+    "openai": "5.0.0",
     "puppeteer": "^24.27.0",
     "typescript-eslint": "^8.42.0",
     "zod": "^3.25.67"

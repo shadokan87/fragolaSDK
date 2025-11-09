@@ -1,5 +1,5 @@
 import { fileSystemSave, orchestration } from "hook.presets.index";
-import { Fragola } from "./src/fragola";
+import { Fragola } from "@src/fragola";
 
 const fragola = new Fragola({
   baseURL: process.env.TEST_BASEURL,

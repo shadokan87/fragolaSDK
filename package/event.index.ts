@@ -1,7 +1,7 @@
 export {
     SKIP_EVENT,
     skip
-} from "./src/event";
+} from "@src/event";
 
 export type {
     AgentDefaultEventId,
@@ -9,4 +9,4 @@ export type {
     eventResult,
     AgentEventId,
     EventDefaultCallback
-} from "./src/event";
+} from "@src/event";

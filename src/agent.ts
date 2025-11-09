@@ -1,7 +1,8 @@
-import { createStore, Store } from "@src/store";
+//@ts-ignore
+import { createStore, Store } from "@src/store"
 import { Fragola, stripUserMessageMeta, type ChatCompletionMessageParam, type ChatCompletionUserMessageParam, type DefineMetaData, type Tool } from "./fragola"
 import type { ChatCompletionCreateParamsBase } from "openai/resources/chat/completions.js"
-import { streamChunkToMessage, isAsyncFunction, isSkipEvent, skipEventFallback, getToolName, getToolArgs } from "./utils"
+import { streamChunkToMessage, isAsyncFunction, isSkipEvent, skipEventFallback } from "./utils"
 import { BadUsage, FragolaError, JsonModeError, MaxStepHitError } from "./exceptions"
 import type z from "zod";
 import { z as zod } from "zod";
@@ -252,7 +253,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
             async stop(): Promise<void> {
                 await _this.stop();
             }
-            updateTools(callback: (prev: Tool[]) => Tool[]): void {
+             updateTools(callback: (prev: Tool[]) => Tool[]): void {
                 const updatedTools = callback(_this.opts.tools ?? []);
                 _this.opts.tools = updatedTools;
                 _this.toolsToModelSettingsTools();
@@ -592,13 +593,13 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                 }
 
                 // Find tool in options that matches the tool requested by last ai message
-                const tool = this.opts.tools?.find(tool => tool.name == getToolName(toolCall));
+                const tool = this.opts.tools?.find(tool => tool.name == toolCall.function.name);
                 if (!tool)
-                    throw new FragolaError(`Tool ${getToolName(toolCall)} missing`);
+                    throw new FragolaError(`Tool ${toolCall.function.name} missing`);
 
                 let paramsParsed: z.SafeParseReturnType<any, any> | undefined;
                 if (tool.schema) {
-                    paramsParsed = (tool.schema as z.Schema).safeParse(JSON.parse(getToolArgs(toolCall)));
+                    paramsParsed = (tool.schema as z.Schema).safeParse(JSON.parse(toolCall.function.arguments));
                     if (!paramsParsed.success) {
                         //TODO: implement retry system for bad arguments
                         throw new FragolaError("Tool arguments parsing fail");
@@ -710,6 +711,37 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         }
     }
 
+    /**
+     * Appends a user message to the conversation and executes the agent for one or more steps.
+     * Parameters:
+     * @param query - The user message and optional per-call step controls.
+     *                See {@link UserMessageQuery}
+     *
+     * @returns Promise<AgentState> - The updated agent state after processing the message and any model/tool steps.
+     * @example
+     * // 1) Minimal text message
+     * await agent.userMessage({ content: "Say hello" });
+     *
+     * // 2) Multi-part content (text + image)
+     * await agent.userMessage({
+     *   content: [
+     *     { type: "text", text: "What's in this image?" },
+     *     { type: "image_url", image_url: { url: "https://example.com/cat.png" } }
+     *   ]
+     * });
+     *
+     * // 3) Limit the number of steps for this turn
+     * await agent.userMessage({
+     *   content: "Compute 2+2, then stop.",
+     *   step: { by: 1 } // will stop execution after 1 turn (1 llm response maximum)
+     * });
+     *
+     * // 4) Override model settings for this call (without changing agent defaults)
+     * await agent.userMessage({
+     *   content: "Answer concisely.",
+     *   step: { modelSettings: { temperature: 0 } }
+     * });
+     */
     async userMessage(query: UserMessageQuery): Promise<AgentState> {
         const { step, ...message } = query;
         void step;
@@ -730,6 +762,12 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         return await this.step(query.step);
     }
 
+    /**
+     * Will call every registered events via on* methods for `eventId` and pass the parameters `_params` to the callbacks
+     * @param eventId - the id of the event
+     * @param _params  - the parameters to pass to the callback
+     * @returns 
+     */
     private async applyEvents<TEventId extends AgentEventId>(eventId: TEventId, _params: applyEventParams<TEventId> | null): Promise<ReturnType<eventIdToCallback<TEventId, TMetaData, TGlobalStore, TStore>>> {
         const events = this.registeredEvents.get(eventId);
         type EventDefaultType = EventDefaultCallback<TMetaData, TGlobalStore, TStore>;

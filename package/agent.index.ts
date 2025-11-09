@@ -10,6 +10,6 @@ export type {
     Agent,
     AgentAny,
     ContextRaw
-} from "./src/agent";
+} from "@src/agent";
 export { AgentContext } from "@src/agentContext";
-export { skip } from "./src/event";
+export { skip } from "@src/event";

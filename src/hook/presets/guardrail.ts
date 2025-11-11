@@ -76,3 +76,5 @@ export const guardrail = (guardrails: Guardrail[], rejectionBehaviour: "keepAndA
         });
     }
 };
+
+export default guardrail;

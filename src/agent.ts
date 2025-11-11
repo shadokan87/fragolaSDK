@@ -1,4 +1,5 @@
-//@ts-ignore
+// TODO: dispose method
+// TODO: logger method
 import { createStore, Store } from "@src/store"
 import { Fragola, stripUserMessageMeta, type ChatCompletionMessageParam, type ChatCompletionUserMessageParam, type DefineMetaData, type Tool } from "./fragola"
 import type { ChatCompletionCreateParamsBase } from "openai/resources/chat/completions.js"

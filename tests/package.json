@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@fragola-ai/agentic-sdk-core": "file:.."
+    "@fragola-ai/agentic-sdk-core": "file:..",
+    "ajv": "^8.17.1"
   },
   "scripts": {
   }

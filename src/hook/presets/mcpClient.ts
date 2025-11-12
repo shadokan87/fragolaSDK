@@ -36,7 +36,7 @@ export type storeType = {
     clients: Map<string, Client>
 }
 type options = McpClientOptions | Client;
-const mcpClient = (options: options[]): FragolaHook => {
+export const mcpClient = (options: options[] | options): FragolaHook => {
     return async (agent) => {
         // Init store
         if (!agent.context.getStore(storeNamespace)) {
@@ -54,15 +54,19 @@ const mcpClient = (options: options[]): FragolaHook => {
                     name: opt.name,
                     version: "1.0",
                     transport: transport
-                })
+                });
+                await client.connect(transport);
             }
-            type RemoteTool = Awaited<ReturnType<typeof client.listTools>>["tools"];
-            let remoteTools: RemoteTool[0][] = [];
+            type RemoteTool = Awaited<ReturnType<typeof client.listTools>>["tools"][0];
+            let remoteTools: RemoteTool[] = [];
             const syncRemoteTools = async () => {
                 let cursor: string | undefined;
                 while (true) {
+                    console.log("#br3");
                     try {
+                        console.log("#br4");
                         const response = await client.listTools(cursor ? { cursor } : undefined);
+                        console.log("br5", JSON.stringify(response, null, 2));
                         remoteTools = [...remoteTools, ...response.tools]
                         if (!response.nextCursor)
                             break;
@@ -73,8 +77,9 @@ const mcpClient = (options: options[]): FragolaHook => {
                         break;
                     }
                 }
+                console.log("#br6", JSON.stringify(remoteTools))
                 let fragolaTools: Tool<any>[] = [];
-                remoteTools.forEach(remoteTool => {
+                for (const remoteTool of remoteTools) {
                     // Create AJV validator from JSON schema
                     let validator: any = null;
                     if (remoteTool.inputSchema) {
@@ -110,8 +115,8 @@ const mcpClient = (options: options[]): FragolaHook => {
                             }
                         }
                     })]
-                });
-                
+                }
+                console.log("#br7", JSON.stringify(fragolaTools, null, 2));
                 // Register tools with agent
                 agent.context.updateTools((prev) => [...prev, ...fragolaTools]);
             }
@@ -131,6 +136,11 @@ const mcpClient = (options: options[]): FragolaHook => {
                 });
             }
         };
+
+        const _options = Array.isArray(options) ? options : [options];
+        _options.forEach(async (opt) => {
+            await single(opt);
+        });
 
         const dispose: FragolaHookDispose = () => {
 

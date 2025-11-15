@@ -35,7 +35,6 @@ const assistant = fragola.agent({
     name: "client",
     url: "http://localhost:3000/mcp"
   },
-})).use(fileSystemSave("mcp_conv"))
-.use(noCompletion)
-const { conversation } = await assistant.userMessage({ content: "can you list the clients you have ?" });
+})).use(fileSystemSave("mcp_conv"));
+const { conversation } = await assistant.userMessage({ content: "add a client with the name eclipse" });
 console.log(JSON.stringify(conversation, null, 2));

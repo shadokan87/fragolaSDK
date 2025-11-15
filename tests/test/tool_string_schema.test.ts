@@ -5,6 +5,7 @@ import { z } from "zod";
 import Ajv from "ajv";
 import type OpenAI from "openai";
 import type { FragolaHook } from "@fragola-ai/agentic-sdk-core/hook";
+import {fileSystemSave} from "@fragola-ai/agentic-sdk-core/hook/presets"
 
 const fragola = createTestClient();
 // Used to avoid token cost for tests where model response is not relevant
@@ -67,16 +68,16 @@ describe("Tool schema parsing in step()", () => {
                 { role: "user", content: "Weather?" },
                 makeAssistantToolCall("get_weather", { location: "Paris" })
             ]
-        }).use(noCompletion);
+        }).use(noCompletion).use(fileSystemSave("./inspect/conv"))
 
         const state = await agent.step({ by: 1 });
-        const last = state.conversation.at(-1)!;
+        const last = state.conversation.at(-2)!;
         expect(last.role).toBe("tool");
         expect(typeof (last as any).tool_call_id).toBe("string");
         expect((last as any).content).toContain("OK:Paris");
     });
 
-    it("String schema: invalid args should NOT trigger validation and still succeed", async () => {
+    it("String schema: Ajv 1 valid, 1 invalid.", async () => {
         const jsonSchemaObj = {
             type: "object",
             properties: { location: { type: "string" } },
@@ -111,7 +112,7 @@ describe("Tool schema parsing in step()", () => {
             ]
         }).use(noCompletion);
         const stateInvalid = await agentInvalid.step({ by: 1 });
-        const lastInvalid = stateInvalid.conversation.at(-1)!;
+        const lastInvalid = stateInvalid.conversation.at(-2)!;
         expect(lastInvalid.role).toBe("tool");
         expect((lastInvalid as any).content).toContain("INVALID");
 
@@ -127,7 +128,7 @@ describe("Tool schema parsing in step()", () => {
             ]
         }).use(noCompletion);
         const stateValid = await agentValid.step({ by: 1 });
-        const lastValid = stateValid.conversation.at(-1)!;
+        const lastValid = stateValid.conversation.at(-2)!;
         expect(lastValid.role).toBe("tool");
         expect((lastValid as any).content).toContain("RAW:Paris");
     });

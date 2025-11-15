@@ -1,10 +1,6 @@
 {
   "extends": "../tsconfig.json",
   "compilerOptions": {
-    "baseUrl": "./",
-    "paths": {
-      "@fragola-ai/agentic-sdk-core": ["../dist"],
-      "@fragola-ai/agentic-sdk-core/*": ["../dist/*"]
-    }
+    "baseUrl": "./"
   }
 }

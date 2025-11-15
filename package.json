@@ -1,35 +1,35 @@
 {
   "name": "@fragola-ai/agentic-sdk-core",
-  "version": "0.1.9a",
+  "version": "0.1.9-alpha.8",
   "description": "Fragola is a 100% OpenAI-compatible library for building AI-first software with minimal abstractions. Fragola help you create software such as programming assistants, vertical AI SaaS products, and automation workflows through an event-driven architecture and extensible hook system. Create custom hooks or leverage community-built extensions to rapidly expand agent capabilities.",
-  "main": "./dist/fragola.index.js",
-  "module": "./dist/fragola.index.js",
+  "main": "./dist/package/fragola.index.js",
+  "module": "./dist/package/fragola.index.js",
   "types": "./dist/fragola.index.d.ts",
   "type": "module",
   "exports": {
     ".": {
-      "import": "./dist/fragola.index.js",
+      "import": "./dist/package/fragola.index.js",
       "types": "./dist/fragola.index.d.ts"
     },
     "./store": {
-      "import": "./dist/store.index.js",
-      "types": "./dist/store.index.d.ts"
+      "import": "./dist/package/store.index.js",
+      "types": "./dist/src/store.d.ts"
     },
     "./agent": {
-      "import": "./dist/agent.index.js",
-      "types": "./dist/agent.index.d.ts"
+      "import": "./dist/package/agent.index.js",
+      "types": "./dist/src/agent.d.ts"
     },
     "./event": {
-      "import": "./dist/event.index.js",
-      "types": "./dist/event.index.d.ts"
+      "import": "./dist/package/event.index.js",
+      "types": "./dist/src/event.d.ts"
     },
     "./hook": {
-      "import": "./dist/hook.index.js",
-      "types": "./dist/hook.index.d.ts"
+      "import": "./dist/package/hook.index.js",
+      "types": "./dist/src/hook/index.d.ts"
     },
     "./hook/presets": {
-      "import": "./dist/hook.presets.index.js",
-      "types": "./dist/hook.presets.index.d.ts"
+      "import": "./dist/package/hook.presets.index.js",
+      "types": "./dist/src/hook/presets/index.d.ts"
     }
   },
   "files": [
@@ -98,6 +98,12 @@
     "test:build": "bun run build && cd tests && rm -rf node_modules && bun i && bunx vitest --run",
     "test": "cd tests && bunx vitest --run",
     "test:watch": "cd tests && bunx vitest",
-    "prepublishOnly": "bun run build && bun run test"
+    "verdaccio:start": "bunx verdaccio",
+    "registry:local": "bun config set registry http://localhost:4873 && echo 'registry=http://localhost:4873' > .npmrc",
+    "registry:npm": "bun config set registry https://registry.npmjs.org && echo 'registry=https://registry.npmjs.org' > .npmrc",
+    "pub:local": "bunx npm-cli-login -u test -p test -e test@example.com -r http://localhost:4873 && npm publish --registry http://localhost:4873",
+    "publish:prod": "npm publish --registry https://registry.npmjs.org",
+    "e2e:verdaccio": "npm version prerelease --preid alpha --no-git-tag-version && bun run build && bun run pub:local && npm view @fragola-ai/agentic-sdk-core versions --registry http://localhost:4873 >/dev/null 2>&1 && sleep 1 && cd tests && rm -rf node_modules package-lock.json bun.lockb && npm install @fragola-ai/agentic-sdk-core@$(node -p \"require('../package.json').version\") --registry http://localhost:4873 && bunx vitest --run",
+    "prepublishOnly": "bun run build"
   }
 }

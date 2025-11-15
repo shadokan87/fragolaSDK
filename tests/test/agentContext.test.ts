@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { createStore } from "@fragola-ai/agentic-sdk-core/store";
-import { Fragola } from "@fragola-ai/agentic-sdk-core";
-import type { Tool } from "@fragola-ai/agentic-sdk-core";
 import { z } from "zod";
+import type { Tool } from "@fragola-ai/agentic-sdk-core";
+import { createStore } from "@fragola-ai/agentic-sdk-core/store";
+import { createTestClient } from "./createTestClient";
 
 process.env["OPENAI_API_KEY"] = process.env["OPENAI_API_KEY"] ?? "xxx";
 
@@ -19,10 +19,10 @@ const createTestTool = (name: string, description = "Test tool"): Tool<any> => (
 });
 
 describe("Agent Context - updateTools", () => {
-  let fragola: Fragola;
+  let fragola: ReturnType<typeof createTestClient>;
 
   beforeEach(() => {
-    fragola = new Fragola({ model: "gpt-3" });
+    fragola = createTestClient();
   });
 
   it("should initialize agent with tools", () => {

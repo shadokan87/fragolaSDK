@@ -1,13 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { createStore } from "@fragola-ai/agentic-sdk-core/store";
-import { Fragola } from "@fragola-ai/agentic-sdk-core";
-process.env["OPENAI_API_KEY"] = process.env["OPENAI_API_KEY"] ?? "xxx";
-// Helper to create a simple store
+import { createTestClient } from "./createTestClient";
 const getTestStore = (namespace = "test") => createStore({ value: 42 }, namespace);
 
 describe("Agent store methods", () => {
     it("addStore should add a store to namespaceStore", () => {
-        const fragola = new Fragola({ model: "gpt-3" });
+            const fragola = createTestClient();
         const agent = fragola.agent({
             name: "testAgent",
             instructions: "",
@@ -20,7 +18,7 @@ describe("Agent store methods", () => {
     });
 
     it("addStore should throw if namespace is missing", () => {
-        const fragola = new Fragola({ model: "gpt-3" });
+            const fragola = createTestClient();
         const agent = fragola.agent({
             name: "testAgent",
             instructions: "",
@@ -32,7 +30,7 @@ describe("Agent store methods", () => {
     });
 
     it("addStore should throw if namespace already exists", () => {
-        const fragola = new Fragola({ model: "gpt-3" });
+            const fragola = createTestClient();
         const agent = fragola.agent({
             name: "testAgent",
             instructions: "",
@@ -45,7 +43,7 @@ describe("Agent store methods", () => {
     });
 
     it("removeStore should remove a store from namespaceStore", () => {
-        const fragola = new Fragola({ model: "gpt-3" });
+            const fragola = createTestClient();
         const agent = fragola.agent({
             name: "testAgent",
             instructions: "",
@@ -59,7 +57,7 @@ describe("Agent store methods", () => {
     });
 
     it("removeStore should not throw if namespace does not exist", () => {
-        const fragola = new Fragola({ model: "gpt-3" });
+            const fragola = createTestClient();
         const agent = fragola.agent({
             name: "testAgent",
             instructions: "",
@@ -72,7 +70,7 @@ describe("Agent store methods", () => {
 
 describe("Fragola store methods", () => {
     it("should expose all public methods", () => {
-        const fragola = new Fragola({ model: "gpt-3" });
+           const fragola = createTestClient();
         expect(typeof fragola.agent).toBe("function");
         expect(typeof fragola.getStore).toBe("function");
         expect(typeof fragola.addStore).toBe("function");
@@ -83,27 +81,27 @@ describe("Fragola store methods", () => {
         expect("store" in fragola).toBe(true);
     });
     it("addStore should add a store to namespaceStore", () => {
-        const fragola = new Fragola({ model: "gpt-3" });
+           const fragola = createTestClient();
         const store = getTestStore("foo");
         fragola.addStore(store);
         expect(fragola.getStore("foo")).toBe(store);
     });
 
     it("addStore should throw if namespace is missing", () => {
-        const fragola = new Fragola({ model: "gpt-3" });
+           const fragola = createTestClient();
         const store = createStore({ value: 1 });
         expect(() => fragola.addStore(store)).toThrow();
     });
 
     it("addStore should throw if namespace already exists", () => {
-        const fragola = new Fragola({ model: "gpt-3" });
+           const fragola = createTestClient();
         const store = getTestStore("foo");
         fragola.addStore(store);
         expect(() => fragola.addStore(store)).toThrow();
     });
 
     it("removeStore should remove a store from namespaceStore", () => {
-        const fragola = new Fragola({ model: "gpt-3" });
+           const fragola = createTestClient();
         const store = getTestStore("foo");
         fragola.addStore(store);
         fragola.removeStore("foo");
@@ -111,7 +109,7 @@ describe("Fragola store methods", () => {
     });
 
     it("removeStore should not throw if namespace does not exist", () => {
-        const fragola = new Fragola({ model: "gpt-3" });
+           const fragola = createTestClient();
         expect(() => fragola.removeStore("doesnotexist")).not.toThrow();
     });
 });

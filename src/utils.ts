@@ -1,5 +1,10 @@
 import type OpenAI from "openai";
 import { SKIP_EVENT } from "./event";
+import type { FragolaHook } from "./hook/index";
+
+export const noCompletion: FragolaHook = (agent) => {
+    agent.onModelInvocation(async () => ({role: "assistant", content: ""}))
+}
 
 export function isAsyncFunction(fn: Function): boolean {
     return fn.constructor.name === 'AsyncFunction';

@@ -1,0 +1,10 @@
+[
+  {
+    "role": "user",
+    "content": "can you list the clients you have ?"
+  },
+  {
+    "role": "assistant",
+    "content": "I don't have a list of clients. I'm Claude, an AI assistant made by Anthropic. I don't have access to information about:\n\n- Who uses me or how many people use me\n- Business relationships or contracts Anthropic has\n- User account information or user bases\n- Usage statistics or client lists\n\nI'm a general-purpose AI that anyone can interact with through various platforms (like Claude.ai, API access, etc.), but I don't have visibility into who those users are or any client-specific information.\n\nIs there something specific I can help you with instead?"
+  }
+]

@@ -1,0 +1,10 @@
+[
+  {
+    "role": "user",
+    "content": "can you list the clients you have ?"
+  },
+  {
+    "role": "assistant",
+    "content": ""
+  }
+]

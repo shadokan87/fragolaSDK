@@ -1,0 +1,29 @@
+[
+  {
+    "role": "user",
+    "content": "can you list the clients you have ?"
+  },
+  {
+    "role": "assistant",
+    "content": "",
+    "tool_calls": [
+      {
+        "id": "toolu_vrtx_01Vuko9FD1uJKnBpxU9qjJQA",
+        "type": "function",
+        "function": {
+          "name": "list_clients",
+          "arguments": "{}"
+        }
+      }
+    ]
+  },
+  {
+    "role": "tool",
+    "content": "[{\"type\":\"text\",\"text\":\"{\\n  \\\"count\\\": 0,\\n  \\\"clients\\\": []\\n}\"}]",
+    "tool_call_id": "toolu_vrtx_01Vuko9FD1uJKnBpxU9qjJQA"
+  },
+  {
+    "role": "assistant",
+    "content": "I currently have **no clients** in the database. The client list is empty. \n\nWould you like me to add some clients? Just let me know the names of the clients you'd like to add!"
+  }
+]

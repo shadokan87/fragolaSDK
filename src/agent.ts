@@ -168,6 +168,8 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
     private abortController: AbortController | undefined = undefined;
     private stopRequested: boolean = false;
     private hooks: FragolaHook[] = [];
+    /** serialized async initialization of hooks (ensures tools are ready before generation) */
+    private hooksLoaded: Promise<void> = Promise.resolve();
     #state: AgentState<TMetaData>;
     #id: string;
     #forkOf: string | undefined = undefined;
@@ -417,6 +419,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
     }
 
     async step(stepParams?: StepParams) {
+         await this.hooksLoaded;
         console.log("__TOOLS__STEP", "[" + JSON.stringify(this.options.tools, null, 2) + "]")
         if (this.stopRequested) {
             this.abortController = undefined;
@@ -999,8 +1002,17 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      * ```
      */
     use(hook: FragolaHook) {
-        hook(this as AgentAny);
-        this.hooks.push(hook);
+        // Chain initialization so multiple hooks initialize in sequence.
+        // Accepts both sync and async hooks.
+        this.hooksLoaded = this.hooksLoaded
+            .then(() => Promise.resolve(hook(this as AgentAny)))
+            .then(() => {
+                this.hooks.push(hook);
+            })
+            .catch((err) => {
+                // don't break chain on error, but surface a warning
+                console.error("Failed to initialize hook:", err);
+            });
         return this;
     }
 }

@@ -1,0 +1,29 @@
+[
+  {
+    "role": "user",
+    "content": "add a client with the name eclipse"
+  },
+  {
+    "role": "assistant",
+    "content": "",
+    "tool_calls": [
+      {
+        "id": "toolu_vrtx_014tYXzU5Sd9EF4uQQqqBKyy",
+        "type": "function",
+        "function": {
+          "name": "add_client",
+          "arguments": "{\"name\":\"eclipse\"}"
+        }
+      }
+    ]
+  },
+  {
+    "role": "tool",
+    "content": "[{\"type\":\"text\",\"text\":\"{\\n  \\\"success\\\": true,\\n  \\\"client\\\": {\\n    \\\"id\\\": \\\"19ba45a8-a675-409e-a0bb-573a4837b337\\\",\\n    \\\"name\\\": \\\"eclipse\\\"\\n  }\\n}\"}]",
+    "tool_call_id": "toolu_vrtx_014tYXzU5Sd9EF4uQQqqBKyy"
+  },
+  {
+    "role": "assistant",
+    "content": "Perfect! I've successfully added a client with the name \"eclipse\". Here are the details:\n\n- **Client ID**: 19ba45a8-a675-409e-a0bb-573a4837b337\n- **Client Name**: eclipse\n\nThe client has been added to the database and is ready to use."
+  }
+]

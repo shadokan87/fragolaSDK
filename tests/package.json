@@ -1,11 +1,14 @@
 {
-  "name": "fragolaSDK-test",
+  "name": "fragolasdk-test",
   "private": true,
   "type": "module",
   "dependencies": {
-    "@fragola-ai/agentic-sdk-core": "file:..",
+    "@fragola-ai/agentic-sdk-core": "^0.1.9-alpha.8",
     "ajv": "^8.17.1",
     "portkey-ai": "^3.0.1"
   },
-  "scripts": {}
+  "scripts": {},
+  "devDependencies": {
+    "dotenv-cli": "^11.0.0"
+  }
 }

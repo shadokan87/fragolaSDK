@@ -5,7 +5,7 @@ export {
     stripAiMessageMeta,
     stripUserMessageMeta,
     stripToolMessageMeta,
-    Fragola
+    Fragola,
 } from "@src/fragola";
 
 export type {
@@ -19,6 +19,7 @@ export type {
     MessageMeta,
     ChatCompletionMessageParam,
     Tool,
+    ClientOptions
 } from "@src/fragola";
 
 export * from "@src/stateUtils";

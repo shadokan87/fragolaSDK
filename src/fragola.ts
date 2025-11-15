@@ -1,7 +1,7 @@
 import z from "zod";
 import { Agent, type AgentOptions, type CreateAgentOptions, type JsonQuery } from "./agent";
 import type { maybePromise, StoreLike } from "./types";
-import type { ClientOptions } from "openai/index.js";
+import type { ClientOptions as OpenaiClientOptions } from "openai/index.js";
 import OpenAI from "openai/index.js";
 import type { Store } from "@src/store";
 import { BadUsage } from "./exceptions";
@@ -35,7 +35,7 @@ export type ChatCompletionMessageParam<TMetaData extends DefineMetaData<any> = {
     | OpenAI.Chat.Completions.ChatCompletionFunctionMessageParam
     ;
 
-export interface Tool<T extends z.ZodType<any, any> = any> {
+export interface Tool<T extends z.ZodType<any, any> | string = any> {
     /**
      * The name of the tool.
      */
@@ -47,14 +47,16 @@ export interface Tool<T extends z.ZodType<any, any> = any> {
     /**
      * The function that handles the tool's logic, or the string "dynamic" for dynamic handlers.
      */
-    handler: ((parameters: z.infer<T>, context: AgentContext<any, any>) => ToolHandlerReturnType) | "dynamic";
+    handler: ((parameters: T extends z.ZodType<any, any> ? z.infer<T> : any, context: AgentContext<any, any>) => ToolHandlerReturnType) | "dynamic";
     /**
-     * The Zod schema that validates the parameters for the tool.
+     * The Zod schema or JSON Schema string that validates/describes the parameters for the tool.
+     * - Zod schema: Automatic validation will be performed
+     * - String: No validation, you handle validation in the tool handler. The string is passed as-is to the model.
      */
     schema?: T;
 }
 
-export const tool = <T extends z.ZodType<any, any>>(params: Tool<T>) => params;
+export const tool = <T extends z.ZodType<any, any> | string>(params: Tool<T>) => params;
 
 export function stripMeta<T extends object>(data: (T & { meta?: any }) | Array<T & { meta?: any }>) {
     const _strip = (message: T & { meta?: any }) => {
@@ -96,10 +98,12 @@ type PreferedModel = {
 
 export const FRAGOLA_FRIEND = Symbol("Fragola_friend")
 
+export type ClientOptions = OpenaiClientOptions & PreferedModel;
+
 export class Fragola<TGlobalStore extends StoreLike<any> = {}> {
     private openai: OpenAI;
     #namespaceStore: Map<string, Store<any>> = new Map();
-    constructor(private clientOptions: ClientOptions & PreferedModel, private globalStore: Store<TGlobalStore> | undefined = undefined) {
+    constructor(private clientOptions: ClientOptions, private globalStore: Store<TGlobalStore> | undefined = undefined) {
         const opts = clientOptions ? (() => {
             const copy = { ...clientOptions };
             const { model, ...rest } = copy;

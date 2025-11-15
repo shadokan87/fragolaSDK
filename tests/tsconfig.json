@@ -3,8 +3,8 @@
   "compilerOptions": {
     "baseUrl": "./",
     "paths": {
-  "@fragola-ai/agentic-sdk-core": [".."],
-  "@fragola-ai/agentic-sdk-core/*": ["../dist/*", "../src/*"]
+      "@fragola-ai/agentic-sdk-core": ["../dist"],
+      "@fragola-ai/agentic-sdk-core/*": ["../dist/*"]
     }
   }
 }

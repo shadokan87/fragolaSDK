@@ -4,8 +4,8 @@
   "type": "module",
   "dependencies": {
     "@fragola-ai/agentic-sdk-core": "file:..",
-    "ajv": "^8.17.1"
+    "ajv": "^8.17.1",
+    "portkey-ai": "^3.0.1"
   },
-  "scripts": {
-  }
+  "scripts": {}
 }

@@ -329,14 +329,30 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
     private toolsToModelSettingsTools() {
         const result: ChatCompletionCreateParamsBase["tools"] = [];
         this.opts.tools?.forEach(tool => {
+            let parameters: any = undefined;
+            
+            if (tool.schema) {
+                if (typeof tool.schema === 'string') {
+                    // If schema is a string, parse it as JSON and use directly
+                    try {
+                        parameters = JSON.parse(tool.schema);
+                    } catch {
+                        // If parsing fails, assume it's already a valid JSON schema string format
+                        throw new BadUsage(`Tool '${tool.name}' has an invalid JSON schema string. Must be valid JSON.`);
+                    }
+                } else {
+                    // If schema is a Zod schema, convert to JSON schema
+                    parameters = zodToJsonSchema(tool.schema);
+                }
+            }
+            
             result.push({
                 type: "function",
                 function: {
                     name: tool.name,
                     description: tool.description,
-                    parameters: tool.schema ? zodToJsonSchema(tool.schema) : undefined
+                    parameters
                 }
-
             })
         });
         this.paramsTools = result;
@@ -382,7 +398,6 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         }
         this.opts = { ...this.opts, ...options };
         this.toolsToModelSettingsTools();
-
     }
 
     get options() { return this.opts }
@@ -599,13 +614,26 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                     throw new FragolaError(`Tool ${toolCall.function.name} missing`);
 
                 let paramsParsed: z.SafeParseReturnType<any, any> | undefined;
+                let rawParams: any;
+                
                 if (tool.schema) {
-                    paramsParsed = (tool.schema as z.Schema).safeParse(JSON.parse(toolCall.function.arguments));
-                    if (!paramsParsed.success) {
-                        //TODO: implement retry system for bad arguments
-                        throw new FragolaError("Tool arguments parsing fail");
+                    if (typeof tool.schema === 'string') {
+                        // If schema is a string, no validation - just parse the arguments
+                        try {
+                            rawParams = JSON.parse(toolCall.function.arguments);
+                        } catch {
+                            throw new FragolaError(`Tool '${tool.name}' arguments parsing failed`);
+                        }
+                    } else {
+                        // If schema is a Zod schema, validate
+                        paramsParsed = (tool.schema as z.Schema).safeParse(JSON.parse(toolCall.function.arguments));
+                        if (!paramsParsed.success) {
+                            //TODO: implement retry system for bad arguments
+                            throw new FragolaError("Tool arguments parsing fail");
+                        }
                     }
                 }
+                
                 const toolCallEvents = this.registeredEvents.get("toolCall");
                 const content = await (async () => {
                     eventProcessing: {
@@ -616,8 +644,9 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                         }
                         for (let i = 0; i < toolCallEvents.length; i++) {
                             const _event = toolCallEvents[i];
-                            const result = isAsyncFunction(_event.callback) ? await _event.callback(paramsParsed?.data, tool as any, this.context)
-                                : _event.callback(paramsParsed?.data, tool as any, this.context);
+                            const params = paramsParsed?.data ?? rawParams;
+                            const result = isAsyncFunction(_event.callback) ? await _event.callback(params, tool as any, this.context)
+                                : _event.callback(params, tool as any, this.context);
                             if (isSkipEvent(result)) {
                                 continue;
                             }
@@ -627,7 +656,8 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                             throw new BadUsage(`Tools with dynamic handlers must have at least 1 'toolCall' event that produces a result. (one or more events were found but returned 'skip')`);
                     }
                     // Default tool behavior (executed after breaking from eventProcessing)
-                    return isAsyncFunction(tool.handler) ? await tool.handler(paramsParsed?.data, this.context as any) : tool.handler(paramsParsed?.data, this.context as any);
+                    const params = paramsParsed?.data ?? rawParams;
+                    return isAsyncFunction(tool.handler) ? await tool.handler(params, this.context as any) : tool.handler(params, this.context as any);
                 })();
 
                 const contentToString = (content: unknown) => {

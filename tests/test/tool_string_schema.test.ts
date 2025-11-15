@@ -1,20 +1,19 @@
 import { describe, it, expect } from "vitest";
 import { tool } from "@fragola-ai/agentic-sdk-core";
-import type { ChatCompletionMessageParam } from "@fragola-ai/agentic-sdk-core";
 import { createTestClient } from "./createTestClient";
 import { z } from "zod";
+import Ajv from "ajv";
+import type OpenAI from "openai";
+import type { FragolaHook } from "@fragola-ai/agentic-sdk-core/hook";
 
 const fragola = createTestClient();
-const agentBase = fragola.agent({
-    name: "assistant",
-    instructions: "",
-    description: ""
-});
-
-agentBase.onModelInvocation(async () => ({role: "assistant", content: "(completion not needed for these tests)"}));
+// Used to avoid token cost for tests where model response is not relevant
+const noCompletion: FragolaHook = (agent) => {
+    agent.onModelInvocation(async () => ({role: "assistant", content: ""}))
+}
 
 describe("Tool schema parsing in step()", () => {
-    const makeAssistantToolCall = (name: string, args: any): ChatCompletionMessageParam => ({
+    const makeAssistantToolCall = (name: string, args: any): OpenAI.ChatCompletionMessageParam => ({
         role: "assistant",
         content: null as any,
         tool_calls: [
@@ -27,7 +26,7 @@ describe("Tool schema parsing in step()", () => {
                 }
             }
         ]
-    } as any);
+    });
 
     it("Zod schema: invalid args should fail parsing on step(by:1)", async () => {
         const weatherTool = tool({
@@ -37,18 +36,16 @@ describe("Tool schema parsing in step()", () => {
             handler: (params: { location: string }) => `Weather in ${params.location}`
         });
 
-        const fragola = createTestClient({ model: "gpt-3" });
         const agent = fragola.agent({
             name: "t",
             description: "d",
             instructions: "i",
             tools: [weatherTool],
             initialConversation: [
-                { role: "user", content: "What is the weather?" } as ChatCompletionMessageParam,
+                { role: "user", content: "What is the weather?" },
                 makeAssistantToolCall("get_weather", { location: 123 })
             ]
-        });
-        agent.onModelInvocation(async () => ({role: "assistant", content: ""}))
+        }).use(noCompletion);
 
         await expect(agent.step({ by: 1 })).rejects.toThrow();
     });
@@ -61,17 +58,16 @@ describe("Tool schema parsing in step()", () => {
             handler: (params: { location: string }) => `OK:${params.location}`
         });
 
-        const agent = fragola.agent({
+    const agent = fragola.agent({
             name: "t",
             description: "d",
             instructions: "i",
             tools: [weatherTool],
             initialConversation: [
-                { role: "user", content: "Weather?" } as ChatCompletionMessageParam,
+                { role: "user", content: "Weather?" },
                 makeAssistantToolCall("get_weather", { location: "Paris" })
             ]
-        })
-        agent.onModelInvocation(async () => ({role: "assistant", content: ""}));
+        }).use(noCompletion);
 
         const state = await agent.step({ by: 1 });
         const last = state.conversation.at(-1)!;
@@ -81,34 +77,58 @@ describe("Tool schema parsing in step()", () => {
     });
 
     it("String schema: invalid args should NOT trigger validation and still succeed", async () => {
-        const jsonSchema = JSON.stringify({
+        const jsonSchemaObj = {
             type: "object",
             properties: { location: { type: "string" } },
             required: ["location"]
-        });
+        };
+        const ajv = new Ajv();
+        const validate = ajv.compile(jsonSchemaObj);
 
         const weatherTool = tool({
             name: "get_weather",
             description: "Returns weather for a location",
-            schema: jsonSchema as any,
-            handler: (params: any) => `RAW:${String(params?.location)}`
+            schema: JSON.stringify(jsonSchemaObj),
+            handler: (params: any) => {
+                // Validate with AJV inside the handler
+                if (!validate(params)) {
+                    return `INVALID:${JSON.stringify(validate.errors)}`;
+                }
+                return `RAW:${String(params?.location)}`;
+            }
         });
 
-        const fragola = createTestClient({ model: "gpt-3" });
-        const agent = fragola.agent({
+
+        // Test with invalid args
+        const agentInvalid = fragola.agent({
             name: "t",
             description: "d",
             instructions: "i",
             tools: [weatherTool],
             initialConversation: [
-                { role: "user", content: "Weather?" } as ChatCompletionMessageParam,
+                { role: "user", content: "Weather?" },
                 makeAssistantToolCall("get_weather", { location: 42 })
             ]
-        });
-        agent.onModelInvocation(async () => ({role: "assistant", content: ""}));
-        const state = await agent.step({ by: 1 });
-        const last = state.conversation.at(-1)!;
-        expect(last.role).toBe("tool");
-        expect((last as any).content).toContain("RAW:42");
+        }).use(noCompletion);
+        const stateInvalid = await agentInvalid.step({ by: 1 });
+        const lastInvalid = stateInvalid.conversation.at(-1)!;
+        expect(lastInvalid.role).toBe("tool");
+        expect((lastInvalid as any).content).toContain("INVALID");
+
+        // Test with valid args
+        const agentValid = fragola.agent({
+            name: "t",
+            description: "d",
+            instructions: "i",
+            tools: [weatherTool],
+            initialConversation: [
+                { role: "user", content: "Weather?" },
+                makeAssistantToolCall("get_weather", { location: "Paris" })
+            ]
+        }).use(noCompletion);
+        const stateValid = await agentValid.step({ by: 1 });
+        const lastValid = stateValid.conversation.at(-1)!;
+        expect(lastValid.role).toBe("tool");
+        expect((lastValid as any).content).toContain("RAW:Paris");
     });
 });

@@ -97,7 +97,7 @@ export interface AgentOptions {
     /** Optional array of tools available to the agent. */
     tools?: Tool<any>[],
     /** Model-specific settings excluding messages and tools. */
-    modelSettings?: ModelSettings
+    modelSettings?: Omit<ModelSettings, "model"> & Partial<Pick<ModelSettings, "model">>
 } //TODO: better comment for stepOptions with explaination for each fields
 
 export type SetOptionsParams = Omit<AgentOptions, "name" | "initialConversation" | "fork">;
@@ -255,8 +255,10 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                 await _this.stop();
             }
              updateTools(callback: (prev: Tool[]) => Tool[]): void {
+                
                 const updatedTools = callback(_this.opts.tools ?? []);
                 _this.opts.tools = updatedTools;
+                console.log("#updated tools", _this.opts.tools.length)
                 _this.toolsToModelSettingsTools();
             }
         }
@@ -415,6 +417,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
     }
 
     async step(stepParams?: StepParams) {
+        console.log("__TOOLS__STEP", "[" + JSON.stringify(this.options.tools, null, 2) + "]")
         if (this.stopRequested) {
             this.abortController = undefined;
             this.stopRequested = false
@@ -538,18 +541,21 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
             const callAPI: CallAPI = async (processChunck, modelSettings, clientOpts) => {
                 apiCalled = true;
                 const _processChunck = processChunck || defaultProcessChunck;
-                const _modelSettings = modelSettings || defaultModelSettings;
+                let _modelSettings = modelSettings ? structuredClone(modelSettings) : structuredClone(defaultModelSettings)
                 const openai = clientOpts ? new OpenAI(clientOpts) : this.openai;
 
                 const role: ChatCompletionCreateParamsBase["messages"][0]["role"] = this.opts.useDeveloperRole ? "developer" : "system";
+                if (!_modelSettings["model"])
+                    _modelSettings["model"] = this.modelSettings().model;
                 const requestBody: ChatCompletionCreateParamsBase = {
-                    ..._modelSettings,
+                    ..._modelSettings as ChatCompletionCreateParamsBase,
                     messages: [{ role, content: this.opts.instructions }, ...this.#state.conversation]
                 };
                 if (this.paramsTools?.length)
                     requestBody["tools"] = this.paramsTools;
 
                 this.setGenerating();
+                console.log("!body", JSON.stringify(requestBody, null, 2));
                 const response = await openai.chat.completions.create(requestBody, { signal: this.abortController!.signal });
 
                 // Handle streaming vs non-streaming
@@ -696,7 +702,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                 model: this.#instance.options.model,
             }
         }
-        return this.options.modelSettings;
+        return {...this.options.modelSettings, model: this.options.modelSettings.model ?? this.#instance.options.model}
     }
 
     async json<S extends z.ZodTypeAny = z.ZodTypeAny>(query: JsonQuery<S>): Promise<JsonResult<S, TMetaData>> {
@@ -774,6 +780,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      * });
      */
     async userMessage(query: UserMessageQuery): Promise<AgentState> {
+        console.log("#called user message");
         const { step, ...message } = query;
         void step;
         let _message: Omit<ChatCompletionUserMessageParam, "role">;

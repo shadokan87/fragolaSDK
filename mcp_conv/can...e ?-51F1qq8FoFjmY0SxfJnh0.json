@@ -1,0 +1,10 @@
+[
+  {
+    "role": "user",
+    "content": "can you list the clients you have ?"
+  },
+  {
+    "role": "assistant",
+    "content": "I don't have a list of clients to share. I'm Claude, an AI assistant made by Anthropic. I don't retain information about individual conversations or users between sessions, and I don't have access to data about who uses me or for what purposes.\n\nEach conversation I have is independent, and I don't have knowledge of:\n- User identities or information\n- Previous conversations with other users\n- Business relationships or client lists\n- Usage statistics or aggregated user data\n\nIf you're asking about Anthropic (the company that created me) and its business relationships, I'd recommend checking Anthropic's official website or public announcements for that information.\n\nIs there something specific I can help you with today?"
+  }
+]

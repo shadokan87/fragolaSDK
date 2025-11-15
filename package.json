@@ -73,7 +73,8 @@
     "esbuild": "^0.25.9",
     "tsc-alias": "^1.8.10",
     "typescript": "^5.9.2",
-    "vitest": "^4.0.1"
+    "vitest": "^4.0.1",
+    "portkey-ai": "^3.0.1"
   },
   "peerDependencies": {
     "typescript": "^5.9.2"

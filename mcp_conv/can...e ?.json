@@ -1,0 +1,10 @@
+[
+  {
+    "role": "user",
+    "content": "can you list the clients you have ?"
+  },
+  {
+    "role": "assistant",
+    "content": "I don't have a list of clients to share. I'm Claude, an AI assistant made by Anthropic. I'm not a service company with clients in the traditional sense.\n\nA few clarifications:\n\n- **I'm a general-purpose AI** available to anyone who accesses me through Anthropic's platforms or approved integrations\n- **I don't have business relationships** with specific clients the way a consulting firm or agency would\n- **I don't retain information** between conversations or maintain ongoing client relationships\n- **Each conversation is independent** – I don't know who you are or maintain client records\n\nIf you're asking because you:\n- **Work with Anthropic** and want to know about their business partnerships, I'd suggest checking Anthropic's official website or contacting them directly\n- **Want to use me for your business**, I'm available through Claude.ai, API access, or enterprise partnerships\n- **Are looking for a different service**, I'd be happy to help clarify what you're looking for\n\nWhat can I actually help you with?"
+  }
+]

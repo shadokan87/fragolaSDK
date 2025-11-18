@@ -1,7 +1,7 @@
 // TODO: dispose method
 // TODO: logger method
 import { createStore, Store } from "@src/store"
-import { Fragola, stripUserMessageMeta, type ChatCompletionMessageParam, type ChatCompletionUserMessageParam, type DefineMetaData, type Tool } from "./fragola"
+import { Fragola, stripUserMessageMeta, type ChatCompletionMessageParam, type ChatCompletionUserMessageParam, type DefineMetaData, type MessageMeta, type Tool } from "./fragola"
 import type { ChatCompletionCreateParamsBase } from "openai/resources/chat/completions.js"
 import { streamChunkToMessage, isAsyncFunction, isSkipEvent, skipEventFallback } from "./utils"
 import { BadUsage, FragolaError, JsonModeError, MaxStepHitError } from "./exceptions"
@@ -127,7 +127,7 @@ type StepBy = Partial<{
 
 export type StepParams = StepBy & StepOptions;
 
-export type UserMessageQuery = Prettify<Omit<OpenAI.Chat.ChatCompletionUserMessageParam, "role">> & { step?: StepParams };
+export type UserMessageQuery<TMetaData extends DefineMetaData<any> = {}> = Prettify<Omit<OpenAI.Chat.ChatCompletionUserMessageParam, "role">> & { step?: StepParams, meta?: MessageMeta<TMetaData, "user">};
 
 export type JsonQuery<S extends z.ZodTypeAny = z.ZodTypeAny> = Prettify<UserMessageQuery & {
     /** Set to true to use tool calling to extract json instead of classic 'response_format' */
@@ -282,7 +282,6 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
 
                 const updatedTools = callback(_this.opts.tools ?? []);
                 _this.opts.tools = updatedTools;
-                console.log("#updated tools", _this.opts.tools.length)
                 _this.toolsToModelSettingsTools();
             }
         }
@@ -609,7 +608,6 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                     requestBody["tools"] = this.paramsTools;
 
                 this.setGenerating();
-                console.log("!body", JSON.stringify(requestBody, null, 2));
                 const response = await openai.chat.completions.create(requestBody, { signal: this.abortController!.signal });
 
                 // Handle streaming vs non-streaming
@@ -837,7 +835,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      *   step: { modelSettings: { temperature: 0 } }
      * });
      */
-    async userMessage(query: UserMessageQuery): Promise<AgentState> {
+    async userMessage(query: UserMessageQuery<TMetaData>): Promise<AgentState> {
         console.log("#called user message");
         const { step, ...message } = query;
         void step;

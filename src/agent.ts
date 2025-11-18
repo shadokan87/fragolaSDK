@@ -617,6 +617,10 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                     break;
                 }
 
+                if (toolCall.type != "function") {
+                    continue ;
+                }
+
                 // Find tool in options that matches the tool requested by last ai message
                 const tool = this.opts.tools?.find(tool => tool.name == toolCall.function.name);
                 if (!tool)

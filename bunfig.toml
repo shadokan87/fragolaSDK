@@ -1,0 +1,6 @@
+## Bun package manager configuration (root)
+## Docs: https://bun.com/docs/runtime/bunfig#install-registry
+
+[install]
+# Default to the public npm registry at the repo root
+registry = "https://registry.npmjs.org"

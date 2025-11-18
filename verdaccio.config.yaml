@@ -1,0 +1,24 @@
+# Verdaccio configuration
+# Increase max body size for large packages
+max_body_size: 900mb
+
+# Storage path
+storage: ~/verdaccioStorage
+
+# Packages configuration
+packages:
+  '@fragola-ai/*':
+    access: $all
+    publish: $all
+    unpublish: $all
+
+  '**':
+    access: $all
+    publish: $all
+    unpublish: $all
+    proxy: npmjs
+
+# Uplinks - define upstream registries
+uplinks:
+  npmjs:
+    url: https://registry.npmjs.org/

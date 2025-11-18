@@ -42,7 +42,7 @@ export const streamChunkToMessage = (chunk: OpenAI.Chat.Completions.ChatCompleti
                 })
             } else {
                 const lastToolCallRef = updatedMessage.tool_calls.at(-1);
-                if (lastToolCallRef && lastToolCallRef.function && toolCall.function?.arguments) {
+                if (lastToolCallRef &&  lastToolCallRef.type == "function" && lastToolCallRef.function && toolCall.function?.arguments) {
                     lastToolCallRef.function = {
                         ...lastToolCallRef.function,
                         arguments: lastToolCallRef.function.arguments + toolCall.function.arguments

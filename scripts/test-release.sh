@@ -24,9 +24,7 @@ VERSION=$(node -p "require('./package.json').version")
 echo -e "\n🧹 \033[1;32mCleaning and reinstalling in tests folder...\033[0m"
 # Clean and reinstall in tests folder
 cd tests
-rm -rf node_modules package-lock.json bun.lockb
-bun remove @fragola-ai/agentic-sdk-core
-bun add @fragola-ai/agentic-sdk-core@$VERSION
+bun update @fragola-ai/agentic-sdk-core --registry http://localhost:4873
 
 echo -e "\n🧪 \033[1;31mRunning tests...\033[0m"
 # Run tests

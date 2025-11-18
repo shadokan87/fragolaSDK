@@ -1,9 +1,0 @@
-[install.scopes]
-"@fragola-ai" = {
-  username = "test",
-  password = "test",
-  url = "http://localhost:4873"
-}
-
-[install.registry]
-"@fragola-ai/prompt" = "https://registry.npmjs.org/"

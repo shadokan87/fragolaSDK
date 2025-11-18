@@ -3,11 +3,11 @@
 max_body_size: 900mb
 
 # Storage path
-storage: ~/verdaccioStorage
+storage: ./verdaccioStorage
 
 # Packages configuration
 packages:
-  '@fragola-ai/*':
+  '@fragola-ai/agentic-sdk-core':
     access: $all
     publish: $all
     unpublish: $all

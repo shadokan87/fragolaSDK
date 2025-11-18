@@ -176,4 +176,5 @@ dist
 .DS_Store
 
 # Verdaccio
-./verdaccioStorage
+verdaccioStorage
+verdaccioStorage/*

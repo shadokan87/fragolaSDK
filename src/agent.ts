@@ -175,6 +175,10 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
     #forkOf: string | undefined = undefined;
     #instance: Fragola<TGlobalStore>;
     #namespaceStore: Map<string, Store<any>> = new Map();
+    /** Scoped instructions map (scope -> instructions) */
+    private instructionScopes: Map<string, string> = new Map();
+    /** Cached merged instructions (default + scoped). Updated when scopes change. */
+    private mergedInstructionsCache: string | undefined = undefined;
 
     constructor(
         private opts: CreateAgentOptions<TStore>,
@@ -247,8 +251,26 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
             removeStore(namespace: string): void {
                 _this.removeStore(namespace);
             }
-            setInstructions(instructions: string): void {
-                _this.opts.instructions = instructions;
+            setInstructions(instructions: string, scope?: string): void {
+                // If a scope is provided, store scoped instructions, otherwise update the default instructions
+                if (scope) {
+                    _this.instructionScopes.set(scope, instructions);
+                } else {
+                    _this.opts.instructions = instructions;
+                }
+                // Refresh cached merged instructions
+                _this.updateMergedInstructionsCache();
+            }
+            getInstructions(scope?: string): string | undefined {
+                if (scope)
+                    return _this.instructionScopes.get(scope);
+                return _this.opts.instructions ?? undefined;
+            }
+            removeInstructions(scope: string): boolean {
+                const existed = _this.instructionScopes.delete(scope);
+                if (existed)
+                    _this.updateMergedInstructionsCache();
+                return existed;
             }
             setOptions(options: SetOptionsParams): void {
                 _this.setOptions(options);
@@ -362,6 +384,34 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         this.paramsTools = result;
     }
 
+    /** Recompute merged instructions and store in cache. */
+    private updateMergedInstructionsCache() {
+        this.mergedInstructionsCache = this.computeMergedInstructions();
+    }
+
+    /** Build merged instructions from default + scoped instructions. */
+    private computeMergedInstructions(): string {
+        const base = this.opts.instructions ?? "";
+        const parts: string[] = [];
+        if (base) parts.push(base);
+        // deterministic order for merging: sort scope keys
+        const scopes = Array.from(this.instructionScopes.keys()).sort();
+        for (const s of scopes) {
+            const v = this.instructionScopes.get(s);
+            if (v && v.length) {
+                // annotate with scope so it's easy to debug/strip if needed
+                parts.push(v);
+            }
+        }
+        return parts.join("\n");
+    }
+
+    /** Return cached merged instructions, computing them if necessary. */
+    private getMergedInstructions(): string {
+        if (this.mergedInstructionsCache === undefined) this.updateMergedInstructionsCache();
+        return this.mergedInstructionsCache ?? "";
+    }
+
     private async appendMessages(messages: OpenAI.ChatCompletionMessageParam[], replaceLast: boolean = false, reason: conversationUpdateReason) {
         await this.updateConversation((prev) => {
             if (replaceLast)
@@ -402,6 +452,8 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         }
         this.opts = { ...this.opts, ...options };
         this.toolsToModelSettingsTools();
+        // If default instructions changed, refresh merged cache
+        this.updateMergedInstructionsCache();
     }
 
     get options() { return this.opts }
@@ -546,12 +598,12 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                 let _modelSettings = modelSettings ? structuredClone(modelSettings) : structuredClone(defaultModelSettings)
                 const openai = clientOpts ? new OpenAI(clientOpts) : this.openai;
 
-                const role: ChatCompletionCreateParamsBase["messages"][0]["role"] = this.opts.useDeveloperRole ? "developer" : "system";
+                const instructionsRole: ChatCompletionCreateParamsBase["messages"][0]["role"] = this.opts.useDeveloperRole ? "developer" : "system";
                 if (!_modelSettings["model"])
                     _modelSettings["model"] = this.modelSettings().model;
                 const requestBody: ChatCompletionCreateParamsBase = {
                     ..._modelSettings as ChatCompletionCreateParamsBase,
-                    messages: [{ role, content: this.opts.instructions }, ...this.#state.conversation]
+                    messages: [{ role: instructionsRole, content: this.getMergedInstructions() }, ...this.#state.conversation]
                 };
                 if (this.paramsTools?.length)
                     requestBody["tools"] = this.paramsTools;

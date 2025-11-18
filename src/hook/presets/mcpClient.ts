@@ -31,7 +31,6 @@ export type storeType = {
 type options = { client: McpClientOptions | Client, schemaValidation?: AjvOptions }
 export const mcpClient = (options: options[] | options): FragolaHook => {
     return async (agent) => {
-        console.log("#called hook")
         // Init store
         if (!agent.context.getStore(storeNamespace)) {
             agent.context.addStore(createStore<storeType>({
@@ -41,7 +40,7 @@ export const mcpClient = (options: options[] | options): FragolaHook => {
         const single = async (opt: options) => {
             let client: Client;
             if (opt.client instanceof Client) {
-
+                client = opt.client
             } else {
                 const transport = new StreamableHTTPClientTransport(new URL(opt.client.url));
                 client = new Client({

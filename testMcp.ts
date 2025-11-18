@@ -28,7 +28,8 @@ const assistant = fragola.agent({
   modelSettings: {
     model: fragola.options.model,
     tool_choice: "auto",
-    max_tokens: 50000
+    max_tokens: 50000,
+    stream: true
   }
 }).use(mcpClient({
   client: {

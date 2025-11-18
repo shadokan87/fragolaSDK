@@ -45,7 +45,20 @@ export abstract class AgentContext<TMetaData extends DefineMetaData<any> = {}, T
      * Sets the current instructions for the agent.
      * @param instructions - The new instructions as a string.
      */
-    abstract setInstructions(instructions: string): void;
+    abstract setInstructions(instructions: string, scope?: string): void;
+
+    /**
+     * Returns the system prompt for a given scope.
+     * @param scope - The instructions scope, leave empty to get the default scope (optional)
+     */
+    abstract getInstructions(scope?: string): string | undefined;
+
+    /**
+     * Remove the system prompt for a given scope. 
+     * @param scope - The instructions scope to remove
+     * @returns a boolean, true = removed, false = scope do not exist
+     */
+    abstract removeInstructions(scope: string): boolean
     /**
      * Updates the agent's options.
      * **note**: the `name`, `fork` and `initialConversation` properties are ommited

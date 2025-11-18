@@ -1,0 +1,29 @@
+[
+  {
+    "role": "user",
+    "content": "Weather?"
+  },
+  {
+    "role": "assistant",
+    "content": null,
+    "tool_calls": [
+      {
+        "id": "call_1",
+        "type": "function",
+        "function": {
+          "name": "get_weather",
+          "arguments": "{\"location\":\"Paris\"}"
+        }
+      }
+    ]
+  },
+  {
+    "role": "tool",
+    "content": "OK:Paris",
+    "tool_call_id": "call_1"
+  },
+  {
+    "role": "assistant",
+    "content": ""
+  }
+]

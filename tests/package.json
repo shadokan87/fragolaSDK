@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@fragola-ai/agentic-sdk-core": "^0.1.9-alpha.31",
     "ajv": "^8.17.1",
     "portkey-ai": "^3.0.1"
   },

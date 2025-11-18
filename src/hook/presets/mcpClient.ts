@@ -47,7 +47,6 @@ export const mcpClient = (options: options[] | options): FragolaHook => {
                 client = new Client({
                     name: opt.client.name,
                     version: "1.0",
-                    transport: transport
                 });
                 await client.connect(transport);
             }

@@ -256,8 +256,8 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
             async stop(): Promise<void> {
                 await _this.stop();
             }
-             updateTools(callback: (prev: Tool[]) => Tool[]): void {
-                
+            updateTools(callback: (prev: Tool[]) => Tool[]): void {
+
                 const updatedTools = callback(_this.opts.tools ?? []);
                 _this.opts.tools = updatedTools;
                 console.log("#updated tools", _this.opts.tools.length)
@@ -334,7 +334,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         const result: ChatCompletionCreateParamsBase["tools"] = [];
         this.opts.tools?.forEach(tool => {
             let parameters: any = undefined;
-            
+
             if (tool.schema) {
                 if (typeof tool.schema === 'string') {
                     // If schema is a string, parse it as JSON and use directly
@@ -349,7 +349,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                     parameters = zodToJsonSchema(tool.schema);
                 }
             }
-            
+
             result.push({
                 type: "function",
                 function: {
@@ -419,8 +419,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
     }
 
     async step(stepParams?: StepParams) {
-         await this.hooksLoaded;
-        console.log("__TOOLS__STEP", "[" + JSON.stringify(this.options.tools, null, 2) + "]")
+        await this.hooksLoaded;
         if (this.stopRequested) {
             this.abortController = undefined;
             this.stopRequested = false
@@ -618,7 +617,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                 }
 
                 if (toolCall.type != "function") {
-                    continue ;
+                    continue;
                 }
 
                 // Find tool in options that matches the tool requested by last ai message
@@ -628,7 +627,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
 
                 let paramsParsed: z.SafeParseReturnType<any, any> | undefined;
                 let rawParams: any;
-                
+
                 if (tool.schema) {
                     if (typeof tool.schema === 'string') {
                         // If schema is a string, no validation - just parse the arguments
@@ -646,7 +645,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                         }
                     }
                 }
-                
+
                 const toolCallEvents = this.registeredEvents.get("toolCall");
                 const content = await (async () => {
                     eventProcessing: {
@@ -709,7 +708,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                 model: this.#instance.options.model,
             }
         }
-        return {...this.options.modelSettings, model: this.options.modelSettings.model ?? this.#instance.options.model}
+        return { ...this.options.modelSettings, model: this.options.modelSettings.model ?? this.#instance.options.model }
     }
 
     async json<S extends z.ZodTypeAny = z.ZodTypeAny>(query: JsonQuery<S>): Promise<JsonResult<S, TMetaData>> {

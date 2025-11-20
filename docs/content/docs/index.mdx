@@ -1,0 +1,74 @@
+---
+title: Overview
+description: Overview of the Fragola SDK
+---
+
+Fragola is an event-driven SDK for building AI-first software. It enables you to build complex agentic systems with a lightweight, production-ready toolkit that stays out of your way.
+
+The SDK is built around a small set of powerful primitives:
+
+- **Agents**: LLM instances with a state and tools.
+- **Tools**: Strongly-typed functions with Zod or JSON schema validation.
+- **Hooks**: Extend your agent capabilities (MCP, Sub-agent, Orchestration and more).
+- **Stores**: Standard way of handling runtime variables for your agents.
+- **Events**: A rich subscription system for observability and control.
+- **Metadatas**: Insert custom typed metadata in your agent conversation.
+
+## Why use Fragola
+
+Fragola is designed to be the **foundation** of your AI architecture, not a rigid framework that dictates it.
+
+- **Make it your own**: Fragola is a library, not a framework. It gives you the building blocks: **Agents**, **Tools**, **Events**, **Hooks**.But leaves the architectural decisions to you.Using events and hooks, you compose the pieces to fit your specific system design.
+- **Zero Abstraction Overhead**: We use Openai SDK under the hood, an agent messages's type is stays `OpenAI.ChatCompletionMessageParam[]`. No custom message types to learn or convert.
+- **Event-Driven observability**: Hook into every stage of the agent loop—model invocation, tool execution, message updates—for deep observability and control.
+- **Extensible by Design**: Use the Hook system to add capabilities like filesystem persistence or Model Context Protocol (MCP) support without rewriting your core logic.
+
+## Installation
+<Tabs items={["npm", "bun", "pnpm", "yarn"]}>
+  <Tab value="npm">
+    ```bash
+    npm install @fragola-ai/agentic-sdk-core
+    ```
+  </Tab>
+  <Tab value="bun">
+    ```bash
+    bun add @fragola-ai/agentic-sdk-core
+    ```
+  </Tab>
+  <Tab value="pnpm">
+    ```bash
+    pnpm add @fragola-ai/agentic-sdk-core
+    ```
+  </Tab>
+  <Tab value="yarn">
+    ```bash
+    yarn add @fragola-ai/agentic-sdk-core
+    ```
+  </Tab>
+</Tabs>
+
+
+## Hello World
+
+```typescript
+import { Fragola } from "@fragola-ai/agentic-sdk-core";
+
+const fragola = new Fragola({
+  apiKey: process.env.OPENAI_API_KEY,
+  model: "gpt-4o-mini"
+});
+
+const agent = fragola.agent({
+  name: "HelloAgent",
+  description: "A simple greeting agent",
+  instructions: "You are a friendly assistant."
+});
+
+const state = await agent.userMessage({
+  content: "You are my first agent, introduce yourself by saying hello world !"
+});
+
+console.log(state.messages);
+```
+
+- Ready to get productive? Head to the [Get Started](/docs/get-started) guide.

@@ -61,7 +61,7 @@ export abstract class AgentContext<TMetaData extends DefineMetaData<any> = {}, T
     abstract removeInstructions(scope: string): boolean
     /**
      * Updates the agent's options.
-     * **note**: the `name`, `fork` and `initialConversation` properties are ommited
+     * **note**: the `name`, `fork` and `messages` properties are ommited
      * @param options - The new options to set, as a SetOptionsParams object.
      */
     abstract setOptions(options: SetOptionsParams): void;

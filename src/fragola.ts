@@ -69,7 +69,7 @@ export function stripMeta<T extends object>(data: (T & { meta?: any }) | Array<T
     return _strip(data);
 }
 
-export const stripConversationMeta = (conversation: ChatCompletionMessageParam[]): OpenAI.ChatCompletionMessageParam[] => stripMeta(conversation) as OpenAI.ChatCompletionMessageParam[];
+export const stripMessagesMeta = (messages: ChatCompletionMessageParam[]): OpenAI.ChatCompletionMessageParam[] => stripMeta(messages) as OpenAI.ChatCompletionMessageParam[];
 
 export const stripAiMessageMeta = (aiMessage: ChatCompletionAssistantMessageParam): OpenAI.ChatCompletionAssistantMessageParam => stripMeta(aiMessage) as OpenAI.ChatCompletionAssistantMessageParam;
 

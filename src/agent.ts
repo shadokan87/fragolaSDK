@@ -12,7 +12,7 @@ import OpenAI from "openai/index.js"
 import { type AgentEventId, type EventDefaultCallback } from "./event"
 import type { CallAPI, CallAPIProcessChuck, EventToolCall, EventUserMessage, EventModelInvocation, EventAiMessage } from "./eventDefault";
 import { nanoid } from "nanoid"
-import type { EventAfterConversationUpdate, AfterStateUpdateCallback, conversationUpdateReason } from "./eventAfter"
+import type { EventAfterMessagesUpdate, AfterStateUpdateCallback, messagesUpdateReason } from "./eventAfter"
 import { type registeredEvent, type eventIdToCallback, EventMap } from "./extendedJS/events/EventMap"
 import type { FragolaHook } from "@src/hook/index";
 import { zodToJsonSchema } from "openai/_vendor/zod-to-json-schema/zodToJsonSchema.js"
@@ -20,7 +20,7 @@ import type { ResponseFormatJSONSchema } from "openai/resources"
 import { AgentContext } from "@src/agentContext"
 
 export type AgentState<TMetaData extends DefineMetaData<any> = {}> = {
-    conversation: ChatCompletionMessageParam<TMetaData>[],
+    messages: ChatCompletionMessageParam<TMetaData>[],
     stepCount: number,
     status: "idle" | "generating" | "waiting",
 }
@@ -43,7 +43,7 @@ export type JsonOptions<T extends z.ZodTypeAny = z.ZodTypeAny> = {
 export type StepOptions = Partial<{
     /** The maximum number of steps to execute in one call (default: 10). */
     maxStep: number,
-    /** Wether or not to reset agent state `stepCount` after each user messages. `true` is recommanded for conversational agents.*/
+    /** Wether or not to reset agent state `stepCount` after each user messages. `true` is recommanded for messagesal agents.*/
     resetStepCountAfterUserMessage: boolean,
 
     //TODO: unanswered tool behaviour fields
@@ -100,24 +100,24 @@ export interface AgentOptions {
     modelSettings?: Omit<ModelSettings, "model"> & Partial<Pick<ModelSettings, "model">>
 } //TODO: better comment for stepOptions with explaination for each fields
 
-export type SetOptionsParams = Omit<AgentOptions, "name" | "initialConversation" | "fork">;
+export type SetOptionsParams = Omit<AgentOptions, "name" | "messages" | "fork">;
 
 export type CreateAgentOptions<TStore extends StoreLike<any> = {}> = {
     store?: Store<TStore>,
-    /** Optional initial conversation history for the agent. */
-    initialConversation?: OpenAI.ChatCompletionMessageParam[],
+    /** Optional initial messages history for the agent. */
+    messages?: OpenAI.ChatCompletionMessageParam[],
 } & Prettify<AgentOptions>;
 
-export type ResetParams = Prettify<Pick<Required<CreateAgentOptions>, "initialConversation">>;
+export type ResetParams = Prettify<Pick<Required<CreateAgentOptions>, "messages">>;
 
 const AGENT_FRIEND = Symbol('AgentAccess');
 
-// type AppendMessagesFn = (messages: OpenAI.ChatCompletionMessageParam[], replaceLast?: boolean, reason?: conversationUpdateReason) => Promise<void>;
-// type UpdateConversationFn = (callback: (prev: AgentState<any>["conversation"]) => AgentState<any>["conversation"], reason: conversationUpdateReason) => Promise<void>;
+// type AppendMessagesFn = (messages: OpenAI.ChatCompletionMessageParam[], replaceLast?: boolean, reason?: messagesUpdateReason) => Promise<void>;
+// type UpdateMessagesFn = (callback: (prev: AgentState<any>["messages"]) => AgentState<any>["messages"], reason: messagesUpdateReason) => Promise<void>;
 // Use these types for your ContextRaw
 export type ContextRaw<TMetaData extends DefineMetaData<any> = {}> = {
-    appendMessages(messages: OpenAI.ChatCompletionMessageParam[], replaceLast: boolean | undefined, reason: conversationUpdateReason): Promise<void>,
-    updateConversation(callback: (prev: AgentState<TMetaData>["conversation"]) => AgentState<TMetaData>["conversation"], reason: conversationUpdateReason): Promise<void>
+    appendMessages(messages: OpenAI.ChatCompletionMessageParam[], replaceLast: boolean | undefined, reason: messagesUpdateReason): Promise<void>,
+    updateMessages(callback: (prev: AgentState<TMetaData>["messages"]) => AgentState<TMetaData>["messages"], reason: messagesUpdateReason): Promise<void>
 }
 
 type StepBy = Partial<{
@@ -142,22 +142,22 @@ export type JsonResult<S extends z.ZodTypeAny = z.ZodTypeAny, TMetaData extends 
     state: AgentState<TMetaData>
 } & z.SafeParseReturnType<unknown, z.infer<S>>;
 
-type ConversationUpdateParams = {
-    reason: conversationUpdateReason
+type MessagesUpdateParams = {
+    reason: messagesUpdateReason
 }
 
-type ApplyAfterConversationUpdateParams = ConversationUpdateParams;
+type ApplyAfterMessagesUpdateParams = MessagesUpdateParams;
 
 type applyEventParams<K extends AgentEventId> =
-    K extends "after:conversationUpdate" ? ApplyAfterConversationUpdateParams :
-    K extends "conversationUpdate" ? ConversationUpdateParams :
+    K extends "after:messagesUpdate" ? ApplyAfterMessagesUpdateParams :
+    K extends "messagesUpdate" ? MessagesUpdateParams :
     never;
 
 const FORK_FRIEND = Symbol("fork_friend");
 
 export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> {
     public static defaultAgentState: AgentState = {
-        conversation: [],
+        messages: [],
         stepCount: 0,
         status: "idle"
     }
@@ -197,8 +197,8 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         this.openai = openai;
 
         this.toolsToModelSettingsTools();
-        if (opts.initialConversation != undefined)
-            this.#state.conversation = structuredClone(opts.initialConversation);
+        if (opts.messages != undefined)
+            this.#state.messages = structuredClone(opts.messages);
         if (!opts.stepOptions)
             this.opts["stepOptions"] = defaultStepOptions;
         else {
@@ -234,7 +234,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
             get raw() {
                 return {
                     appendMessages: (...args: Parameters<typeof _this.appendMessages>) => _this.appendMessages(...args),
-                    updateConversation: (...args: Parameters<typeof _this.updateConversation>) => _this.updateConversation(...args)
+                    updateMessages: (...args: Parameters<typeof _this.updateMessages>) => _this.updateMessages(...args)
                 };
             }
             get store() { return _this.opts.store as Store<TStore>; }
@@ -411,8 +411,8 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         return this.mergedInstructionsCache ?? "";
     }
 
-    private async appendMessages(messages: OpenAI.ChatCompletionMessageParam[], replaceLast: boolean = false, reason: conversationUpdateReason) {
-        await this.updateConversation((prev) => {
+    private async appendMessages(messages: OpenAI.ChatCompletionMessageParam[], replaceLast: boolean = false, reason: messagesUpdateReason) {
+        await this.updateMessages((prev) => {
             if (replaceLast)
                 return [...prev.slice(0, -1), ...messages];
             return [...prev, ...messages]
@@ -429,15 +429,15 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         await this.applyEvents("after:stateUpdate", null);
     }
 
-    private async updateConversation(callback: (prev: AgentState<TMetaData>["conversation"]) => AgentState<TMetaData>["conversation"], reason: conversationUpdateReason) {
-        await this.updateState((prev) => ({ ...prev, conversation: callback(this.#state.conversation) }));
-        await this.applyEvents("after:conversationUpdate", { reason });
+    private async updateMessages(callback: (prev: AgentState<TMetaData>["messages"]) => AgentState<TMetaData>["messages"], reason: messagesUpdateReason) {
+        await this.updateState((prev) => ({ ...prev, messages: callback(this.#state.messages) }));
+        await this.applyEvents("after:messagesUpdate", { reason });
     }
 
     /**
      * Updates the agent's options.
      * **Note**: Can only be called when agent status is "idle". 
-     * The `name` and `initialConversation` properties are omitted.
+     * The `name` and `messages` properties are omitted.
      * 
      * @param options - The new options to set, as a SetOptionsParams object.
      * @throws {BadUsage} When called while agent is not idle (generating or waiting).
@@ -486,7 +486,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         if (overrideStepOptions)
             this.validateStepOptions(overrideStepOptions);
         const stepOptions: Required<StepOptions> = overrideStepOptions ? { ...defaultStepOptions, ...overrideStepOptions } as Required<StepOptions> : this.stepOptions();
-        if (this.#state.conversation.length != 0)
+        if (this.#state.messages.length != 0)
             await this.recursiveAgent(stepOptions, () => {
                 if (stepParams?.by != undefined)
                     return this.#state.stepCount == (this.#state.stepCount + stepParams.by);
@@ -502,7 +502,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         this.#state.stepCount = 0;
     }
 
-    reset(params: ResetParams = { initialConversation: [] }) {
+    reset(params: ResetParams = { messages: [] }) {
         if (this.#state.status != "idle") {
             throw new BadUsage(
                 `Cannot reset while agent is '${this.#state.status}'. ` +
@@ -511,7 +511,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         }
         this.updateState(() => ({
             status: "idle",
-            conversation: params.initialConversation,
+            messages: params.messages,
             stepCount: 0
         }));
     }
@@ -527,9 +527,9 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         }
     }
 
-    private lastAiMessage(conversation: OpenAI.ChatCompletionMessageParam[]): OpenAI.ChatCompletionAssistantMessageParam | undefined {
-        for (let i = conversation.length - 1; i >= 0; i--) {
-            const msg = conversation[i];
+    private lastAiMessage(messages: OpenAI.ChatCompletionMessageParam[]): OpenAI.ChatCompletionAssistantMessageParam | undefined {
+        for (let i = messages.length - 1; i >= 0; i--) {
+            const msg = messages[i];
             if (msg.role === "assistant") {
                 return msg;
             }
@@ -553,7 +553,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         }
 
         if (stepOptions.resetStepCountAfterUserMessage) {
-            if (this.#state.conversation.at(-1)?.role == "user")
+            if (this.#state.messages.at(-1)?.role == "user")
                 this.setStepCount(0);
         }
         if (this.#state.stepCount == stepOptions.maxStep)
@@ -561,7 +561,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
 
         this.abortController = new AbortController();
 
-        const lastMessage: OpenAI.ChatCompletionMessageParam | undefined = this.#state.conversation.at(-1);
+        const lastMessage: OpenAI.ChatCompletionMessageParam | undefined = this.#state.messages.at(-1);
         let aiMessage: OpenAI.ChatCompletionAssistantMessageParam;
         let lastAiMessage: OpenAI.ChatCompletionAssistantMessageParam | undefined = undefined;
         let toolCalls: OpenAI.Chat.Completions.ChatCompletionMessageToolCall[] = [];
@@ -570,15 +570,15 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
             if (lastMessage?.role == "user")
                 return true;
             if (lastMessage?.role == "tool") {
-                lastAiMessage = this.lastAiMessage(this.#state.conversation);
+                lastAiMessage = this.lastAiMessage(this.#state.messages);
                 if (!lastAiMessage)
-                    throw new FragolaError("Invalid conversation, found 'tool' role without previous 'assistant' role.");
+                    throw new FragolaError("Invalid messages, found 'tool' role without previous 'assistant' role.");
                 if (!lastAiMessage.tool_calls)
-                    throw new FragolaError("Invalid conversation, found 'tool' role but 'tool_calls' is empty in previous 'assistant' role.");
+                    throw new FragolaError("Invalid messages, found 'tool' role but 'tool_calls' is empty in previous 'assistant' role.");
 
                 // Some tool calls may be already answered, we filter them out
                 toolCalls = lastAiMessage.tool_calls.filter(toolCall => {
-                    return !this.#state.conversation.some(message => message.role == "tool" && message.tool_call_id == toolCall.id)
+                    return !this.#state.messages.some(message => message.role == "tool" && message.tool_call_id == toolCall.id)
                 });
                 // Generation can happen only if all tool_calls have been answered, if not the case, tool calls will be answered and the generation can happen in the next recursive turn
                 return toolCalls.length == 0;
@@ -602,7 +602,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                     _modelSettings["model"] = this.modelSettings().model;
                 const requestBody: ChatCompletionCreateParamsBase = {
                     ..._modelSettings as ChatCompletionCreateParamsBase,
-                    messages: [{ role: instructionsRole, content: this.getMergedInstructions() }, ...this.#state.conversation]
+                    messages: [{ role: instructionsRole, content: this.getMergedInstructions() }, ...this.#state.messages]
                 };
                 if (this.paramsTools?.length)
                     requestBody["tools"] = this.paramsTools;
@@ -623,7 +623,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                             const _chunck = _processChunck(chunck, partialMessage as typeof aiMessage);
                             partialMessage = streamChunkToMessage(_chunck as OpenAI.ChatCompletionChunk, partialMessage);
                         }
-                        const updateReason: conversationUpdateReason = !chunck.choices[0].finish_reason ? "partialAiMessage" : "AiMessage";
+                        const updateReason: messagesUpdateReason = !chunck.choices[0].finish_reason ? "partialAiMessage" : "AiMessage";
                         const partialMessageFinal = await this.registeredEvents.handleAiMessage(partialMessage as typeof aiMessage, updateReason == "partialAiMessage");
                         await this.appendMessages([partialMessageFinal as OpenAI.Chat.ChatCompletionMessageParam], replaceLast, updateReason);
                         if (!replaceLast) this.setStepCount(this.#state.stepCount + 1);
@@ -743,7 +743,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                     content: contentToString(content),
                     tool_call_id: toolCall.id
                 }
-                await this.updateConversation((prev) => [...prev, message], "toolCall");
+                await this.updateMessages((prev) => [...prev, message], "toolCall");
             }
             await this.setIdle();
             if (!stop())
@@ -770,7 +770,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
             _message = message;
         else
             _message = await this.registeredEvents.handleUserMessage(message);
-        await this.updateConversation((prev) => [...prev, stripUserMessageMeta({ role: "user", ..._message })], "userMessage");
+        await this.updateMessages((prev) => [...prev, stripUserMessageMeta({ role: "user", ..._message })], "userMessage");
         if (preferToolCalling) {
 
         } else {
@@ -787,9 +787,9 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
             }
         }
         const state = await this.step(_step);
-        const lastAiMessage = this.lastAiMessage(state.conversation);
+        const lastAiMessage = this.lastAiMessage(state.messages);
         if (!lastAiMessage)
-            throw new JsonModeError(`Expected last index of conversation to be of role 'assistant'`);
+            throw new JsonModeError(`Expected last index of messages to be of role 'assistant'`);
         if (typeof lastAiMessage.content != 'string') {
             throw new JsonModeError(`Expected content of model response to be of type 'string', received '${typeof lastAiMessage.content}'`);
         }
@@ -805,7 +805,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
     }
 
     /**
-     * Appends a user message to the conversation and executes the agent for one or more steps.
+     * Appends a user message to the messages and executes the agent for one or more steps.
      * Parameters:
      * @param query - The user message and optional per-call step controls.
      *                See {@link UserMessageQuery}
@@ -852,7 +852,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         }
         if (error)
             throw error;
-        await this.updateConversation((prev) => [...prev, stripUserMessageMeta({ role: "user", ..._message })], "userMessage");
+        await this.updateMessages((prev) => [...prev, stripUserMessageMeta({ role: "user", ..._message })], "userMessage");
         return await this.step(query.step);
     }
 
@@ -879,8 +879,8 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                         return (callback as EventDefaultType)(...params) as any;
                     }
                 }
-                case "after:conversationUpdate": {
-                    type callbackType = EventAfterConversationUpdate<TMetaData, TGlobalStore, TStore>;
+                case "after:messagesUpdate": {
+                    type callbackType = EventAfterMessagesUpdate<TMetaData, TGlobalStore, TStore>;
                     const params: Parameters<callbackType> = [_params!.reason, ...defaultParams];
                     if (isAsyncFunction(callback)) {
                         return await (callback as callbackType)(...params) as any;
@@ -956,24 +956,24 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
     onToolCall<TParams = Record<any, any>>(callback: EventToolCall<TParams, TMetaData, TGlobalStore, TStore>) { return this.on("toolCall", callback) }
 
     /**
-     * Register a handler that runs after the conversation is updated.
+     * Register a handler that runs after the messages is updated.
      *
      * After-event handlers do not return a value. Use these to persist state, emit metrics or side-effects.
      *
      * @example
-     * agent.onAfterConversationUpdate((reason, context) => {
-     *   // persist conversation to a DB or telemetry
-     *   console.log('conversation updated because of', reason);
+     * agent.onAfterMessagesUpdate((reason, context) => {
+     *   // persist messages to a DB or telemetry
+     *   console.log('messages updated because of', reason);
      *   context.getStore()?.value.lastSaved = Date.now();
      * });
      */
-    onAfterConversationUpdate(callback: EventAfterConversationUpdate<TMetaData, TGlobalStore, TStore>) { return this.on("after:conversationUpdate", callback) }
+    onAfterMessagesUpdate(callback: EventAfterMessagesUpdate<TMetaData, TGlobalStore, TStore>) { return this.on("after:messagesUpdate", callback) }
 
     /**
      * Register an AI message event handler.
      *
      * Called when an assistant message is generated or streaming. Handlers may return a modified
-     * message which will replace the message in the conversation.
+     * message which will replace the message in the messages.
      *
      * @example
      * agent.onAiMessage((message, isPartial, context) => {
@@ -989,7 +989,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
     /**
      * Register a user message event handler.
      *
-     * Called when a user message is appended to the conversation. Handlers may return a modified
+     * Called when a user message is appended to the messages. Handlers may return a modified
      * user message which will be used instead of the original.
      *
      * @example

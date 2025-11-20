@@ -7,13 +7,13 @@ import syncFs from "fs";
 
 
 /**
- * Hook that automatically saves the conversation to the file system after each update.
+ * Hook that automatically saves the messages to the file system after each update.
  * 
  * The file is saved with a filename based on the first user message content. When there are conflicting
  * filenames, it will create a nonce to ensure uniqueness. e.g `<label>.json/<label>-<nonce>.json`
  * 
- * @param path - The directory path where conversation files will be saved
- * @returns A hook that saves conversations as JSON files
+ * @param path - The directory path where messages files will be saved
+ * @returns A hook that saves messagess as JSON files
  * 
  * @example
  * ```typescript
@@ -34,21 +34,21 @@ import syncFs from "fs";
  * // Creates: ./testHook/say hello.json
  * 
  * await agent.userMessage({content: "say hello again"});
- * // Updates: ./testHook/say hello.json (same file, full conversation)
+ * // Updates: ./testHook/say hello.json (same file, full messages)
  * ```
  */
 export const fileSystemSave = (path: string): FragolaHook => {
     return (agent) => {
         let fullPath: string | undefined = undefined;
 
-        agent.onAfterConversationUpdate(async (reason, context) => {
+        agent.onAfterMessagesUpdate(async (reason, context) => {
             if (reason == "partialAiMessage")
                 return;
-            const { conversation } = context.state;
+            const { messages } = context.state;
             let firstUserMessage: OpenAI.ChatCompletionUserMessageParam | undefined = undefined;
-            for (let i = 0; i < conversation.length; i++) {
-                if (conversation[i].role == "user") {
-                    firstUserMessage = conversation[i] as OpenAI.ChatCompletionUserMessageParam;
+            for (let i = 0; i < messages.length; i++) {
+                if (messages[i].role == "user") {
+                    firstUserMessage = messages[i] as OpenAI.ChatCompletionUserMessageParam;
                 }
             }
             if (!firstUserMessage)
@@ -79,10 +79,10 @@ export const fileSystemSave = (path: string): FragolaHook => {
             }
             try {
                 await fs.mkdir(path, { recursive: true });
-                await fs.writeFile(fullPath, JSON.stringify(conversation, null, 2), "utf8");
+                await fs.writeFile(fullPath, JSON.stringify(messages, null, 2), "utf8");
             } catch (err) {
                 // eslint-disable-next-line no-console
-                console.error("Failed to save conversation:", err);
+                console.error("Failed to save messages:", err);
             }
         });
     };

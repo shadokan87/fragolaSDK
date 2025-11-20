@@ -5,7 +5,7 @@ import type { DefineMetaData } from "./fragola";
 export type AgentDefaultEventId =
   "apiCall" | "stateUpdate" | "modelInvocation" | "toolCall" | "aiMessage" | "userMessage";
 
-export type AgentAfterEventId = `after:${AgentDefaultEventId | "conversationUpdate"}`;
+export type AgentAfterEventId = `after:${AgentDefaultEventId | "messagesUpdate"}`;
 
 export const SKIP_EVENT = Symbol('skip_event');
 /**

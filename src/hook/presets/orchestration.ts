@@ -6,7 +6,7 @@ import { FragolaError } from "@src/exceptions";
 import { Prompt } from "@fragola-ai/prompt";
 import z from "zod";
 import { tool } from "@src/fragola";
-import { conversationUtils } from "@src/stateUtils";
+import { messagesUtils } from "@src/stateUtils";
 
 export namespace OrchestrationType {
     export type participants = AgentAny[];
@@ -156,7 +156,7 @@ Here are the other agents you can communicate with.</instructions>
                             if (typeof userMessage == "string")
                                 return `Your message request have been rejected for the following reason: ${userMessage}`;
                             const destState = await dest.userMessage(userMessage);
-                            const finalOutput = conversationUtils(destState.conversation).finalOutput();
+                            const finalOutput = messagesUtils(destState.messages).finalOutput();
                             return finalOutput ?? `Message delivered to agent with id ${params.id}. But the agent failed to produce an output (undefined) output`
                         }
                     })]
@@ -178,7 +178,7 @@ Here are the other agents you can communicate with.</instructions>
                 const systemPrompt: Prompt = new Prompt(systemPromptTemplate, {
                     agents_list: agentsDescription.map(prompt => prompt.value).join("")
                 } as systemPromptVariables);
-                k.setOptions({...k.options, instructions: k.options.instructions + `\n${systemPrompt.value}`});
+                k.setOptions({ ...k.options, instructions: k.options.instructions + `\n${systemPrompt.value}` });
             }
             // // Convert communicationMap to array and log it
             // const commArray = Array.from(communicationMap.entries()).map(([agent, flows]) => ({

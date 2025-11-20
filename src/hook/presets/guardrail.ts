@@ -37,12 +37,12 @@ export class GuardrailConstrain extends FragolaError {
 export const guardrail = (guardrails: Guardrail[], rejectionBehaviour: "keepAndAnnotate" | "remove" = "keepAndAnnotate"): FragolaHook => {
     return (agent) => {
         agent.onUserMessage(async (message, context) => {
-            // If the last message is from a user role but has been rejected by a guardrail, we remove it from the conversation
-            const lastMessage = context.state.conversation.at(-1);
+            // If the last message is from a user role but has been rejected by a guardrail, we remove it from the messages
+            const lastMessage = context.state.messages.at(-1);
             if (lastMessage?.role == "user") {
                 const meta = lastMessage.meta as GuardRailMeta | undefined;
                 if (meta?.guardrail.rejected) {
-                    await context.raw.updateConversation((prev) => (prev.slice(0, -1)), "remove:userMessage")
+                    await context.raw.updateMessages((prev) => (prev.slice(0, -1)), "remove:userMessage")
                 }
             }
             // We test the user message against the guardrail array

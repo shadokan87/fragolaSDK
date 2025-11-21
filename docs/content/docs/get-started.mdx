@@ -34,44 +34,50 @@ Fragola requires **Node.js 18+**.
 
 Create a simple agent that responds to user messages.
 
-### 1. Initialize the Client
+<div className="fd-steps">
+  <div className="fd-step">
+    ### Initialize the Client
+    
+    First, import `Fragola` and create a client instance. You'll need an OpenAI API key.
 
-First, import `Fragola` and create a client instance. You'll need an OpenAI API key.
+    ```typescript
+    import { Fragola } from "@fragola-ai/agentic-sdk-core";
 
-```typescript
-import { Fragola } from "@fragola-ai/agentic-sdk-core";
+    const fragola = new Fragola({
+      apiKey: process.env.OPENAI_API_KEY, // Ensure this is set in your environment
+      model: "gpt-4o-mini"
+    });
+    ```
+  </div>
+  <div className="fd-step">
+    ### Create an Agent
+    
+    Define your agent with a name, description, and instructions.
 
-const fragola = new Fragola({
-  apiKey: process.env.OPENAI_API_KEY, // Ensure this is set in your environment
-  model: "gpt-4o-mini"
-});
-```
+    ```typescript
+    const agent = fragola.agent({
+      name: "QuickstartAgent",
+      description: "My first Fragola agent",
+      instructions: "You are a helpful and concise assistant."
+    });
+    ```
+  </div>
+  <div className="fd-step">
+    ### Send a Message
+    
+    Send a message to the agent and await the response. The state contains the updated conversation history.
 
-### 2. Create an Agent
+    ```typescript
+    const state = await agent.userMessage({
+      content: "Hello! What can you do?"
+    });
 
-Define your agent with a name, description, and instructions.
-
-```typescript
-const agent = fragola.agent({
-  name: "QuickstartAgent",
-  description: "My first Fragola agent",
-  instructions: "You are a helpful and concise assistant."
-});
-```
-
-### 3. Send a Message
-
-Send a message to the agent and await the response. The state contains the updated conversation history.
-
-```typescript
-const state = await agent.userMessage({
-  content: "Hello! What can you do?"
-});
-
-// The state.messages array contains the full conversation history
-// using native OpenAI types: OpenAI.ChatCompletionMessageParam[]
-console.log(state.messages);
-```
+    // The state.messages array contains the full conversation history
+    // using native OpenAI types: OpenAI.ChatCompletionMessageParam[]
+    console.log(state.messages);
+    ```
+  </div>
+</div>
 
 ## Next Steps
 

@@ -1,0 +1,170 @@
+---
+title: Agents basics
+description: Understanding the Agent lifecycle and configuration
+---
+
+## Overview
+
+An **Agent** is the central building block in Fragola. It represents a stateful conversation with an AI model, managing the full lifecycle of messages, tool execution, and state updates. Each agent maintains its own conversation history, tools, and configuration while providing a clean interface for interaction.
+
+## Agent Lifecycle
+
+An agent follows a predictable lifecycle from creation to execution:
+
+1. **Creation** - Initialize an agent with configuration (name, instructions, tools etc...)
+2. **Message Exchange** - Send user messages and the model start generating a response
+3. **Tool Execution** - Tools are automatically handled during the agent execution
+4. **State Updates** - The message is processed and the state updated with the new messages history and other useful variables
+
+### Agent State
+
+The agent maintains a state object that contains the conversation history and execution metadata:
+- `messages` - All the messages exchanged for your agent including user messages, AI messages and tool calls
+
+**Status:**
+- `idle` - Ready to process new messages
+- `generating` - Model is currently generating a response
+- `waiting` - Waiting for tool execution or external input
+
+## Creating an Agent
+
+Create an agent using the `Fragola` client:
+
+```typescript
+import { Fragola } from "@fragola-ai/agentic-sdk-core";
+
+const fragola = new Fragola({
+  apiKey: process.env.OPENAI_API_KEY,
+  model: "gpt-4o-mini"
+});
+
+const agent = fragola.agent({
+  name: "CustomerSupport",
+  description: "Handles customer inquiries and support tickets",
+  instructions: "You are a helpful customer support agent. Be concise and professional.",
+  tools: [], // Add tools as needed
+  modelSettings: {
+    temperature: 0.7,
+    max_tokens: 1000
+  }
+});
+```
+
+## Agent Configuration
+
+### Core Options
+
+    ### Name and Description
+    
+    The `name` identifies your agent and the `description` provides context about its purpose. These are required fields.
+
+    ```typescript
+    {
+      name: "DataAnalyst",
+      description: "Analyzes data and generates insights"
+    }
+    ```
+
+    ### Instructions
+    
+    The `instructions` field defines the agent's behavior and personality. This is the system prompt that guides the model.
+
+    ```typescript
+    {
+      instructions: "You are a data analyst. Provide clear, actionable insights from data."
+    }
+    ```
+    ### Tools
+    
+    Provide an array of tools the agent can use. Tools are optional but essential to have create powerful agent.
+
+    ```typescript
+    {
+      tools: [
+        tool({
+          name: "search_database",
+          description: "Search the customer database",
+          schema: z.object({
+            query: z.string()
+          }),
+          handler: async (params) => {
+            const result = await db.findCustomer(params.query);
+            return result;
+          }
+        })
+      ]
+    }
+    ```
+
+### Model Settings
+
+Override the default model settings per agent:
+
+```typescript
+{
+  modelSettings: {
+    model: "gpt-4o",           // Override the default model
+    temperature: 0.9,           // Control randomness (0-2)
+    max_tokens: 2000,           // Maximum response length
+    top_p: 1.0,                 // Nucleus sampling
+    frequency_penalty: 0.0,     // Reduce repetition
+    presence_penalty: 0.0       // Encourage topic diversity
+  }
+}
+```
+
+### Step Options
+
+Control how the agent executes multi-step interactions:
+
+```typescript
+{
+  stepOptions: {
+    maxStep: 10,                              // Maximum steps per call
+    resetStepCountAfterUserMessage: true,     // Reset counter on new user message
+    fork: false                               // Whether to fork on each step
+  }
+}
+```
+
+## Working with Agent State
+
+The agent maintains a state object containing the conversation history and metadata:
+
+```typescript
+const state = await agent.userMessage({
+  content: "What's the capital of France?"
+});
+
+// The state object contains:
+console.log(state);
+// {
+//   messages: [
+//     {
+//       role: "user",
+//       content: "What's the capital of France?"
+//     },
+//     {
+//       role: "assistant",
+//       content: "The capital of France is Paris."
+//     }
+//   ],
+//   stepCount: 1,
+//   status: "idle"
+// }
+
+// Access individual parts
+console.log(state.messages);    // Full conversation history
+console.log(state.stepCount);   // Number of steps executed (1)
+console.log(state.status);      // Current agent status ("idle")
+```
+
+### State Structure
+
+```typescript
+interface AgentState<TMetaData = any> {
+  messages: ChatCompletionMessageParam<TMetaData>[];
+  stepCount: number;
+  status: "idle" | "generating" | "waiting";
+}
+```

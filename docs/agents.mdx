@@ -1,0 +1,391 @@
+---
+title: Agents basics
+description: Understanding the Agent lifecycle and configuration
+---
+
+## Overview
+
+An **Agent** is the central building block in Fragola. It represents a stateful conversation with an AI model, managing the full lifecycle of messages, tool execution, and state updates. Each agent maintains its own conversation history, tools, and configuration while providing a clean interface for interaction.
+
+## Agent Lifecycle
+
+An agent follows a predictable lifecycle from creation to execution:
+
+1. **Creation** - Initialize an agent with configuration (name, instructions, tools)
+2. **Message Exchange** - Send user messages and receive assistant responses
+3. **Tool Execution** - Automatically handle tool calls during generation
+4. **State Updates** - Track conversation history and step count
+5. **Forking** - Clone agents to explore alternative conversation paths
+
+### Agent Status
+
+Agents maintain a status that reflects their current state:
+
+- `idle` - Ready to process new messages
+- `generating` - Currently generating a response
+- `waiting` - Waiting for tool execution or external input
+
+## Creating an Agent
+
+Create an agent using the `Fragola` client:
+
+```typescript
+import { Fragola } from "@fragola-ai/agentic-sdk-core";
+
+const fragola = new Fragola({
+  apiKey: process.env.OPENAI_API_KEY,
+  model: "gpt-4o-mini"
+});
+
+const agent = fragola.agent({
+  name: "CustomerSupport",
+  description: "Handles customer inquiries and support tickets",
+  instructions: "You are a helpful customer support agent. Be concise and professional.",
+  tools: [], // Add tools as needed
+  modelSettings: {
+    temperature: 0.7,
+    max_tokens: 1000
+  }
+});
+```
+
+## Agent Configuration
+
+### Core Options
+
+<div className="fd-steps">
+  <div className="fd-step">
+    ### Name and Description
+    
+    The `name` identifies your agent and the `description` provides context about its purpose. These are required fields.
+
+    ```typescript
+    {
+      name: "DataAnalyst",
+      description: "Analyzes data and generates insights"
+    }
+    ```
+  </div>
+  <div className="fd-step">
+    ### Instructions
+    
+    The `instructions` field defines the agent's behavior and personality. This is the system prompt that guides the model.
+
+    ```typescript
+    {
+      instructions: "You are a data analyst. Provide clear, actionable insights from data."
+    }
+    ```
+  </div>
+  <div className="fd-step">
+    ### Tools
+    
+    Provide an array of tools the agent can use. Tools are optional but enable powerful capabilities.
+
+    ```typescript
+    {
+      tools: [
+        {
+          name: "search_database",
+          description: "Search the customer database",
+          schema: z.object({
+            query: z.string()
+          })
+        }
+      ]
+    }
+    ```
+  </div>
+</div>
+
+### Model Settings
+
+Override the default model settings per agent:
+
+```typescript
+{
+  modelSettings: {
+    model: "gpt-4o",           // Override the default model
+    temperature: 0.9,           // Control randomness (0-2)
+    max_tokens: 2000,           // Maximum response length
+    top_p: 1.0,                 // Nucleus sampling
+    frequency_penalty: 0.0,     // Reduce repetition
+    presence_penalty: 0.0       // Encourage topic diversity
+  }
+}
+```
+
+### Step Options
+
+Control how the agent executes multi-step interactions:
+
+```typescript
+{
+  stepOptions: {
+    maxStep: 10,                              // Maximum steps per call
+    resetStepCountAfterUserMessage: true,     // Reset counter on new user message
+    fork: false                               // Whether to fork on each step
+  }
+}
+```
+
+## Working with Agent State
+
+The agent maintains a state object containing the conversation history and metadata:
+
+```typescript
+const state = await agent.userMessage({
+  content: "Hello, how can you help me?"
+});
+
+console.log(state.messages);    // Full conversation history
+console.log(state.stepCount);   // Number of steps executed
+console.log(state.status);      // Current agent status
+```
+
+### State Structure
+
+```typescript
+interface AgentState<TMetaData = any> {
+  messages: ChatCompletionMessageParam<TMetaData>[];
+  stepCount: number;
+  status: "idle" | "generating" | "waiting";
+}
+```
+
+### Messages
+
+Messages use native OpenAI types (`ChatCompletionMessageParam`) with optional metadata:
+
+```typescript
+const state = await agent.userMessage({
+  content: "What's the weather?",
+  meta: {
+    userId: "user-123",
+    sessionId: "session-456"
+  }
+});
+
+// Access messages
+state.messages.forEach(msg => {
+  console.log(msg.role, msg.content);
+  if (msg.meta) {
+    console.log("Metadata:", msg.meta);
+  }
+});
+```
+
+## Sending Messages
+
+### User Messages
+
+Send a user message and get the agent's response:
+
+```typescript
+const state = await agent.userMessage({
+  content: "Explain quantum computing",
+  step: {
+    maxStep: 5,
+    modelSettings: {
+      temperature: 0.3  // Override for this message only
+    }
+  }
+});
+```
+
+### Streaming Responses
+
+Stream responses for real-time feedback:
+
+```typescript
+for await (const chunk of agent.userMessageStream({
+  content: "Write a story about a robot"
+})) {
+  if (chunk.type === "partial") {
+    // Partial message update
+    console.log(chunk.state.messages);
+  } else if (chunk.type === "final") {
+    // Final complete state
+    console.log("Complete:", chunk.state);
+  }
+}
+```
+
+## Forking Agents
+
+Create a copy of an agent to explore alternative conversation paths:
+
+```typescript
+const originalAgent = fragola.agent({
+  name: "Assistant",
+  instructions: "You are a helpful assistant"
+});
+
+await originalAgent.userMessage({ content: "Hello!" });
+
+// Fork the agent to try a different approach
+const forkedAgent = originalAgent.fork();
+
+// Both agents now have independent state
+await originalAgent.userMessage({ content: "Tell me about cats" });
+await forkedAgent.userMessage({ content: "Tell me about dogs" });
+```
+
+Forking is useful for:
+- A/B testing different prompts or approaches
+- Exploring multiple conversation branches
+- Creating checkpoints before risky operations
+
+## Resetting an Agent
+
+Reset an agent to start a fresh conversation:
+
+```typescript
+// Reset to initial state
+agent.reset();
+
+// Reset with new messages
+agent.reset({
+  messages: [
+    { role: "system", content: "New system prompt" }
+  ]
+});
+```
+
+## Managing Tools
+
+### Adding Tools at Runtime
+
+```typescript
+agent.addTools([
+  {
+    name: "get_weather",
+    description: "Get current weather for a location",
+    schema: z.object({
+      location: z.string()
+    }),
+    execute: async ({ location }) => {
+      return { temperature: 72, condition: "sunny" };
+    }
+  }
+]);
+```
+
+### Removing Tools
+
+```typescript
+agent.removeTools(["get_weather"]);
+```
+
+### Updating Tools
+
+```typescript
+agent.updateTools([
+  {
+    name: "get_weather",
+    description: "Updated: Get weather with forecast",
+    schema: z.object({
+      location: z.string(),
+      days: z.number().optional()
+    })
+  }
+]);
+```
+
+## Working with Stores
+
+Agents can access namespaced stores for shared state:
+
+```typescript
+// Add a store to the agent
+const userStore = createStore({ userId: "123", preferences: {} });
+agent.addStore("user", userStore);
+
+// Access in tools or events
+const context = agent.context();
+const userData = context.store.user.get();
+```
+
+## JSON Extraction
+
+Extract structured data using the agent:
+
+```typescript
+const result = await agent.json({
+  content: "Extract the key points from this text: ...",
+  schema: z.object({
+    keyPoints: z.array(z.string()),
+    sentiment: z.enum(["positive", "negative", "neutral"])
+  }),
+  preferToolCalling: true  // Use tool calling for better reliability
+});
+
+console.log(result.data);  // Typed according to schema
+```
+
+## Boolean Queries
+
+Get simple yes/no answers:
+
+```typescript
+const isPositive = await agent.boolean({
+  content: "Is this review positive? 'This product is amazing!'"
+});
+
+console.log(isPositive);  // true
+```
+
+## Best Practices
+
+### 1. Clear Instructions
+
+Provide specific, actionable instructions:
+
+```typescript
+// ❌ Vague
+instructions: "Be helpful"
+
+// ✅ Specific
+instructions: "You are a technical support agent. Diagnose issues step-by-step and provide clear solutions."
+```
+
+### 2. Manage Step Limits
+
+Set appropriate step limits to prevent infinite loops:
+
+```typescript
+stepOptions: {
+  maxStep: 5,  // Reasonable limit for most interactions
+  resetStepCountAfterUserMessage: true
+}
+```
+
+### 3. Use Metadata for Context
+
+Attach metadata to track conversations:
+
+```typescript
+await agent.userMessage({
+  content: "Hello",
+  meta: {
+    userId: "user-123",
+    timestamp: Date.now(),
+    source: "web-chat"
+  }
+});
+```
+
+### 4. Fork for Experimentation
+
+Use forking to test different approaches without affecting the main conversation:
+
+```typescript
+const testAgent = agent.fork();
+// Experiment with testAgent
+```
+
+## Next Steps
+
+- **[Tools](/docs/core/tools)** - Learn how to add capabilities to your agents
+- **[Events](/docs/core/events)** - Hook into the agent lifecycle
+- **[Stores](/docs/core/stores-and-context)** - Manage shared state across agents

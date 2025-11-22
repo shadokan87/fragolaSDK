@@ -125,25 +125,12 @@
     @apply bg-background text-foreground;
   }
 
-  /* Theme-based logo visibility */
-  .logo-container {
-    display: inline-flex;
-    position: relative;
+  /* Logo styling - add shadow in light mode for visibility */
+  .logo-image {
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
   }
 
-  .logo-light {
-    display: block;
-  }
-
-  .logo-dark {
-    display: none;
-  }
-
-  .dark .logo-light {
-    display: none;
-  }
-
-  .dark .logo-dark {
-    display: block;
+  .dark .logo-image {
+    filter: none;
   }
 }

@@ -42,8 +42,8 @@ const agent = fragola.agent({
   name: "CustomerSupport",
   description: "Handles customer inquiries and support tickets",
   instructions: "You are a helpful customer support agent. Be concise and professional.",
-  tools: [], // Add tools as needed
-  modelSettings: {
+  // tools: [ ... ], Add tools as needed
+  modelSettings: { // Example of possible values
     temperature: 0.7,
     max_tokens: 1000
   }
@@ -52,11 +52,9 @@ const agent = fragola.agent({
 
 ## Agent Configuration
 
-### Core Options
-
     ### Name and Description
     
-    The `name` identifies your agent and the `description` provides context about its purpose. These are required fields.
+    The `name` identifies your agent and the `description` provides context about its purpose.
 
     ```typescript
     {
@@ -104,11 +102,12 @@ Override the default model settings per agent:
 {
   modelSettings: {
     model: "gpt-4o",           // Override the default model
+    stream: true,                // Enable streaming
     temperature: 0.9,           // Control randomness (0-2)
     max_tokens: 2000,           // Maximum response length
     top_p: 1.0,                 // Nucleus sampling
     frequency_penalty: 0.0,     // Reduce repetition
-    presence_penalty: 0.0       // Encourage topic diversity
+    presence_penalty: 0.0      // Encourage topic diversity
   }
 }
 ```
@@ -122,7 +121,6 @@ Control how the agent executes multi-step interactions:
   stepOptions: {
     maxStep: 10,                              // Maximum steps per call
     resetStepCountAfterUserMessage: true,     // Reset counter on new user message
-    fork: false                               // Whether to fork on each step
   }
 }
 ```

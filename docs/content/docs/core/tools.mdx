@@ -1,0 +1,174 @@
+---
+title: Tools
+description: Understanding tools and schema validation in Fragola
+---
+
+## Overview
+
+Tools allow your agents to perform actions, fetch data, and interact with external systems. Fragola supports multiple schema formats, dynamic tool handlers, and context access.
+
+## Creating a Tool
+
+```typescript
+import { tool } from "@fragola-ai/agentic-sdk-core";
+import { z } from "zod";
+
+const weatherTool = tool({
+  name: "get_weather",
+  description: "Get current weather for a location",
+  schema: z.object({
+    location: z.string().describe("City name or coordinates"),
+    unit: z.enum(["celsius", "fahrenheit"]).optional()
+  }),
+  handler: async (params) => {
+    const weather = await fetchWeather(params.location, params.unit);
+    return {
+      temperature: weather.temp,
+      conditions: weather.conditions,
+      location: params.location
+    };
+  }
+});
+
+// Add to agent
+const agent = fragola.agent({
+  name: "Assistant",
+  tools: [weatherTool]
+});
+```
+
+## Schema Formats
+
+Fragola accepts multiple schema formats for tool parameters.
+
+### Zod Schema (Recommended)
+
+Provides automatic validation and type inference:
+
+```typescript
+const createUserTool = tool({
+  name: "create_user",
+  description: "Create a new user account",
+  schema: z.object({
+    email: z.string().email(),
+    name: z.string().min(1),
+    age: z.number().int().positive().optional(),
+    role: z.enum(["admin", "user", "guest"]).default("user")
+  }),
+  handler: async (params) => {
+    // params is fully typed
+    const user = await db.createUser(params);
+    return user;
+  }
+});
+```
+
+### JSON Schema String
+
+For advanced use cases or manual validation control:
+
+```typescript
+const weatherTool = tool({
+  name: "get_weather",
+  description: "Get weather information",
+  schema: JSON.stringify({
+    type: "object",
+    properties: {
+      location: { type: "string" }
+    },
+    required: ["location"]
+  }),
+  handler: async (params: any) => {
+    // Manual validation if needed
+    if (typeof params.location !== "string") {
+      throw new Error("Invalid location parameter");
+    }
+    return await fetchWeather(params.location);
+  }
+});
+```
+
+### No Schema
+
+For tools that don't require parameters:
+
+```typescript
+const getCurrentTimeTool = tool({
+  name: "get_current_time",
+  description: "Get the current time",
+  handler: async () => {
+    return new Date().toISOString();
+  }
+});
+```
+
+## Dynamic Tools
+A tool handler can be dynamic, for use cases where the handler depends on too much runtime variables, it allows you to avoid organization overhead by returning an output from anywhere in your codebase.
+For scenarios where the handler is determined at runtime:
+
+```typescript
+// /src/tools/dynamicTool.ts
+const dynamicTool = tool({
+  name: "dynamic_action",
+  description: "Performs dynamic actions",
+  schema: z.object({ action: z.string() }),
+  handler: "dynamic"
+});
+
+// /src/app.ts
+agent.onToolCall(async (params, tool) => {
+  if (tool.name === "dynamic_action") {
+    const result = await performDynamicAction(params);
+    return result;
+  }
+});
+```
+
+## Context Access
+
+Tools can access the agent context to interact with stores, agent state, and other agent capabilities:
+
+<Callout type="info">
+  If you're unfamiliar with the context concept, read the [Introduction to Context](/docs/core/context).
+</Callout>
+```typescript
+const contextAwareTool = tool({
+  name: "get_user_preference",
+  description: "Get user preferences from the store",
+  schema: z.object({
+    key: z.string()
+  }),
+  handler: async (params, context) => {
+    // Access stores
+    const userStore = context.getStore("user");
+    const preference = userStore?.get(params.key);
+    
+    // Access conversation history
+    const messages = context.state.messages;
+    
+    return { preference, messageCount: messages.length };
+  }
+});
+```
+
+## Runtime Tool Management
+
+Add, remove, or update tools dynamically:
+
+```typescript
+// Add tools
+agent.context.updateTools((currentTools) => [
+  ...currentTools,
+  newTool
+]);
+
+// Remove tools by name
+agent.context.updateTools((currentTools) => 
+  currentTools.filter(t => t.name !== "old_tool")
+);
+
+// Replace a tool
+agent.context.updateTools((currentTools) => 
+  currentTools.map(t => t.name === "weather" ? updatedWeatherTool : t)
+);
+```

@@ -6,6 +6,7 @@
     "tools",
     "context",
     "events",
+    "hooks",
     "stores"
   ]
 }

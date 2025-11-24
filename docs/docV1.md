@@ -165,7 +165,8 @@ High-level plan:
   - agents.mdx
   - conversations-and-state.mdx
   - tools.mdx
-  - events-and-context.mdx
+  - context.mdx
+  - events.mdx
   - hooks.mdx
   - metadata.mdx
   - stores.mdx

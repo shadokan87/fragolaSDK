@@ -3,6 +3,7 @@ import type { DefineMetaData, Fragola, Tool } from "./fragola";
 import type { StoreLike } from "./types";
 import type { Store } from "./store";
 
+export const STOP = Symbol('stop');
 export abstract class AgentContext<TMetaData extends DefineMetaData<any> = {}, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> {
     /** The current state of the agent. */
     abstract get state(): AgentState<TMetaData>;
@@ -66,5 +67,7 @@ export abstract class AgentContext<TMetaData extends DefineMetaData<any> = {}, T
      */
     abstract setOptions(options: SetOptionsParams): void;
     /** Stop the agent execution */
-    abstract stop(): Promise<void>;
+    abstract stop(): Promise<{[STOP]: true}>;
+    /** Stop the agent execution - Sync */
+    abstract stopSync(): {[STOP]: true}
 }

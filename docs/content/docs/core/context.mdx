@@ -1,0 +1,285 @@
+---
+title: Context
+sidebarTitle: Context
+description: Programmatic interface to inspect and mutate an Agent at runtime.
+---
+
+# Overview
+
+`AgentContext` is the programmable surface you use to observe and safely modify a running Agent. It exposes:
+- The (`state`, `options`) of the agent's current lifecycle & configuration.
+- Direct store access (default local store + namespaced stores) for shared memory.
+- Instruction (system prompt) management with scoped variants.
+- Tool list mutation at runtime.
+- Low-level message mutation helpers (`raw`) for advanced workflows (batched edits, rewrites).
+- Safe runtime option updates (only while idle).
+- Controlled stop signals (async and sync) to abort streaming or tool execution.
+
+Use `agent.context` inside events, hooks, tools, orchestration code, or external supervisors.
+<Callout type="warn">
+  Some operations (e.g. `setOptions`) require the agent to be `idle`. Attempting them during `generating` or `waiting` throws.
+</Callout>
+---
+
+# state
+Current snapshot of the agent state: messages, step count, and lifecycle status.
+
+**Examples**
+```ts
+// 1) Read last assistant message
+const last = [...agent.context.state.messages].reverse().find(m => m.role === 'assistant');
+
+// 2) Branch logic based on status
+if (agent.context.state.status === 'waiting') {
+  console.log('Agent awaiting tool results');
+}
+
+// 3) Count user messages so far
+const userCount = agent.context.state.messages.filter(m => m.role === 'user').length;
+```
+
+---
+
+# options
+Resolved configuration (model settings overrides, tools, step options, instructions, etc.). Mutate with `setOptions()`—not by editing this object directly.
+
+**Examples**
+```ts
+// 1) Inspect temperature
+console.log('Temperature:', agent.context.options.modelSettings?.temperature);
+
+// 2) List currently registered tools
+(agent.context.options.tools ?? []).forEach(t => console.log(t.name));
+
+// 3) Check step constraints
+const maxStep = agent.context.options.stepOptions?.maxStep;
+```
+
+---
+
+# raw
+Low-level async helpers to mutate messages directly. Avoid unless you need precise control; prefer high-level APIs.
+- `appendMessages(messages, replaceLast, reason)`
+- `updateMessages(callback, reason)`
+`reason` influences after-events (`after:messagesUpdate`). Valid add reasons: `userMessage | toolCall | partialAiMessage | AiMessage` (removal reasons prefixed by `remove:`).
+
+**Examples**
+```ts
+// 1) Append a synthetic assistant summary
+await agent.context.raw.appendMessages([
+  { role: 'assistant', content: 'Summary: conversation compressed.' }
+], false, 'AiMessage');
+
+// 2) Replace last assistant partial with a finalized version
+await agent.context.raw.appendMessages([
+  { role: 'assistant', content: 'Final answer.' }
+], true, 'AiMessage');
+
+// 3) Bulk redact messages
+await agent.context.raw.updateMessages(prev => prev.map(m => (
+  m.role === 'user' ? { ...m, content: '[REDACTED]' } : m
+)), 'partialAiMessage');
+```
+
+---
+
+# store
+Returns the agent's default local `Store` (if configured).
+
+**Examples**
+```ts
+// 1) Read ephemeral memory
+console.log(agent.context.store.value);
+
+// 2) Increment a counter
+agent.context.store.update(v => ({ ...v, turns: (v.turns ?? 0) + 1 }));
+
+// 3) React to changes
+agent.context.store.onChange(v => console.log('Store changed', v));
+```
+
+---
+
+# addStore
+Attach an additional namespaced store for modular shared state. Namespace must be unique.
+
+**Examples**
+```ts
+import { createStore } from '@src/store';
+
+// 1) Add analytics store
+agent.context.addStore(createStore({ events: [] }, 'analytics'));
+
+// 2) Add task routing map
+agent.context.addStore(createStore({ tasks: {} }, 'router'));
+```
+
+---
+
+# updateTools
+Replace or mutate the agent's tool list at runtime. Automatically syncs to model settings.
+
+**Examples**
+```ts
+// 1) Add a new tool
+agent.context.updateTools(prev => [...prev, {
+  name: 'ping', description: 'Ping tool', handler: () => 'pong'
+}]);
+
+// 2) Remove deprecated tool
+agent.context.updateTools(prev => prev.filter(t => t.name !== 'oldTool'));
+
+// 3) Replace all tools with a minimal subset
+agent.context.updateTools(() => [{ name: 'echo', description: 'Echo', handler: (p: any) => p }]);
+```
+
+---
+
+# removeStore
+Detach a previously added namespaced store. No-op if namespace missing.
+
+**Examples**
+```ts
+// 1) Remove analytics store
+agent.context.removeStore('analytics');
+
+// 2) Clean up router store after orchestration phase
+agent.context.removeStore('router');
+```
+
+---
+
+# instance
+Fragola root instance that created the agent. Access global options or global store.
+
+**Examples**
+```ts
+// 1) Read default model
+console.log(agent.context.instance.options.model);
+
+// 2) Access global store value
+console.log(agent.context.instance.store?.value);
+```
+
+---
+
+# getStore
+Fetch default (no namespace) or a namespaced store added via `addStore`. Returns `undefined` if absent.
+
+**Examples**
+```ts
+// 1) Get default store
+const base = agent.context.getStore();
+
+// 2) Get analytics store
+const analytics = agent.context.getStore<'events' extends never ? any : any>('analytics');
+
+// 3) Safely mutate if exists
+const router = agent.context.getStore('router');
+router?.update(v => ({ ...v, lastAccess: Date.now() }));
+```
+
+---
+
+# setInstructions
+Set (or scope) system instructions. Without `scope`, overwrites default instructions. With `scope`, stores a scoped variant merged deterministically.
+
+**Examples**
+```ts
+// 1) Replace base instructions
+agent.context.setInstructions('You are a concise assistant.');
+
+// 2) Add a scoped persona
+agent.context.setInstructions('Focus on data sanitation.', 'sanitizer');
+
+// 3) Add evaluation scope
+agent.context.setInstructions('Critically evaluate previous answer.', 'critic');
+```
+
+---
+
+# getInstructions
+Retrieve default or scoped instructions.
+
+**Examples**
+```ts
+// 1) Read base
+console.log(agent.context.getInstructions());
+
+// 2) Read scoped
+console.log(agent.context.getInstructions('critic'));
+```
+
+---
+
+# removeInstructions
+Delete a scoped instructions entry. Returns boolean indicating success. Recomputes merged cache if removed.
+
+**Examples**
+```ts
+// 1) Remove critic scope
+const removed = agent.context.removeInstructions('critic');
+if (removed) console.log('Critic instructions removed');
+
+// 2) Attempt removal (fails silently)
+agent.context.removeInstructions('nonexistent');
+```
+
+---
+
+# setOptions
+Update mutable agent options (except `name`, `messages`, `fork`). Only allowed when status is `idle`; otherwise throws.
+
+**Examples**
+```ts
+// 1) Lower temperature
+agent.context.setOptions({ modelSettings: { temperature: 0 } });
+
+// 2) Add stepOptions limit
+agent.context.setOptions({ stepOptions: { maxStep: 8 } });
+
+// 3) Swap instructions + temperature together
+agent.context.setOptions({
+  instructions: 'Be terse.',
+  modelSettings: { temperature: 0.2 }
+});
+```
+
+---
+
+# stop
+Asynchronously request termination of current execution (aborts streaming/tool loop). Returns `{ [STOP]: true }` when processed.
+
+**Examples**
+```ts
+// 1) Cancel a long streaming response
+await agent.context.stop();
+
+// 2) Cancel during tool wait
+await agent.context.stop();
+```
+
+---
+
+# stopSync
+Synchronous variant of `stop()` for scenarios where awaiting is unnecessary (still aborts active controller if present).
+
+**Examples**
+```ts
+// 1) Immediate stop inside event
+agent.onAiMessage((msg, partial, ctx) => {
+  if (!partial && msg.content.includes('unsafe')) ctx.stopSync();
+  return msg;
+});
+
+// 2) Force abort in orchestration timeout handler
+agent.context.stopSync();
+```
+
+---
+
+# Notes & Best Practices
+- Prefer high-level APIs (`userMessage`, events) before using `raw`.
+- Use scoped instructions for temporary personas; remove them when done to avoid prompt drift.
+- Validate namespace uniqueness when designing dynamic store registries.
+- Use `stopSync` only in synchronous paths; otherwise `stop` is safer for consistency.

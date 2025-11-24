@@ -17,7 +17,8 @@ import { type registeredEvent, type eventIdToCallback, EventMap } from "./extend
 import type { FragolaHook } from "@src/hook/index";
 import { zodToJsonSchema } from "openai/_vendor/zod-to-json-schema/zodToJsonSchema.js"
 import type { ResponseFormatJSONSchema } from "openai/resources"
-import { AgentContext } from "@src/agentContext"
+import { AgentContext } from "@src/agentContext";
+import { STOP } from "@src/agentContext"
 
 export type AgentState<TMetaData extends DefineMetaData<any> = {}> = {
     messages: ChatCompletionMessageParam<TMetaData>[],
@@ -275,8 +276,17 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
             setOptions(options: SetOptionsParams): void {
                 _this.setOptions(options);
             }
-            async stop(): Promise<void> {
+            async stop(): Promise<{[STOP]: true}> {
                 await _this.stop();
+                return {
+                    [STOP]: true
+                }
+            }
+            stopSync(): {[STOP]: true} {
+                _this.stopSync();
+                return {
+                    [STOP]: true
+                }
             }
             updateTools(callback: (prev: Tool[]) => Tool[]): void {
 
@@ -525,6 +535,13 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         if (this.abortController) {
             this.abortController.abort();
         }
+    }
+
+    stopSync() {
+        this.stopRequested = true;
+        if (this.abortController) {
+            this.abortController.abort();
+        } 
     }
 
     private lastAiMessage(messages: OpenAI.ChatCompletionMessageParam[]): OpenAI.ChatCompletionAssistantMessageParam | undefined {

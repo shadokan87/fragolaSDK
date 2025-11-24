@@ -1,0 +1,312 @@
+---
+title: Events
+sidebarTitle: Events
+description: Observe and influence your Agent using an event-driven API.
+---
+
+# Overview
+
+Fragola Agents expose a rich event system so you can:
+- Inspect and mutate user and assistant messages.
+- Intercept tool calls and provide custom results.
+- Wrap the model call for tracing, retries or streaming transforms.
+- React to state and messages updates for persistence, metrics or side‑effects.
+
+You register handlers on the `Agent` itself (not on `AgentContext`) using methods like:
+- `agent.onUserMessage(...)`
+- `agent.onAiMessage(...)`
+- `agent.onToolCall(...)`
+- `agent.onModelInvocation(...)`
+- `agent.onAfterMessagesUpdate(...)`
+- `agent.onAfterStateUpdate(...)`
+
+Each method:
+- Returns an **unsubscribe** function.
+- Receives an `AgentContext` instance so handlers can read state, stores, tools, and instructions.
+
+<Callout type="warn">
+  Event handlers run inside the Agent execution loop. Avoid blocking operations and prefer short, deterministic logic or well‑bounded async calls.
+</Callout>
+
+---
+
+# onUserMessage
+Register a handler that runs when a user message is appended. Handlers can **inspect or mutate** the message before it is stored.
+
+Use this to:
+- Normalize/clean user input.
+- Attach metadata (routing hints, user IDs, feature flags).
+- Enforce guardrails (e.g. strip unsupported content types).
+
+**Examples**
+```ts
+// 1) Trim whitespace and collapse multiple spaces
+agent.onUserMessage((message, context) => {
+  const content = typeof message.content === 'string'
+    ? message.content.replace(/\s+/g, ' ').trim()
+    : message.content;
+  return { ...message, content };
+});
+
+// 2) Attach tenant metadata used by tools
+agent.onUserMessage((message, context) => {
+  return {
+    ...message,
+    meta: {
+      ...(message as any).meta,
+      tenantId: context.instance.store?.value.activeTenantId,
+    },
+  } as any;
+});
+
+// 3) Block empty messages
+agent.onUserMessage((message) => {
+  if (typeof message.content === 'string' && !message.content.trim()) {
+    throw new Error('Empty messages are not allowed');
+  }
+  return message;
+});
+```
+
+---
+
+# onAiMessage
+Register a handler that runs when an assistant message is generated or streamed. Handlers can **inspect and replace** the AI message.
+
+The callback signature is:
+- `(message, isPartial, context) => maybePromise<message>`
+
+Use this to:
+- Post‑process final answers (redaction, formatting, translation).
+- Inspect streaming partials for live UIs.
+- Enforce style guides or add disclaimers.
+
+**Examples**
+```ts
+// 1) Append a disclaimer to final answers only
+agent.onAiMessage((message, isPartial) => {
+  if (isPartial) return message;
+  if (typeof message.content === 'string') {
+    return {
+      ...message,
+      content: message.content + '\n\n_Disclaimer: experimental output._',
+    };
+  }
+  return message;
+});
+
+// 2) Redact secrets from any assistant content
+agent.onAiMessage((message) => {
+  if (typeof message.content === 'string') {
+    return {
+      ...message,
+      content: message.content.replace(/sk-[a-zA-Z0-9]+/g, '[REDACTED_KEY]'),
+    };
+  }
+  return message;
+});
+
+// 3) Mirror assistant messages into a metrics store
+agent.onAiMessage((message, isPartial, context) => {
+  if (isPartial) return message;
+  const metrics = context.getStore('metrics');
+  metrics?.update(v => ({
+    ...v,
+    lastAiMessageLength: (message.content as string)?.length ?? 0,
+  }));
+  return message;
+});
+```
+
+---
+
+# onToolCall
+Register a handler that runs when the agent needs to execute a tool. Handlers can:
+- Run the tool handler themselves and return a custom result.
+- Short‑circuit execution (e.g. from cache).
+- Compose multiple handlers for logging, validation, or routing.
+
+If no `toolCall` event returns a result, the Agent falls back to calling the tool's own `handler`.
+
+**Examples**
+```ts
+// 1) Simple logging wrapper around every tool call
+agent.onToolCall(async (params, tool, context) => {
+  console.log('Calling tool', tool.name, 'with', params);
+  const result = await (tool as any).handler(params, context);
+  console.log('Tool result', result);
+  return result;
+});
+
+// 2) Cache results for idempotent tools
+const cache = new Map<string, unknown>();
+agent.onToolCall(async (params, tool, context) => {
+  const key = `${tool.name}:${JSON.stringify(params)}`;
+  if (cache.has(key)) return cache.get(key);
+  const result = await (tool as any).handler(params, context);
+  cache.set(key, result);
+  return result;
+});
+
+// 3) Enforce access control for sensitive tools
+agent.onToolCall((params, tool, context) => {
+  if (tool.name === 'delete_user') {
+    const auth = context.getStore('auth');
+    const role = auth?.value.role;
+    if (role !== 'admin') {
+      throw new Error('Only admins can delete users');
+    }
+  }
+  return (tool as any).handler(params, context);
+});
+```
+
+---
+
+# onModelInvocation
+Wrap the underlying model call. Handlers receive:
+- `callAPI(processChunk?, modelSettingsOverride?, clientOptionsOverride?)`
+- `context: AgentContext`
+
+Use this to:
+- Implement retries, circuit breakers, or backoff.
+- Trace raw requests/responses.
+- Modify streaming chunks before they are applied to messages.
+- Override model settings per invocation without changing agent defaults.
+
+**Examples**
+```ts
+// 1) Add simple logging around the model call
+agent.onModelInvocation(async (callAPI, context) => {
+  const start = Date.now();
+  const aiMessage = await callAPI();
+  console.log('Model took', Date.now() - start, 'ms');
+  return aiMessage;
+});
+
+// 2) Implement a basic retry on transient errors
+agent.onModelInvocation(async (callAPI, context) => {
+  let lastError: unknown;
+  for (let i = 0; i < 3; i++) {
+    try {
+      return await callAPI();
+    } catch (e) {
+      lastError = e;
+    }
+  }
+  throw lastError;
+});
+
+// 3) Filter streaming chunks before they hit messages
+agent.onModelInvocation(async (callAPI, context) => {
+  const processChunk = (chunk: any, partial: any) => {
+    // Example: drop debug tags from the stream
+    const choice = chunk.choices?.[0];
+    if (choice?.delta?.content) {
+      choice.delta.content = choice.delta.content.replace('[DEBUG]', '');
+    }
+    return chunk;
+  };
+  return await callAPI(processChunk);
+});
+```
+
+---
+
+# onAfterMessagesUpdate
+Register a handler that runs **after** the messages array is updated for any reason.
+
+Signature:
+- `(reason, context) => maybePromise<void>`
+
+`reason` is a string describing why messages changed, e.g.:
+- `userMessage`
+- `toolCall`
+- `partialAiMessage`
+- `AiMessage`
+- or a removal reason like `remove:userMessage`.
+
+Use this to:
+- Persist transcripts.
+- Emit telemetry or analytics.
+- Trigger downstream systems.
+
+**Examples**
+```ts
+// 1) Persist messages whenever they change
+agent.onAfterMessagesUpdate((reason, context) => {
+  const messages = context.state.messages;
+  saveConversationToDB({ reason, messages });
+});
+
+// 2) Track how many tool calls happened
+agent.onAfterMessagesUpdate((reason, context) => {
+  if (reason !== 'toolCall') return;
+  const stats = context.getStore('stats');
+  stats?.update(v => ({
+    ...v,
+    toolCalls: (v.toolCalls ?? 0) + 1,
+  }));
+});
+
+// 3) Log when an AI message is finalized
+agent.onAfterMessagesUpdate((reason, context) => {
+  if (reason !== 'AiMessage') return;
+  const last = context.state.messages.at(-1);
+  console.log('Final AI message:', last);
+});
+```
+
+---
+
+# onAfterStateUpdate
+Register a handler that runs **after** the agent state changes (status, step count, etc.).
+
+Use this to:
+- Track lifecycle metrics (idle/generating/waiting).
+- Implement watchdogs and timeouts.
+- Drive external UIs or orchestrators.
+
+**Examples**
+```ts
+// 1) Log status transitions
+agent.onAfterStateUpdate((context) => {
+  console.log('Agent status:', context.state.status);
+});
+
+// 2) Emit metrics about step count
+agent.onAfterStateUpdate((context) => {
+  metricsClient.gauge('agent.steps', context.state.stepCount);
+});
+
+// 3) Trigger a timeout if agent generates too long
+agent.onAfterStateUpdate((context) => {
+  const { stepCount, status } = context.state;
+  if (status === 'generating' && stepCount > 20) {
+    context.stopSync();
+  }
+});
+```
+
+---
+
+# Unsubscribing and Composition
+All `on*` helpers return an unsubscribe function. Store and call it when you no longer need the handler (e.g. when disposing an agent instance or test).
+
+You can also register multiple handlers for the same event; they will run in the order they were added.
+
+**Examples**
+```ts
+// 1) Unsubscribe later
+const offUser = agent.onUserMessage((message) => message);
+// ... later
+offUser();
+
+// 2) Compose multiple analytics handlers
+const off1 = agent.onAfterStateUpdate(ctx => console.log('A', ctx.state.status));
+const off2 = agent.onAfterStateUpdate(ctx => console.log('B', ctx.state.status));
+
+// Teardown
+off1();
+off2();
+```

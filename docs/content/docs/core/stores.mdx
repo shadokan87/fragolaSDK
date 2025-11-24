@@ -1,0 +1,367 @@
+---
+title: Stores
+sidebarTitle: Stores
+description: Shared state management for your agents using global and namespaced stores.
+---
+
+# Overview
+
+Stores in Fragola provide a simple, reactive way to manage shared state across your agents, tools, and hooks. Use stores to:
+- Keep track of information that agents or tools need to remember or share.
+- Maintain global state across multiple agents (Fragola-level stores).
+- Create modular, namespaced state for specific features or domains (per-agent stores).
+- React to state changes via callbacks for persistence or side-effects.
+
+Fragola supports two levels of stores:
+- **Global stores** – Attached to the Fragola instance, shared across all agents.
+- **Namespaced stores** – Attached per agent or per Fragola instance, isolated by namespace.
+
+<Callout type="info">
+  Stores are designed for in-memory state. For persistence, use the `onChange` callback or events to sync changes to your database or filesystem.
+</Callout>
+
+---
+
+# Creating a Store
+
+Use `createStore` to create a new store with an initial value and an optional namespace:
+
+```typescript
+import { createStore } from "@fragola-ai/agentic-sdk-core";
+
+// Create a simple store (no namespace)
+const myStore = createStore({ counter: 0 });
+
+// Create a namespaced store
+const analyticsStore = createStore({ events: [] }, "analytics");
+```
+
+---
+
+# Store API
+
+## value
+
+Get the current store value.
+
+**Examples**
+```typescript
+const store = createStore({ count: 0 });
+
+console.log(store.value); // { count: 0 }
+```
+
+---
+
+## set
+
+Replace the stored value with a new value.
+
+**Examples**
+```typescript
+const store = createStore({ count: 0 });
+
+// Replace the entire value
+store.set({ count: 10 });
+
+console.log(store.value); // { count: 10 }
+```
+
+---
+
+## update
+
+Change the stored value based on its previous state. Useful for partial updates.
+
+**Examples**
+```typescript
+const store = createStore({ count: 0, name: "test" });
+
+// Increment the counter
+store.update(prev => ({ ...prev, count: prev.count + 1 }));
+
+console.log(store.value); // { count: 1, name: "test" }
+```
+
+---
+
+## onChange
+
+Register a callback function to be invoked whenever the store changes.
+
+**Examples**
+```typescript
+const store = createStore({ count: 0 });
+
+// React to changes
+store.onChange(value => {
+  console.log("Store updated:", value);
+});
+
+store.update(prev => ({ ...prev, count: 1 }));
+// Logs: "Store updated: { count: 1 }"
+```
+
+---
+
+## namespace
+
+Get the store's namespace (if defined).
+
+**Examples**
+```typescript
+const store = createStore({ value: 42 }, "myNamespace");
+
+console.log(store.namespace); // "myNamespace"
+```
+
+---
+
+# Global Stores (Fragola-level)
+
+Global stores are attached to the Fragola instance and can be accessed by all agents.
+
+## Setting a Default Global Store
+
+Pass a store when creating the Fragola client:
+
+```typescript
+import { Fragola, createStore } from "@fragola-ai/agentic-sdk-core";
+
+const globalStore = createStore({ activeTenantId: "tenant-123" });
+
+const fragola = new Fragola(
+  { apiKey: process.env.OPENAI_API_KEY, model: "gpt-4o-mini" },
+  globalStore
+);
+
+// Access from the Fragola instance
+console.log(fragola.store?.value); // { activeTenantId: "tenant-123" }
+```
+
+## Adding Namespaced Stores to Fragola
+
+Add additional namespaced stores that all agents can access:
+
+```typescript
+const analyticsStore = createStore({ events: [] }, "analytics");
+
+fragola.addStore(analyticsStore);
+
+// Access by namespace
+const analytics = fragola.getStore("analytics");
+console.log(analytics?.value); // { events: [] }
+```
+
+## Removing Stores from Fragola
+
+```typescript
+fragola.removeStore("analytics");
+
+// Returns undefined after removal
+console.log(fragola.getStore("analytics")); // undefined
+```
+
+---
+
+# Agent-level Stores
+
+Each agent can have its own default store and additional namespaced stores.
+
+## Setting a Default Agent Store
+
+Pass a store when creating an agent:
+
+```typescript
+const agentStore = createStore({ turns: 0 }, "main");
+
+const agent = fragola.agent({
+  name: "Assistant",
+  instructions: "You are a helpful assistant.",
+  description: "General purpose assistant",
+  store: agentStore
+});
+
+// Access from agent context
+console.log(agent.context.store.value); // { turns: 0 }
+```
+
+## Adding Namespaced Stores to an Agent
+
+```typescript
+const taskStore = createStore({ tasks: [] }, "tasks");
+
+agent.context.addStore(taskStore);
+
+// Access by namespace
+const tasks = agent.context.getStore("tasks");
+console.log(tasks?.value); // { tasks: [] }
+```
+
+## Removing Stores from an Agent
+
+```typescript
+agent.context.removeStore("tasks");
+
+// Returns undefined after removal
+console.log(agent.context.getStore("tasks")); // undefined
+```
+
+---
+
+# Accessing Stores from Tools
+
+Tools receive the agent context, allowing them to read and write to stores:
+
+```typescript
+import { tool } from "@fragola-ai/agentic-sdk-core";
+import { z } from "zod";
+
+const incrementCounterTool = tool({
+  name: "increment_counter",
+  description: "Increment the counter in the store",
+  schema: z.object({}),
+  handler: async (params, context) => {
+    // Access and update the default store
+    context.store.update(prev => ({
+      ...prev,
+      count: (prev.count ?? 0) + 1
+    }));
+
+    return { newCount: context.store.value.count };
+  }
+});
+
+const getAnalyticsTool = tool({
+  name: "get_analytics",
+  description: "Get analytics data from the namespaced store",
+  schema: z.object({}),
+  handler: async (params, context) => {
+    // Access a namespaced store
+    const analytics = context.getStore("analytics");
+    return analytics?.value ?? { events: [] };
+  }
+});
+```
+
+---
+
+# Accessing Stores from Events
+
+Event handlers also have access to the agent context:
+
+```typescript
+agent.onAiMessage((message, isPartial, context) => {
+  if (isPartial) return message;
+
+  // Update a metrics store when AI responds
+  const metrics = context.getStore("metrics");
+  metrics?.update(v => ({
+    ...v,
+    responseCount: (v.responseCount ?? 0) + 1
+  }));
+
+  return message;
+});
+
+agent.onAfterMessagesUpdate((reason, context) => {
+  // Persist store to database on message updates
+  const store = context.store;
+  saveToDatabase(store.value);
+});
+```
+
+---
+
+# Best Practices
+
+## Namespace Uniqueness
+
+Always use unique namespaces to avoid collisions:
+
+```typescript
+// Good: descriptive, unique namespaces
+const authStore = createStore({ token: null }, "auth");
+const analyticsStore = createStore({ events: [] }, "analytics");
+const routerStore = createStore({ currentRoute: "/" }, "router");
+
+// Bad: generic or duplicate namespaces
+const store1 = createStore({}, "data"); // Too generic
+const store2 = createStore({}, "data"); // Duplicate! Will throw
+```
+
+## Use Stores for Shared State
+
+Stores are ideal for state that needs to be accessed across tools, events, or hooks:
+
+```typescript
+// Store user context accessible by all tools
+const userStore = createStore({
+  userId: "user-123",
+  permissions: ["read", "write"]
+}, "user");
+
+agent.context.addStore(userStore);
+```
+
+## React to Changes for Persistence
+
+Use `onChange` to persist store updates:
+
+```typescript
+const sessionStore = createStore({ messages: [] }, "session");
+
+sessionStore.onChange(value => {
+  // Persist to localStorage, database, or file
+  localStorage.setItem("session", JSON.stringify(value));
+});
+```
+
+## Clean Up Stores When Done
+
+Remove stores that are no longer needed to free memory and avoid namespace conflicts:
+
+```typescript
+// After a task is complete
+agent.context.removeStore("tempTaskData");
+```
+
+---
+
+# Error Handling
+
+## Missing Namespace
+
+Adding a store without a namespace throws an error:
+
+```typescript
+const store = createStore({ value: 1 }); // No namespace
+
+// This will throw:
+agent.context.addStore(store);
+// Error: Cannot add a store without a namespace
+```
+
+## Duplicate Namespace
+
+Adding a store with an existing namespace throws an error:
+
+```typescript
+const store1 = createStore({ value: 1 }, "myStore");
+const store2 = createStore({ value: 2 }, "myStore");
+
+agent.context.addStore(store1); // OK
+agent.context.addStore(store2); // Throws: namespace 'myStore' already exists
+```
+
+## Missing Store Access
+
+Accessing a non-existent store returns `undefined`:
+
+```typescript
+const store = agent.context.getStore("nonexistent");
+console.log(store); // undefined
+
+// Always check before using
+store?.update(v => ({ ...v, count: 1 }));
+```

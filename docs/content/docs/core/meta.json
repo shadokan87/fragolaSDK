@@ -4,6 +4,7 @@
   "pages": [
     "basics",
     "tools",
-    "context"
+    "context",
+    "events"
   ]
 }

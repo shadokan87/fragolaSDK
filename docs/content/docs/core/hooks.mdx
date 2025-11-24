@@ -1,0 +1,406 @@
+---
+title: Hooks
+sidebarTitle: Hooks
+description: Extend and customize agent behavior with reusable, composable hooks.
+---
+
+# Overview
+
+Hooks are plug-in style middleware that let you extend and customize agent behavior. They:
+- Encapsulate reusable logic (persistence, MCP integration, guardrails, orchestration).
+- Register event handlers or modify agent configuration.
+- Initialize asynchronously and in sequence, ensuring tools and state are ready before generation.
+
+Use hooks to compose complex behaviors from simple building blocks without cluttering your main agent code.
+
+<Callout type="info">
+  Hooks are similar to events but are designed for reusable, self-contained behaviors. Prefer hooks when you want to package functionality for reuse across agents.
+</Callout>
+
+---
+
+# Creating a Hook
+
+A hook is a function that receives an `Agent` and may register event handlers, add stores, or modify the agent's configuration.
+
+```typescript
+import { Hook } from "@fragola-ai/agentic-sdk-core/hook";
+
+// Simple hook that logs every user message
+const loggingHook = Hook((agent) => {
+  agent.onUserMessage((message, context) => {
+    console.log("User said:", message.content);
+    return message;
+  });
+});
+
+// Async hook that fetches configuration before registering tools
+const configHook = Hook(async (agent) => {
+  const config = await fetchConfig();
+  agent.context.updateTools((tools) => [
+    ...tools,
+    createToolFromConfig(config)
+  ]);
+});
+```
+
+The `Hook()` helper is optional—it simply returns the function you pass in. It exists for consistency and readability.
+
+---
+
+# Attaching Hooks with `.use()`
+
+Attach hooks to an agent using the `.use()` method. Hooks are initialized in sequence, so each hook can rely on state set by previous hooks.
+
+```typescript
+import { Fragola } from "@fragola-ai/agentic-sdk-core";
+import { fileSystemSave, guardrail } from "@fragola-ai/agentic-sdk-core/hook/presets";
+
+const fragola = new Fragola({
+  apiKey: process.env.OPENAI_API_KEY,
+  model: "gpt-4o-mini"
+});
+
+const agent = fragola.agent({
+  name: "assistant",
+  instructions: "You are a helpful assistant.",
+  description: "General purpose assistant"
+})
+  .use(fileSystemSave("./conversations"))
+  .use(guardrail([myGuardrail]));
+```
+
+The `.use()` method returns the agent, so you can chain multiple hooks.
+
+---
+
+# Hook Execution Order
+
+Hooks initialize in the order they are attached via `.use()`. Initialization is **serialized**—each hook's initialization completes before the next begins. This ensures:
+- Tools registered by earlier hooks are available to later hooks.
+- Stores added by earlier hooks can be accessed by later hooks.
+- Configuration changes are applied in a predictable order.
+
+```typescript
+// Hook A initializes first, Hook B second
+agent.use(hookA).use(hookB);
+
+// When agent.userMessage() is called, hooks are already initialized
+await agent.userMessage({ content: "Hello" });
+```
+
+<Callout type="warn">
+  Avoid long-running async operations in hooks. They block agent initialization and delay the first user message.
+</Callout>
+
+---
+
+# Built-in Hook Presets
+
+Fragola provides several ready-to-use hook presets for common patterns.
+
+## fileSystemSave
+
+Automatically persists conversation messages to the filesystem after each update.
+
+```typescript
+import { fileSystemSave } from "@fragola-ai/agentic-sdk-core/hook/presets";
+
+const agent = fragola.agent({
+  name: "assistant",
+  instructions: "You are a helpful assistant.",
+  description: "General purpose assistant"
+}).use(fileSystemSave("./conversations"));
+
+await agent.userMessage({ content: "Hello world" });
+// Creates: ./conversations/Hel...rld.json
+```
+
+**How it works:**
+- Saves messages as JSON files after each non-partial update.
+- File names are derived from the first user message content.
+- Handles filename conflicts by appending a unique nonce.
+
+---
+
+## guardrail
+
+Validate user messages against custom guardrails before they are processed.
+
+```typescript
+import { guardrail, fail, type Guardrail } from "@fragola-ai/agentic-sdk-core/hook/presets";
+
+// Define a guardrail that rejects empty messages
+const noEmptyMessages: Guardrail = (fail, message, context) => {
+  const content = typeof message.content === "string" 
+    ? message.content 
+    : "";
+  if (!content.trim()) {
+    return fail("Empty messages are not allowed");
+  }
+};
+
+// Define a guardrail that blocks certain topics
+const noSensitiveTopics: Guardrail = (fail, message, context) => {
+  const content = typeof message.content === "string" 
+    ? message.content.toLowerCase() 
+    : "";
+  if (content.includes("password") || content.includes("secret")) {
+    return fail("Messages about sensitive topics are not allowed");
+  }
+};
+
+const agent = fragola.agent({
+  name: "assistant",
+  instructions: "You are a helpful assistant.",
+  description: "General purpose assistant"
+}).use(guardrail([noEmptyMessages, noSensitiveTopics]));
+```
+
+**How it works:**
+- Each guardrail receives `fail`, `message`, and `context`.
+- If a guardrail returns `fail(reason)`, the message is rejected.
+- By default, rejected messages are kept but annotated with metadata.
+- Use the second parameter to change rejection behavior: `"keepAndAnnotate"` (default) or `"remove"`.
+
+**Handling Guardrail Rejections:**
+
+```typescript
+import { GuardrailConstrain } from "@fragola-ai/agentic-sdk-core/hook/presets";
+
+try {
+  await agent.userMessage({ content: "" });
+} catch (e) {
+  if (e instanceof GuardrailConstrain) {
+    console.log("Guardrail rejected:", e.message);
+    console.log("Guardrail name:", e.cause);
+  }
+}
+```
+
+---
+
+## orchestration
+
+Enable multi-agent communication with automatic tool injection and system prompt augmentation.
+
+```typescript
+import { orchestration } from "@fragola-ai/agentic-sdk-core/hook/presets";
+
+const researcher = fragola.agent({
+  name: "researcher",
+  instructions: "You research topics and provide information.",
+  description: "A research specialist that gathers information"
+});
+
+const writer = fragola.agent({
+  name: "writer",
+  instructions: "You write content based on research.",
+  description: "A content writer that creates articles"
+});
+
+const lead = fragola.agent({
+  name: "lead",
+  instructions: "You coordinate research and writing tasks.",
+  description: "Project coordinator"
+}).use(orchestration((lead) => ({
+  participants: [lead, researcher, writer],
+  flow: [
+    // Lead can message all participants, and they can message lead back
+    [lead, { to: "*", bidirectional: true }]
+  ]
+})));
+
+// Lead can now use `message_agent` tool to communicate with other agents
+await lead.userMessage({ 
+  content: "Research AI trends and write a summary" 
+});
+```
+
+**How it works:**
+- Injects a `message_agent` tool that sends messages to other agents.
+- Augments system prompts with information about available agents.
+- Supports directional and bidirectional communication flows.
+- Use `"*"` wildcard to allow communication with all participants.
+
+**Flow Configuration:**
+
+```typescript
+// Specific agent-to-agent flow
+[agentA, { to: agentB }]
+
+// Bidirectional flow (A can message B, B can message A)
+[agentA, { to: agentB, bidirectional: true }]
+
+// Wildcard flow (A can message all other participants)
+[agentA, { to: "*" }]
+
+// Bidirectional wildcard (all agents can message each other through A)
+[agentA, { to: "*", bidirectional: true }]
+```
+
+**Message Interception:**
+
+```typescript
+const lead = fragola.agent({...}).use(orchestration((lead) => ({
+  participants: [lead, researcher, writer],
+  flow: [[lead, { to: "*", bidirectional: true }]],
+  onMessage: async (source, dest, message, reject) => {
+    // Inspect or modify messages between agents
+    if (dest.options.name === "researcher") {
+      return { ...message, content: `[PRIORITY] ${message.content}` };
+    }
+    // Reject certain messages
+    if (message.content.includes("skip")) {
+      return reject("Message rejected by policy");
+    }
+    return message;
+  }
+})));
+```
+
+---
+
+## mcpClient
+
+Connect to Model Context Protocol (MCP) servers and expose their tools to the agent.
+
+```typescript
+import { mcpClient } from "@fragola-ai/agentic-sdk-core/hook/presets";
+
+const agent = fragola.agent({
+  name: "assistant",
+  instructions: "You have access to external tools via MCP.",
+  description: "MCP-enabled assistant"
+}).use(mcpClient({
+  client: {
+    name: "my-mcp-client",
+    url: "http://localhost:3000/mcp"
+  }
+}));
+
+// Agent now has access to tools from the MCP server
+await agent.userMessage({ content: "Use the available tools to help me" });
+```
+
+**How it works:**
+- Connects to an MCP server using Streamable HTTP transport.
+- Fetches available tools and registers them with the agent.
+- Handles tool list change notifications to keep tools in sync.
+- Validates tool parameters using AJV with the provided JSON schemas.
+
+**Multiple MCP Servers:**
+
+You can pass an array of configurations to connect to multiple MCP servers:
+
+```typescript
+const agent = fragola.agent({...}).use(mcpClient([
+  { client: { name: "server-a", url: "http://localhost:3000/mcp" } },
+  { client: { name: "server-b", url: "http://localhost:3001/mcp" } }
+]));
+```
+
+**Custom Schema Validation:**
+
+```typescript
+const agent = fragola.agent({...}).use(mcpClient({
+  client: { name: "my-client", url: "http://localhost:3000/mcp" },
+  schemaValidation: {
+    strict: true,
+    removeAdditional: false
+  }
+}));
+```
+
+---
+
+# Building Custom Hooks
+
+Create custom hooks to encapsulate your own reusable behaviors.
+
+**Examples**
+
+```typescript
+// 1) Analytics hook that tracks message counts
+const analyticsHook = Hook((agent) => {
+  let userMessages = 0;
+  let aiMessages = 0;
+
+  agent.onUserMessage((message, context) => {
+    userMessages++;
+    return message;
+  });
+
+  agent.onAiMessage((message, isPartial, context) => {
+    if (!isPartial) aiMessages++;
+    return message;
+  });
+
+  agent.onAfterStateUpdate((context) => {
+    if (context.state.status === "idle") {
+      console.log(`Session stats: ${userMessages} user, ${aiMessages} AI`);
+    }
+  });
+});
+
+// 2) Rate limiting hook
+const rateLimitHook = (maxPerMinute: number) => Hook((agent) => {
+  const timestamps: number[] = [];
+
+  agent.onUserMessage((message, context) => {
+    const now = Date.now();
+    const oneMinuteAgo = now - 60000;
+    
+    // Remove old timestamps
+    while (timestamps.length && timestamps[0] < oneMinuteAgo) {
+      timestamps.shift();
+    }
+    
+    if (timestamps.length >= maxPerMinute) {
+      throw new Error("Rate limit exceeded");
+    }
+    
+    timestamps.push(now);
+    return message;
+  });
+});
+
+// 3) Context injection hook
+const contextInjectionHook = (getContext: () => Promise<string>) => Hook(async (agent) => {
+  const contextData = await getContext();
+  const originalInstructions = agent.context.getInstructions() ?? "";
+  agent.context.setInstructions(
+    `${originalInstructions}\n\nContext: ${contextData}`
+  );
+});
+
+// Usage
+const agent = fragola.agent({...})
+  .use(analyticsHook)
+  .use(rateLimitHook(10))
+  .use(contextInjectionHook(async () => {
+    return await fetchUserPreferences();
+  }));
+```
+
+---
+
+# Hooks vs Events
+
+| Aspect | Hooks | Events |
+|--------|-------|--------|
+| **Purpose** | Reusable, self-contained behaviors | One-off handlers for specific use cases |
+| **Scope** | Package multiple event handlers together | Single event handler |
+| **Initialization** | Async, serialized on attach | Sync, immediate |
+| **Reusability** | Designed for sharing across agents | Typically agent-specific |
+| **Configuration** | Can accept parameters (factory pattern) | Inline configuration |
+
+**When to use hooks:**
+- Building reusable middleware (logging, persistence, rate limiting).
+- Integrating with external systems (MCP, databases).
+- Packaging complex behaviors for distribution.
+
+**When to use events:**
+- One-off customizations for a specific agent.
+- Quick prototyping and experimentation.
+- Simple transformations that don't need reuse.

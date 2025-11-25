@@ -10,6 +10,7 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  /* Theme token mapping for shadcn/fumadocs */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -45,75 +46,80 @@
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(0.98 0.003 330);
-  --foreground: oklch(0.2 0.005 325);
-  --card: oklch(0.995 0.002 325);
-  --card-foreground: oklch(0.2 0.005 325);
-  --popover: oklch(0.995 0.002 325);
-  --popover-foreground: oklch(0.2 0.005 325);
-  /* Primary: Pink/Magenta (#C9184A) */
-  --primary: oklch(0.52 0.22 350);
+  /* Light mode – warm neutral background with pink/purple accents */
+  --background: oklch(0.98 0.01 340);
+  --foreground: oklch(0.22 0.02 330);
+  /* Code / cards: same hue as background, just a bit darker */
+  --card: oklch(0.95 0.01 340);
+  --card-foreground: var(--foreground);
+  --popover: oklch(0.99 0.01 340);
+  --popover-foreground: var(--foreground);
+  /* Primary: Pink/Magenta range only */
+  --primary: oklch(0.58 0.22 340);
   --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.94 0.004 328);
-  --secondary-foreground: oklch(0.2 0.005 325);
-  --muted: oklch(0.94 0.004 328);
-  --muted-foreground: oklch(0.5 0.005 325);
-  --accent: oklch(0.95 0.006 350);
-  --accent-foreground: oklch(0.52 0.22 350);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.9 0.005 328);
-  --input: oklch(0.9 0.005 328);
-  --ring: oklch(0.52 0.22 350);
-  --chart-1: oklch(0.52 0.22 350);
-  --chart-2: oklch(0.55 0.15 340);
-  --chart-3: oklch(0.6 0.18 355);
-  --chart-4: oklch(0.58 0.2 345);
-  --chart-5: oklch(0.56 0.19 335);
+  --secondary: oklch(0.94 0.01 340);
+  --secondary-foreground: var(--foreground);
+  --muted: oklch(0.94 0.01 340);
+  --muted-foreground: oklch(0.55 0.02 335);
+  --accent: oklch(0.96 0.02 345);
+  --accent-foreground: var(--primary);
+  --destructive: oklch(0.60 0.20 22);
+  --border: oklch(0.90 0.01 340);
+  --input: oklch(0.90 0.01 340);
+  --ring: var(--primary);
+  /* Charts stay within pink/purple hues */
+  --chart-1: var(--primary);
+  --chart-2: oklch(0.60 0.18 335);
+  --chart-3: oklch(0.63 0.20 345);
+  --chart-4: oklch(0.66 0.16 350);
+  --chart-5: oklch(0.57 0.17 330);
   /* Sidebar with pink/magenta accent */
-  --sidebar: oklch(0.98 0.003 330);
-  --sidebar-foreground: oklch(0.2 0.005 325);
-  --sidebar-primary: oklch(0.52 0.22 350);
-  --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.95 0.006 350);
-  --sidebar-accent-foreground: oklch(0.52 0.22 350);
-  --sidebar-border: oklch(0.9 0.005 328);
-  --sidebar-ring: oklch(0.52 0.22 350);
+  --sidebar: var(--background);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--accent);
+  --sidebar-accent-foreground: var(--accent-foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
 }
 
 .dark {
-  --background: oklch(0.08 0.003 330);
-  --foreground: oklch(0.96 0.005 330);
-  --card: oklch(0.1 0.003 325);
-  --card-foreground: oklch(0.96 0.005 330);
-  --popover: oklch(0.1 0.003 325);
-  --popover-foreground: oklch(0.96 0.005 330);
-  /* Primary: Brighter pink/magenta for dark mode */
-  --primary: oklch(0.62 0.24 350);
-  --primary-foreground: oklch(0.08 0.003 330);
-  --secondary: oklch(0.14 0.004 328);
-  --secondary-foreground: oklch(0.96 0.005 330);
-  --muted: oklch(0.14 0.004 328);
-  --muted-foreground: oklch(0.65 0.005 330);
-  --accent: oklch(0.16 0.006 350);
-  --accent-foreground: oklch(0.62 0.24 350);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(0.18 0.004 328);
-  --input: oklch(0.2 0.004 328);
-  --ring: oklch(0.62 0.24 350);
-  --chart-1: oklch(0.62 0.24 350);
-  --chart-2: oklch(0.6 0.2 340);
-  --chart-3: oklch(0.65 0.22 355);
-  --chart-4: oklch(0.63 0.23 345);
-  --chart-5: oklch(0.61 0.21 335);
+  /* Dark mode – neutral greys with pink/purple accents, no blue */
+  --background: oklch(0.18 0 0);
+  --foreground: oklch(0.96 0.02 330);
+  /* Darker cards for content/code */
+  --card: oklch(0.13 0 0);
+  --card-foreground: var(--foreground);
+  --popover: oklch(0.20 0 0);
+  --popover-foreground: var(--foreground);
+  /* Brighter pink/magenta primary for dark mode */
+  --primary: oklch(0.65 0.23 340);
+  --primary-foreground: oklch(0.12 0.02 330);
+  --secondary: oklch(0.20 0.02 330);
+  --secondary-foreground: var(--foreground);
+  --muted: oklch(0.19 0.015 330);
+  --muted-foreground: oklch(0.70 0.02 335);
+  --accent: oklch(0.23 0.03 345);
+  --accent-foreground: var(--primary);
+  --destructive: oklch(0.70 0.19 22.216);
+  --border: oklch(0.23 0.01 330);
+  --input: oklch(0.23 0.01 330);
+  --ring: var(--primary);
+  --chart-1: var(--primary);
+  --chart-2: oklch(0.63 0.20 335);
+  --chart-3: oklch(0.67 0.22 345);
+  --chart-4: oklch(0.61 0.18 350);
+  --chart-5: oklch(0.60 0.19 330);
   /* Sidebar with pink/magenta accent for dark mode */
-  --sidebar: oklch(0.1 0.003 325);
-  --sidebar-foreground: oklch(0.96 0.005 330);
-  --sidebar-primary: oklch(0.62 0.24 350);
-  --sidebar-primary-foreground: oklch(0.08 0.003 330);
-  --sidebar-accent: oklch(0.16 0.006 350);
-  --sidebar-accent-foreground: oklch(0.62 0.24 350);
-  --sidebar-border: oklch(0.18 0.004 328);
-  --sidebar-ring: oklch(0.62 0.24 350);
+  --sidebar: var(--background);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--accent);
+  --sidebar-accent-foreground: var(--accent-foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
 }
 
 @layer base {
@@ -132,5 +138,13 @@
 
   .dark .logo-image {
     filter: none;
+  }
+
+  /* Make sidebar nav buttons/links transparent, except search button */
+  #nd-sidebar button:not([data-search-full]),
+  #nd-sidebar a:not([data-search-full]),
+  #nd-sidebar [role='button']:not([data-search-full]) {
+    background-color: transparent !important;
+    box-shadow: none !important;
   }
 }

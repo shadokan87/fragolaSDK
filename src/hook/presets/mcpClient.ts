@@ -22,6 +22,7 @@ type NotificationBase = {
         } | undefined;
     } | undefined;
 }
+type NotificationParams = Pick<NotificationBase, "params">;
 
 export const storeNamespace = "mcpClient";
 
@@ -36,17 +37,22 @@ export const mcpClient = (options: options[] | options): FragolaHook => {
             agent.context.addStore(createStore<storeType>({
                 clients: new Map()
             }, storeNamespace))
+        } else {
+            throw new Error(`Store namespace '${storeNamespace}' is taken.`)
         }
+        const allClients: Client[] = [];
         const single = async (opt: options) => {
             let client: Client;
             if (opt.client instanceof Client) {
-                client = opt.client
+                client = opt.client;
+                allClients.push(client);
             } else {
                 const transport = new StreamableHTTPClientTransport(new URL(opt.client.url));
                 client = new Client({
                     name: opt.client.name,
                     version: "1.0",
                 });
+                allClients.push(client);
                 await client.connect(transport);
             }
             type RemoteTool = Awaited<ReturnType<typeof client.listTools>>["tools"][0];
@@ -119,10 +125,16 @@ export const mcpClient = (options: options[] | options): FragolaHook => {
                     params: payload.params ? z.any() : z.undefined().optional()
                 });
             };
-
+            const notifications = {
+                tools: {
+                    listChanged: <T extends NotificationParams>(params?: T) => method<ToolListChangedNotification>({
+                        method: "notifications/tools/list_changed",
+                        params
+                    })
+                }
+            }
             tools: {
-                const toolListChanged = method<ToolListChangedNotification>({ method: "notifications/tools/list_changed" });
-                client!.setNotificationHandler(toolListChanged, async () => {
+                client!.setNotificationHandler(notifications.tools.listChanged(), async () => {
                     agent.context.updateTools((prev) => prev.filter(p => remoteTools.some(r => r.name == p.name)));
                     await syncRemoteTools();
                 });
@@ -132,9 +144,11 @@ export const mcpClient = (options: options[] | options): FragolaHook => {
         const _options = Array.isArray(options) ? options : [options];
             await single(_options[0]);
 
-        const dispose: FragolaHookDispose = () => {
-
-        };
-        console.log("#end hook", agent.context.options.tools?.length)
+        return async () => {
+            agent.context.removeStore(storeNamespace);
+            for (const client of allClients) {
+                await client.close();
+            }
+        }
     }
 }

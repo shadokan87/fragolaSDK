@@ -5,8 +5,7 @@ const withMDX = createMDX();
 /** @type {import('next').NextConfig} */
 const config = {
   reactStrictMode: true,
-  basePath: "/docs",
-  assetPrefix: "/docs"
+  assetPrefix: "https://fragola-sdk.vercel.app"
 };
 
 export default withMDX(config);

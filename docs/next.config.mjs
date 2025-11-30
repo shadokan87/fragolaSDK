@@ -5,9 +5,14 @@ const withMDX = createMDX();
 /** @type {import('next').NextConfig} */
 const config = {
   reactStrictMode: true,
-  assetPrefix: "https://www.fragola.ai",
   async rewrites() {
     return {
+      afterFiles: [
+        {
+          source: '/_next/:path*',
+          destination: 'https://fragola-sdk-landing.vercel.app/_next/:path*',
+        },
+      ],
       fallback: [
         {
           source: '/:path*',

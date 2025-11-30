@@ -6,10 +6,12 @@ const withMDX = createMDX();
 const config = {
   reactStrictMode: true,
   async rewrites() {
-    return [{
-      source: "/",
-      destination: "https://fragola-sdk-landing.vercel.app"
-    }]
+    return [
+      {
+        source: '/:path*',
+        destination: 'https://fragola-sdk-landing.vercel.app/:path*',
+      },
+    ];
   },
 };
 

@@ -4,7 +4,15 @@ const withMDX = createMDX();
 
 /** @type {import('next').NextConfig} */
 const config = {
-  reactStrictMode: true
+  reactStrictMode: true,
+  async rewrites() {
+    return [
+      {
+        source: '/',
+        destination: 'https://fragola-sdk-landing.vercel.app',
+      },
+    ];
+  },
 };
 
 export default withMDX(config);

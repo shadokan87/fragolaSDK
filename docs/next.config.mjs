@@ -9,12 +9,8 @@ const config = {
     return [
       {
         source: '/',
-        destination: '/docs',
-      },
-      {
-        source: '/:slug*',
-        destination: '/docs/:slug*',
-      },
+        destination: 'https://fragola-sdk-landing.vercel.app',
+      }
     ];
   },
 };

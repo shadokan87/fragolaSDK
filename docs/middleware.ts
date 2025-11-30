@@ -4,24 +4,36 @@ import type { NextRequest } from 'next/server'
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Check if the request is for the docs app itself
-  // We exclude:
-  // - /docs (the main docs route)
-  // - /api (API routes)
-  // - /_next (Next.js internals)
-  // - /static (static files)
-  // - files with extensions (e.g. robots.txt, images)
-  if (
-    pathname.startsWith('/docs') ||
-    pathname.startsWith('/api') ||
-    pathname.startsWith('/_next') ||
-    pathname.startsWith('/static') ||
-    pathname.includes('.')
-  ) {
+//   // Check if the request is for the docs app itself
+//   // We exclude:
+//   // - /docs (the main docs route)
+//   // - /api (API routes)
+//   // - /_next (Next.js internals)
+//   // - /static (static files)
+//   // - files with extensions (e.g. robots.txt, images)
+//   // Keep requests for the docs app and API routes local
+  if (pathname.startsWith('/docs') || pathname.startsWith('/api')) {
     return NextResponse.next()
   }
 
+//   // Rewrite asset requests (/_next, static files, files with extensions)
+//   // to the landing origin so assets are resolved against that host while
+//   // preserving the browser URL.
+//   if (
+//     pathname.startsWith('/_next') ||
+//     pathname.startsWith('/static') ||
+//     pathname.includes('.')
+//   ) {
+//     const url = request.nextUrl.clone()
+//     const destination = new URL(pathname, 'https://fragola-sdk-landing.vercel.app')
+//     destination.search = url.search
+
+//     return NextResponse.rewrite(destination)
+//   }
+
   // For everything else (e.g. the root path '/'), rewrite to the landing page
+  // to preserve the original URL in the browser while serving the landing
+  // content. We keep rewrite here as requested.
   const url = request.nextUrl.clone()
   const destination = new URL(pathname, 'https://fragola-sdk-landing.vercel.app')
   destination.search = url.search
@@ -31,13 +43,6 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+    '/:path*',
   ],
 }

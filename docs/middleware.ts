@@ -16,20 +16,17 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-//   // Rewrite asset requests (/_next, static files, files with extensions)
-//   // to the landing origin so assets are resolved against that host while
-//   // preserving the browser URL.
-//   if (
-//     pathname.startsWith('/_next') ||
-//     pathname.startsWith('/static') ||
-//     pathname.includes('.')
-//   ) {
-//     const url = request.nextUrl.clone()
-//     const destination = new URL(pathname, 'https://fragola-sdk-landing.vercel.app')
-//     destination.search = url.search
-
-//     return NextResponse.rewrite(destination)
-//   }
+  // Allow Next.js internals and static asset requests (including
+  // `/_next/image` optimizer requests and files with extensions) to pass
+  // through the middleware unchanged so the image optimizer can handle
+  // them and local/static assets are served normally.
+  if (
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/static') ||
+    pathname.includes('.')
+  ) {
+    return NextResponse.next()
+  }
 
   // For everything else (e.g. the root path '/'), rewrite to the landing page
   // to preserve the original URL in the browser while serving the landing

@@ -10,6 +10,12 @@ const config = {
       {
         source: '/',
         destination: 'https://fragola-sdk-landing.vercel.app',
+        fallback: [
+          {
+            source: '/:path*',
+            destination: `https://fragola-sdk-landing.vercel.app/:path*`,
+          },
+        ]
       },
     ];
   },

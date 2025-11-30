@@ -11,9 +11,12 @@ const config = {
         source: '/',
         destination: '/docs',
       },
+      {
+        source: '/:slug*',
+        destination: '/docs/:slug*',
+      },
     ];
   },
-  // assetPrefix: "https://fragola-sdk.vercel.app"
 };
 
 export default withMDX(config);

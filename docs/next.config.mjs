@@ -5,6 +5,7 @@ const withMDX = createMDX();
 /** @type {import('next').NextConfig} */
 const config = {
   reactStrictMode: true,
+  assetPrefix: '/docs',
 };
 
 export default withMDX(config);

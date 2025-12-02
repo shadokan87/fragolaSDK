@@ -4,6 +4,7 @@ import Image from 'next/image';
 export function baseOptions(): BaseLayoutProps {
   return {
     nav: {
+    url: process.env["NEXT_PUBLIC_TITLE_URL"],
       title: (
         <>
           <Image

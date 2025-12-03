@@ -10,6 +10,9 @@ Fragola is an event‑driven SDK for building AI‑first software and custom age
 
 > Status: **Under construction 🚧** – first public beta releases coming soon. 🧪
 
+- 🌐 Website: https://fragola.ai
+- 📚 Docs: https://docs.fragola.ai
+
 ## Key Features
 
 - [x] **⚙️ Core primitives:** Define agents, tools, events, and state transitions as first‑class building blocks instead of ad‑hoc prompts and handlers.
@@ -66,8 +69,3 @@ const state = await agent.userMessage({
 
 console.log(state.messages); // Full conversation history
 ```
-
-If you’re interested in early access or beta updates, keep an eye on:
-
-- Website: https://fragola.ai 🌐 
-- Docs: https://docs.fragola.ai 📚

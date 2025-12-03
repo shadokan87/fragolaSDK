@@ -1,7 +1,7 @@
 export {
     tool,
     stripMeta,
-    stripConversationMeta,
+    stripMessagesMeta,
     stripAiMessageMeta,
     stripUserMessageMeta,
     stripToolMessageMeta,

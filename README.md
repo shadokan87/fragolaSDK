@@ -1,10 +1,8 @@
 # Fragola Agentic SDK
 
 <p align="center">
-	<img src="./docs/public/logos/logo_dark_theme.png" alt="Fragola Agentic SDK logo" width="96" height="96" />
+  <img src="./social-preview.png" alt="Fragola Agentic SDK splash" width="720" />
 </p>
-
-## Build AI Agents Your Way
 
 Fragola is an event‑driven SDK for building AI‑first software and custom agents. It focuses on composable primitives, predictable state, and production‑ready patterns for orchestrating AI tools and workflows.
 

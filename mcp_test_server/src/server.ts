@@ -311,28 +311,55 @@ app.post('/mcp', async (req, res) => {
 // Trigger tools/list_changed notification
 app.post('/admin/notify/tools-changed', async (req, res) => {
   console.log('Sending tools/list_changed notification...');
-  // In a real scenario, you'd dynamically add/remove tools
-  // For testing, this just triggers the notification
-  res.json({ success: true, message: 'tools/list_changed notification would be sent (requires active session)' });
+
+  const payload: { jsonrpc: '2.0'; method: string; params: any } = {
+    jsonrpc: '2.0',
+    method: 'notifications/tools/list_changed',
+    params: {}
+  };
+
+  const sent = await broadcastNotification(payload);
+  res.json({ success: sent, message: sent ? 'tools/list_changed notification sent' : 'no active MCP sessions to notify' });
 });
 
 // Trigger resources/list_changed notification
 app.post('/admin/notify/resources-changed', async (req, res) => {
   console.log('Sending resources/list_changed notification...');
-  res.json({ success: true, message: 'resources/list_changed notification would be sent' });
+  const payload: { jsonrpc: '2.0'; method: string; params: any } = {
+    jsonrpc: '2.0',
+    method: 'notifications/resources/list_changed',
+    params: {}
+  };
+
+  const sent = await broadcastNotification(payload);
+  res.json({ success: sent, message: sent ? 'resources/list_changed notification sent' : 'no active MCP sessions to notify' });
 });
 
 // Trigger resources/updated notification
 app.post('/admin/notify/resource-updated', async (req, res) => {
   const { uri } = req.body;
   console.log(`Sending resources/updated notification for ${uri}...`);
-  res.json({ success: true, message: `resources/updated notification for ${uri} would be sent` });
+  const payload: { jsonrpc: '2.0'; method: string; params: any } = {
+    jsonrpc: '2.0',
+    method: 'notifications/resources/updated',
+    params: { uri }
+  };
+
+  const sent = await broadcastNotification(payload);
+  res.json({ success: sent, message: sent ? `resources/updated notification for ${uri} sent` : 'no active MCP sessions to notify' });
 });
 
 // Trigger prompts/list_changed notification
 app.post('/admin/notify/prompts-changed', async (req, res) => {
   console.log('Sending prompts/list_changed notification...');
-  res.json({ success: true, message: 'prompts/list_changed notification would be sent' });
+  const payload: { jsonrpc: '2.0'; method: string; params: any } = {
+    jsonrpc: '2.0',
+    method: 'notifications/prompts/list_changed',
+    params: {}
+  };
+
+  const sent = await broadcastNotification(payload);
+  res.json({ success: sent, message: sent ? 'prompts/list_changed notification sent' : 'no active MCP sessions to notify' });
 });
 
 // Send a log message
@@ -351,6 +378,27 @@ app.get('/admin/status', (req, res) => {
     activeTransports: activeTransports.size
   });
 });
+
+// Helper to broadcast an MCP JSON-RPC notification to all active transports
+async function broadcastNotification(payload: { jsonrpc: '2.0'; method: string; params?: any }) {
+  let sent = false;
+  for (const transport of activeTransports) {
+    try {
+      // StreamableHTTPServerTransport implements sendNotification(method, params)
+      // but here we defensively fall back to a generic send if present.
+      if (typeof (transport as any).sendNotification === 'function') {
+        await (transport as any).sendNotification(payload.method, payload.params ?? {});
+        sent = true;
+      } else if (typeof (transport as any).send === 'function') {
+        await (transport as any).send(payload);
+        sent = true;
+      }
+    } catch (err) {
+      console.error('Failed to send notification on transport:', err);
+    }
+  }
+  return sent;
+}
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
 app.listen(PORT, () => {

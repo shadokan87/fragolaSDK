@@ -65,12 +65,6 @@ export type storeType = {
 type options = {
     client: McpClientOptions | Client;
     schemaValidation?: AjvOptions;
-    onProgress?: ProgressCallback;
-    onLog?: LogCallback;
-    onResourcesChanged?: (clientName: string) => void;
-    onResourceUpdated?: (uri: string) => void;
-    onPromptsChanged?: (clientName: string) => void;
-    onCancelled?: (requestId: string | number, reason?: string) => void;
 }
 
 /**
@@ -277,7 +271,6 @@ export const mcpClient = (options: options[] | options): FragolaHook => {
                             name: r.name,
                             mimeType: r.mimeType
                         })));
-                        opt.onResourcesChanged?.(clientName);
                     } catch (e) {
                         console.error("Failed to sync resources:", e);
                     }
@@ -290,7 +283,8 @@ export const mcpClient = (options: options[] | options): FragolaHook => {
                 async (notification) => {
                     const uri = (notification as any).params?.uri;
                     if (uri) {
-                        opt.onResourceUpdated?.(uri);
+                        // For now we only log; store updates can be added later
+                        console.log("Resource updated notification received for URI:", uri);
                     }
                 }
             );
@@ -305,7 +299,6 @@ export const mcpClient = (options: options[] | options): FragolaHook => {
                             name: p.name,
                             description: p.description
                         })));
-                        opt.onPromptsChanged?.(clientName);
                     } catch (e) {
                         console.error("Failed to sync prompts:", e);
                     }
@@ -317,8 +310,8 @@ export const mcpClient = (options: options[] | options): FragolaHook => {
                 method<ProgressNotification>({ method: "notifications/progress", params: { progress: 0, progressToken: "" } }),
                 async (notification) => {
                     const params = (notification as any).params;
-                    if (params && opt.onProgress) {
-                        opt.onProgress(params.progress, params.total, params.message);
+                    if (params) {
+                        console.log("Progress notification:", params.progress, "/", params.total, params.message);
                     }
                 }
             );
@@ -328,8 +321,8 @@ export const mcpClient = (options: options[] | options): FragolaHook => {
                 method<LoggingMessageNotification>({ method: "notifications/message", params: { level: "info", data: "" } }),
                 async (notification) => {
                     const params = (notification as any).params;
-                    if (params && opt.onLog) {
-                        opt.onLog(params.level as LogLevel, params.logger, params.data);
+                    if (params) {
+                        console.log("MCP log message:", params.level, params.logger, params.data);
                     }
                 }
             );
@@ -339,8 +332,8 @@ export const mcpClient = (options: options[] | options): FragolaHook => {
                 method<CancelledNotification>({ method: "notifications/cancelled", params: { requestId: "" } }),
                 async (notification) => {
                     const params = (notification as any).params;
-                    if (params && opt.onCancelled) {
-                        opt.onCancelled(params.requestId, params.reason);
+                    if (params) {
+                        console.log("MCP request cancelled:", params.requestId, params.reason);
                     }
                 }
             );

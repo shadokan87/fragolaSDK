@@ -1,7 +1,7 @@
 // TODO: dispose method
 // TODO: logger method
 import { createStore, Store } from "@src/store"
-import { Fragola, stripUserMessageMeta, type ChatCompletionMessageParam, type ChatCompletionUserMessageParam, type DefineMetaData, type MessageMeta, type Tool } from "./fragola"
+import { Fragola, stripUserMessageMeta, type ChatCompletionAssistantMessageParam, type ChatCompletionMessageParam, type ChatCompletionUserMessageParam, type DefineMetaData, type MessageMeta, type Tool } from "./fragola"
 import type { ChatCompletionCreateParamsBase } from "openai/resources/chat/completions.js"
 import { streamChunkToMessage, isAsyncFunction, isSkipEvent, skipEventFallback } from "./utils"
 import { BadUsage, FragolaError, JsonModeError, MaxStepHitError } from "./exceptions"
@@ -10,9 +10,10 @@ import { z as zod } from "zod";
 import type { maybePromise, Prettify, StoreLike } from "./types"
 import OpenAI from "openai/index.js"
 import { type AgentEventId, type EventDefaultCallback } from "./event"
-import type { CallAPI, CallAPIProcessChuck, EventToolCall, EventUserMessage, EventModelInvocation, EventAiMessage } from "./eventDefault";
+import type { CallAPI, CallAPIProcessChuck, EventToolCall, EventUserMessage, EventModelInvocation, EventAiMessage, EventStep } from "./eventDefault";
 import { nanoid } from "nanoid"
-import type { EventAfterMessagesUpdate, AfterStateUpdateCallback, messagesUpdateReason } from "./eventAfter"
+import type { EventAfterMessagesUpdate, AfterStateUpdateCallback, messagesUpdateReason, EventAfterStep, EventAfterModelInvocation, EventAfterToolCall } from "./eventAfter"
+import type { EventBeforeStep, EventBeforeModelInvocation, EventBeforeToolCall } from "./eventBefore"
 import { type registeredEvent, type eventIdToCallback, EventMap } from "./extendedJS/events/EventMap"
 import type { FragolaHook } from "@src/hook/index";
 import { zodToJsonSchema } from "openai/_vendor/zod-to-json-schema/zodToJsonSchema.js"
@@ -167,9 +168,15 @@ type MessagesUpdateParams = {
 
 type ApplyAfterMessagesUpdateParams = MessagesUpdateParams;
 
-type applyEventParams<K extends AgentEventId> =
+type applyEventParams<K extends AgentEventId, TMetaData extends DefineMetaData<any>> =
     K extends "after:messagesUpdate" ? ApplyAfterMessagesUpdateParams :
     K extends "messagesUpdate" ? MessagesUpdateParams :
+    K extends "before:step" ? { options: Required<StepOptions> } :
+    K extends "after:step" ? { options: Required<StepOptions> } :
+    K extends "before:modelInvocation" ? {} :
+    K extends "after:modelInvocation" ? { message: ChatCompletionAssistantMessageParam<TMetaData> } :
+    K extends "before:toolCall" ? { params: any, tool: Tool<any> } :
+    K extends "after:toolCall" ? { result: any, params: any, tool: Tool<any> } :
     never;
 
 const FORK_FRIEND = Symbol("fork_friend");
@@ -513,7 +520,17 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         }
         if (overrideStepOptions)
             this.validateStepOptions(overrideStepOptions);
-        const stepOptions: Required<StepOptions> = overrideStepOptions ? { ...defaultStepOptions, ...overrideStepOptions } as Required<StepOptions> : this.stepOptions();
+        let stepOptions: Required<StepOptions> = overrideStepOptions ? { ...defaultStepOptions, ...overrideStepOptions } as Required<StepOptions> : this.stepOptions();
+        await this.applyEvents("before:step", { options: stepOptions });
+        const stepEvents = this.registeredEvents.get("step");
+        if (stepEvents) {
+            for (const event of stepEvents) {
+                const result = await (event.callback as EventStep<TMetaData, TGlobalStore, TStore>)(stepOptions, this.context);
+                if (!isSkipEvent(result)) {
+                    stepOptions = result as Required<StepOptions>;
+                }
+            }
+        }
         if (this.#state.messages.length != 0)
             await this.recursiveAgent(stepOptions, () => {
                 if (stepParams?.by != undefined)
@@ -523,6 +540,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                 this.abortController = undefined;
                 this.stopRequested = false;
             });
+        await this.applyEvents("after:step", { options: stepOptions });
         return this.#state;
     }
 
@@ -642,6 +660,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                 if (this.paramsTools?.length)
                     requestBody["tools"] = this.paramsTools;
 
+                await this.applyEvents("before:modelInvocation", {});
                 this.setGenerating();
                 const response = await openai.chat.completions.create(requestBody, { signal: this.abortController!.signal });
 
@@ -672,6 +691,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                     await this.appendMessages([aiMessage], false, "AiMessage");
                     this.setStepCount(this.#state.stepCount + 1);
                 }
+                await this.applyEvents("after:modelInvocation", { message: aiMessage });
                 if (aiMessage.role == "assistant" && aiMessage.tool_calls && aiMessage.tool_calls.length)
                     toolCalls = aiMessage.tool_calls;
                 return aiMessage;
@@ -732,6 +752,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                 }
 
                 const toolCallEvents = this.registeredEvents.get("toolCall");
+                await this.applyEvents("before:toolCall", { params: paramsParsed?.data ?? rawParams, tool: tool as any });
                 const content = await (async () => {
                     eventProcessing: {
                         if (!toolCallEvents) {
@@ -742,8 +763,9 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                         for (let i = 0; i < toolCallEvents.length; i++) {
                             const _event = toolCallEvents[i];
                             const params = paramsParsed?.data ?? rawParams;
-                            const result = isAsyncFunction(_event.callback) ? await _event.callback(params, tool as any, this.context)
-                                : _event.callback(params, tool as any, this.context);
+                            const callback = _event.callback as EventToolCall<any, TMetaData, TGlobalStore, TStore>;
+                            const result = isAsyncFunction(callback) ? await callback(params, tool as any, this.context)
+                                : callback(params, tool as any, this.context);
                             if (isSkipEvent(result)) {
                                 continue;
                             }
@@ -756,6 +778,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                     const params = paramsParsed?.data ?? rawParams;
                     return isAsyncFunction(tool.handler) ? await tool.handler(params, this.context as any) : tool.handler(params, this.context as any);
                 })();
+                await this.applyEvents("after:toolCall", { result: content, params: paramsParsed?.data ?? rawParams, tool: tool as any });
 
                 const contentToString = (content: unknown) => {
                     switch (typeof content) {
@@ -896,7 +919,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      * @param _params  - the parameters to pass to the callback
      * @returns 
      */
-    private async applyEvents<TEventId extends AgentEventId>(eventId: TEventId, _params: applyEventParams<TEventId> | null): Promise<ReturnType<eventIdToCallback<TEventId, TMetaData, TGlobalStore, TStore>>> {
+    private async applyEvents<TEventId extends AgentEventId>(eventId: TEventId, _params: applyEventParams<TEventId, TMetaData> | null): Promise<ReturnType<eventIdToCallback<TEventId, TMetaData, TGlobalStore, TStore>>> {
         const events = this.registeredEvents.get(eventId);
         type EventDefaultType = EventDefaultCallback<TMetaData, TGlobalStore, TStore>;
         if (!events)
@@ -915,7 +938,61 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                 }
                 case "after:messagesUpdate": {
                     type callbackType = EventAfterMessagesUpdate<TMetaData, TGlobalStore, TStore>;
-                    const params: Parameters<callbackType> = [_params!.reason, ...defaultParams];
+                    const params: Parameters<callbackType> = [(_params as ApplyAfterMessagesUpdateParams).reason, ...defaultParams];
+                    if (isAsyncFunction(callback)) {
+                        return await (callback as callbackType)(...params) as any;
+                    } else {
+                        return (callback as callbackType)(...params) as any;
+                    }
+                }
+                case "before:step": {
+                    type callbackType = EventBeforeStep<TMetaData, TGlobalStore, TStore>;
+                    const params: Parameters<callbackType> = [(_params as any).options, ...defaultParams];
+                    if (isAsyncFunction(callback)) {
+                        return await (callback as callbackType)(...params) as any;
+                    } else {
+                        return (callback as callbackType)(...params) as any;
+                    }
+                }
+                case "after:step": {
+                    type callbackType = EventAfterStep<TMetaData, TGlobalStore, TStore>;
+                    const params: Parameters<callbackType> = [(_params as any).options, ...defaultParams];
+                    if (isAsyncFunction(callback)) {
+                        return await (callback as callbackType)(...params) as any;
+                    } else {
+                        return (callback as callbackType)(...params) as any;
+                    }
+                }
+                case "before:modelInvocation": {
+                    type callbackType = EventBeforeModelInvocation<TMetaData, TGlobalStore, TStore>;
+                    const params: Parameters<callbackType> = defaultParams;
+                    if (isAsyncFunction(callback)) {
+                        return await (callback as callbackType)(...params) as any;
+                    } else {
+                        return (callback as callbackType)(...params) as any;
+                    }
+                }
+                case "after:modelInvocation": {
+                    type callbackType = EventAfterModelInvocation<TMetaData, TGlobalStore, TStore>;
+                    const params: Parameters<callbackType> = [(_params as any).message, ...defaultParams];
+                    if (isAsyncFunction(callback)) {
+                        return await (callback as callbackType)(...params) as any;
+                    } else {
+                        return (callback as callbackType)(...params) as any;
+                    }
+                }
+                case "before:toolCall": {
+                    type callbackType = EventBeforeToolCall<any, TMetaData, TGlobalStore, TStore>;
+                    const params: Parameters<callbackType> = [(_params as any).params, (_params as any).tool, ...defaultParams];
+                    if (isAsyncFunction(callback)) {
+                        return await (callback as callbackType)(...params) as any;
+                    } else {
+                        return (callback as callbackType)(...params) as any;
+                    }
+                }
+                case "after:toolCall": {
+                    type callbackType = EventAfterToolCall<any, TMetaData, TGlobalStore, TStore>;
+                    const params: Parameters<callbackType> = [(_params as any).result, (_params as any).params, (_params as any).tool, ...defaultParams];
                     if (isAsyncFunction(callback)) {
                         return await (callback as callbackType)(...params) as any;
                     } else {
@@ -1045,6 +1122,91 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      * });
      */
     onUserMessage(callback: EventUserMessage<TMetaData, TGlobalStore, TStore>, options?: EventOptions) { return this.on("userMessage", callback, options) }
+
+    /**
+     * Register a step event handler.
+     *
+     * Called when a step is executed. Handlers may return modified step options.
+     *
+     * @example
+     * agent.onStep((options, context) => {
+     *   // modify step options
+     *   return { ...options, maxStep: 5 };
+     * });
+     */
+    onStep(callback: EventStep<TMetaData, TGlobalStore, TStore>, options?: EventOptions) { return this.on("step", callback, options) }
+
+    /**
+     * Register a before step event handler.
+     *
+     * Called before a step is executed.
+     *
+     * @example
+     * agent.onBeforeStep((options, context) => {
+     *   console.log('Before step', options);
+     * });
+     */
+    onBeforeStep(callback: EventBeforeStep<TMetaData, TGlobalStore, TStore>, options?: EventOptions) { return this.on("before:step", callback, options) }
+
+    /**
+     * Register an after step event handler.
+     *
+     * Called after a step is executed.
+     *
+     * @example
+     * agent.onAfterStep((options, context) => {
+     *   console.log('After step', options);
+     * });
+     */
+    onAfterStep(callback: EventAfterStep<TMetaData, TGlobalStore, TStore>, options?: EventOptions) { return this.on("after:step", callback, options) }
+
+    /**
+     * Register a before model invocation event handler.
+     *
+     * Called before the model is invoked.
+     *
+     * @example
+     * agent.onBeforeModelInvocation((context) => {
+     *   console.log('Before model invocation');
+     * });
+     */
+    onBeforeModelInvocation(callback: EventBeforeModelInvocation<TMetaData, TGlobalStore, TStore>, options?: EventOptions) { return this.on("before:modelInvocation", callback, options) }
+
+    /**
+     * Register an after model invocation event handler.
+     *
+     * Called after the model is invoked.
+     *
+     * @example
+     * agent.onAfterModelInvocation((message, context) => {
+     *   console.log('After model invocation', message);
+     * });
+     */
+    onAfterModelInvocation(callback: EventAfterModelInvocation<TMetaData, TGlobalStore, TStore>, options?: EventOptions) { return this.on("after:modelInvocation", callback, options) }
+
+    /**
+     * Register a before tool call event handler.
+     *
+     * Called before a tool is executed.
+     *
+     * @example
+     * agent.onBeforeToolCall((params, tool, context) => {
+     *   console.log('Before tool call', tool.name, params);
+     * });
+     */
+    onBeforeToolCall<TParams = Record<any, any>>(callback: EventBeforeToolCall<TParams, TMetaData, TGlobalStore, TStore>, options?: EventOptions) { return this.on("before:toolCall", callback, options) }
+
+    /**
+     * Register an after tool call event handler.
+     *
+     * Called after a tool is executed.
+     *
+     * @example
+     * agent.onAfterToolCall((result, params, tool, context) => {
+     *   console.log('After tool call', tool.name, result);
+     * });
+     */
+    onAfterToolCall<TParams = Record<any, any>>(callback: EventAfterToolCall<TParams, TMetaData, TGlobalStore, TStore>, options?: EventOptions) { return this.on("after:toolCall", callback, options) }
 
     /**
      * Register a model invocation event handler.

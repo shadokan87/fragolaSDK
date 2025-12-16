@@ -1,7 +1,9 @@
 import type { AgentDefaultEventId, AgentEventId } from "../../event";
 import type {AgentAfterEventId} from "../../eventAfter";
+import type {AgentBeforeEventId} from "../../eventBefore";
 import { type callbackMap as eventDefaultCallbackMap } from "../../eventDefault";
 import { type callbackMap as eventAfterCallbackMap } from "../../eventAfter";
+import { type callbackMap as eventBeforeCallbackMap } from "../../eventBefore";
 import type { DefineMetaData } from "../../fragola";
 import type { StoreLike } from "../../types";
 import { createHandleAiMessage, defaultHandleAiMessage, type HandleAiMessage } from "./aiMessage";
@@ -22,6 +24,7 @@ import type { EventOptions } from "@src/agent";
 export type eventIdToCallback<TEventId extends AgentEventId, TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> =
     TEventId extends AgentDefaultEventId ? eventDefaultCallbackMap<TMetaData, TGlobalStore, TStore>[TEventId] :
     TEventId extends AgentAfterEventId ? eventAfterCallbackMap<TMetaData, TGlobalStore, TStore>[TEventId] :
+    TEventId extends AgentBeforeEventId ? eventBeforeCallbackMap<TMetaData, TGlobalStore, TStore>[TEventId] :
     never;
 
 export type registeredEvent<TEventId extends AgentEventId, TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = {

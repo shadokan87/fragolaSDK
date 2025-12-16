@@ -999,7 +999,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      * }
      * });
      */
-    onToolCall<TParams = Record<any, any>>(callback: EventToolCall<TParams, TMetaData, TGlobalStore, TStore>) { return this.on("toolCall", callback) }
+    onToolCall<TParams = Record<any, any>>(callback: EventToolCall<TParams, TMetaData, TGlobalStore, TStore>, options?: EventOptions) { return this.on("toolCall", callback, options) }
 
     /**
      * Register a handler that runs after the messages is updated.
@@ -1013,7 +1013,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      *   context.getStore()?.value.lastSaved = Date.now();
      * });
      */
-    onAfterMessagesUpdate(callback: EventAfterMessagesUpdate<TMetaData, TGlobalStore, TStore>) { return this.on("after:messagesUpdate", callback) }
+    onAfterMessagesUpdate(callback: EventAfterMessagesUpdate<TMetaData, TGlobalStore, TStore>, options?: EventOptions) { return this.on("after:messagesUpdate", callback, options) }
 
     /**
      * Register an AI message event handler.
@@ -1030,7 +1030,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      *   return message;
      * });
      */
-    onAiMessage(callback: EventAiMessage<TMetaData, TGlobalStore, TStore>) { return this.on("aiMessage", callback) }
+    onAiMessage(callback: EventAiMessage<TMetaData, TGlobalStore, TStore>, options?: EventOptions) { return this.on("aiMessage", callback, options) }
 
     /**
      * Register a user message event handler.
@@ -1044,7 +1044,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      *   return { ...message, content: message.content.trim() };
      * });
      */
-    onUserMessage(callback: EventUserMessage<TMetaData, TGlobalStore, TStore>) { return this.on("userMessage", callback) }
+    onUserMessage(callback: EventUserMessage<TMetaData, TGlobalStore, TStore>, options?: EventOptions) { return this.on("userMessage", callback, options) }
 
     /**
      * Register a model invocation event handler.
@@ -1068,7 +1068,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      *   return { ...aiMsg, content: aiMsg.content + '\n\n(checked)' };
      * });
      */
-    onModelInvocation(callback: EventModelInvocation<TMetaData, TGlobalStore, TStore>) { return this.on("modelInvocation", callback) }
+    onModelInvocation(callback: EventModelInvocation<TMetaData, TGlobalStore, TStore>, options?: EventOptions) { return this.on("modelInvocation", callback, options) }
 
     /**
      * Register a handler that runs after the agent state is updated.
@@ -1082,7 +1082,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      *   console.log('stepCount', context.state.stepCount);
      * });
      */
-    onAfterStateUpdate(callback: AfterStateUpdateCallback<TMetaData, TGlobalStore, TStore>) { return this.on("after:stateUpdate", callback) };
+    onAfterStateUpdate(callback: AfterStateUpdateCallback<TMetaData, TGlobalStore, TStore>, options?: EventOptions) { return this.on("after:stateUpdate", callback, options) };
 
     /**
      * Attach a hook to this agent.

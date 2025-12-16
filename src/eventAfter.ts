@@ -1,8 +1,10 @@
 import type { maybePromise, StoreLike } from "./types";
-import type { AgentAfterEventId, EventDefaultCallback } from "./event";
+import type { AgentDefaultEventId, EventDefaultCallback } from "./event";
 import type { AgentContext } from "@src/agentContext";
 import type { DefineMetaData } from "./fragola";
 
+export type AgentAfterEventExclusive = "after:stateUpdate";
+export type AgentAfterEventId = `after:${AgentDefaultEventId}` | AgentAfterEventExclusive | "after:messagesUpdate";
 export type messagesAddReason = "userMessage" | "toolCall" | "partialAiMessage" | "AiMessage";
 export type messagesRemoveReason = `remove:${messagesAddReason}`;
 export type messagesUpdateReason = messagesAddReason | messagesRemoveReason;

@@ -79,6 +79,24 @@ export const defaultStepOptions: StepOptions = {
     // skipToolString: "Info: this too execution has been canceled. Do not assume it has been processed and inform the user that you are aware of it."
 }
 
+export type EventOptions = {
+    priority?: number | "start" | "end"
+}
+
+export type PriorityLevel = "start" | "end";
+
+const PRIORITY_LEVELS: Record<PriorityLevel, number> = {
+    start: 1000,
+    end: -1000,
+};
+
+const getPriorityValue = (opts?: EventOptions) => {
+    if (!opts || opts.priority === undefined || opts.priority === null) return 0;
+    const p = opts.priority as number | PriorityLevel;
+    if (typeof p === "number") return p;
+    return PRIORITY_LEVELS[p] ?? 0;
+}
+
 export type ModelSettings = Prettify<Omit<ChatCompletionCreateParamsBase, "messages" | "tools">>;
 
 /**
@@ -853,7 +871,6 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      * });
      */
     async userMessage(query: UserMessageQuery<TMetaData>): Promise<AgentState> {
-        console.log("#called user message");
         const { step, ...message } = query;
         void step;
         let _message: Omit<ChatCompletionUserMessageParam, "role">;
@@ -927,13 +944,25 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      * off();
      */
     on<TEventId extends AgentEventId>(eventId: TEventId, callback: eventIdToCallback<TEventId, TMetaData, TGlobalStore, TStore>
-    ) {
+    , options?: EventOptions) {
         type EventTargetType = registeredEvent<TEventId, TMetaData, TGlobalStore, TStore>;
         const events = this.registeredEvents.get(eventId) || [] as EventTargetType[];
         const id = nanoid();
         events.push({
             id,
-            callback: callback
+            callback: callback,
+            options
+        });
+        // Sort by computed numeric priority (desc). If neither side has an explicit priority, preserve
+        // insertion order (stable): lhs wins. Tie-break by id for deterministic ordering when priorities equal.
+        events.sort((a, b) => {
+            const aHas = a.options && a.options.priority !== undefined && a.options.priority !== null;
+            const bHas = b.options && b.options.priority !== undefined && b.options.priority !== null;
+            if (!aHas && !bHas) return 0; // preserve lhs when neither has priority
+            const pa = getPriorityValue(a.options as EventOptions);
+            const pb = getPriorityValue(b.options as EventOptions);
+            if (pa === pb) return a.id.localeCompare(b.id);
+            return pb - pa;
         });
         this.registeredEvents.set(eventId, events);
 

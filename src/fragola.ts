@@ -6,6 +6,7 @@ import OpenAI from "openai/index.js";
 import type { Store } from "@src/store";
 import { BadUsage } from "./exceptions";
 import type { AgentContext } from "@src/agentContext";
+import { type AgentAny } from "./agent";
 
 export type ToolHandlerReturnTypeNonAsync = any[] | Record<any, any> | Function | number | bigint | boolean | string;
 export type ToolHandlerReturnType = maybePromise<ToolHandlerReturnTypeNonAsync>;
@@ -98,7 +99,12 @@ type PreferedModel = {
 
 export const FRAGOLA_FRIEND = Symbol("Fragola_friend")
 
-export type ClientOptions = OpenaiClientOptions & PreferedModel;
+export type AgentCreatedCallback = (agent: AgentAny) => maybePromise<void>;
+export interface FragolaEvents {
+    agentCreated?: AgentCreatedCallback
+}
+
+export type ClientOptions = OpenaiClientOptions & PreferedModel & {events?: FragolaEvents};
 
 export class Fragola<TGlobalStore extends StoreLike<any> = {}> {
     private openai: OpenAI;
@@ -113,7 +119,13 @@ export class Fragola<TGlobalStore extends StoreLike<any> = {}> {
     }
 
     agent<TMetaData extends DefineMetaData<any> = {}, TStore = {}>(opts: CreateAgentOptions<TStore>): Agent<TMetaData, TGlobalStore, TStore> {
-        return new Agent<TMetaData, TGlobalStore, TStore>(opts, this.globalStore, this.openai, undefined, this as Fragola<any>);
+        const created = new Agent<TMetaData, TGlobalStore, TStore>(opts, this.globalStore, this.openai, undefined, this as Fragola<any>);
+        (async () => {
+            if (this.clientOptions.events?.agentCreated) {
+                void await this.clientOptions.events.agentCreated(created)
+            }
+        })();
+        return created;
     }
 
     get options() {

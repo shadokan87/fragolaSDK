@@ -13,7 +13,7 @@ const createTestClient = (opts?: ClientOptions) => {
       apiKey: process.env["TEST_API_KEY"],
       Authorization: `Bearer ${process.env["TEST_GCLOUD_AUTH_TOKEN"]}`
     }),
-    model: process.env["TEST_MODEL_MEDIUM"]!
+    model: process.env["TEST_MODEL_MEDIUM"]!,
   }
   const _opts = opts ? { ...opts, ...defaultOpts } : defaultOpts;
   return new Fragola(_opts);

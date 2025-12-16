@@ -1,11 +1,10 @@
 import type { AgentContext } from "@src/agentContext";
 import type { StoreLike, maybePromise } from "./types";
 import type { DefineMetaData } from "./fragola";
+import type { AgentAfterEventId } from "./eventAfter";
 
 export type AgentDefaultEventId =
-  "apiCall" | "stateUpdate" | "modelInvocation" | "toolCall" | "aiMessage" | "userMessage";
-
-export type AgentAfterEventId = `after:${AgentDefaultEventId | "messagesUpdate"}`;
+   "modelInvocation" | "toolCall" | "aiMessage" | "userMessage";
 
 export const SKIP_EVENT = Symbol('skip_event');
 /**

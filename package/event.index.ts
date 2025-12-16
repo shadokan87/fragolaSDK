@@ -5,8 +5,11 @@ export {
 
 export type {
     AgentDefaultEventId,
-    AgentAfterEventId,
     eventResult,
     AgentEventId,
     EventDefaultCallback
 } from "@src/event";
+
+export type {
+    AgentAfterEventId
+} from "@src/eventAfter";

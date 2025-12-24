@@ -1,7 +1,7 @@
 import type { FragolaHook } from "..";
 import type { AgentAny } from "@src/agent";
 import { skip } from "../../event";
-import type { Span, Tracer, TraceAPI, Attributes, Exception } from "@opentelemetry/api";
+import type { Span, Tracer, TraceAPI, Attributes, Exception, AttributeValue } from "@opentelemetry/api";
 
 export type TelemetryNodeOptions = {
 	/** Optional logical service name to attach to spans. */
@@ -16,6 +16,28 @@ export type TelemetrySdk = { trace: TraceAPI };
 
 const resolveTracer = (sdk: TelemetrySdk, opts: TelemetryNodeOptions): Tracer => {
 	return sdk.trace.getTracer(opts.tracerName ?? "fragola-agent", opts.tracerVersion);
+};
+
+/**
+ * Helper to ensure values are compatible with OpenTelemetry AttributeValue.
+ * If not compatible, returns the type of the value as a string.
+ */
+const toAttributeValue = (v: any): AttributeValue => {
+	if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") {
+		return v;
+	}
+	if (Array.isArray(v)) {
+		// OpenTelemetry requires homogeneous arrays of primitives.
+		const first = v.find((x) => x !== null && x !== undefined);
+		if (first === undefined) return v as any[];
+		const type = typeof first;
+		if (type === "string" || type === "number" || type === "boolean") {
+			if (v.every((x) => x === null || x === undefined || typeof x === type)) {
+				return v as any[];
+			}
+		}
+	}
+	return typeof v;
 };
 
 /**
@@ -43,150 +65,45 @@ export const telemetry = (sdk: TelemetrySdk, options: TelemetryNodeOptions = {})
 			"fragola.agent.id": agent.id,
 			"fragola.agent.name": agent.options.name,
 			"fragola.agent.description": agent.options.description ?? "",
+			"fragola.agent.instructions": agent.options.instructions,
 			"fragola.agent.model": agent.options.modelSettings?.model ?? "",
 		};
-
+		if (agent.context.options.modelSettings) {
+			type ModelSettings = typeof agent.context.options.modelSettings;
+			for (const k of Object.keys(agent.context.options.modelSettings) as Array<keyof ModelSettings>) {
+				const v = agent.context.options.modelSettings[k];
+				const key = `fragola.agent.modelSettings.${String(k)}`;
+				baseAttributes[key] = toAttributeValue(v);
+			}
+		}
 		if (options.serviceName) {
 			baseAttributes["service.name"] = options.serviceName;
 		}
 
 		let runSpan: Span | undefined;
 		let currentModelSpan: Span | undefined;
-		// TODO ⚠️: when a dedicated `after:modelInvocation` event exists,
-		// use it instead of inferring completion from `after:messagesUpdate`.
 
-		const startRunSpan = () => {
-			if (runSpan) return;
-			runSpan = tracer.startSpan("fragola.agent.run", { attributes: { ...baseAttributes } });
-			runSpan.addEvent?.("agent.run.start", {
-				"fragola.state.status": agent.state.status,
-				"fragola.state.stepCount": agent.state.stepCount,
-			});
-		};
+		// const startRunSpan = () => {
+		// 	if (runSpan) return;
+		// 	runSpan = tracer.startSpan("fragola.agent.run", { attributes: { ...baseAttributes } });
+		// 	runSpan.addEvent?.("agent.run.start", {
+		// 		"fragola.state.status": agent.state.status,
+		// 		"fragola.state.stepCount": agent.state.stepCount,
+		// 	});
+		// };
 
-		const endRunSpan = (reason: string) => {
-			if (!runSpan) return;
-			runSpan.addEvent?.("agent.run.end", {
-				reason,
-				"fragola.state.status": agent.state.status,
-				"fragola.state.stepCount": agent.state.stepCount,
-			});
-			runSpan.end();
-			runSpan = undefined;
-		};
+		// const endRunSpan = (reason: string) => {
+		// 	if (!runSpan) return;
+		// 	runSpan.addEvent?.("agent.run.end", {
+		// 		reason,
+		// 		"fragola.state.status": agent.state.status,
+		// 		"fragola.state.stepCount": agent.state.stepCount,
+		// 	});
+		// 	runSpan.end();
+		// 	runSpan = undefined;
+		// };
 
-		// Track lifecycle via state transitions.
-		// Use priority "start" so other state side-effects can still run
-		// and we observe the final state snapshot for this transition.
-		agent.onAfterStateUpdate((context) => {
-			const { status, stepCount } = context.state;
 
-			// Start a run span on first transition into "generating".
-			if (status === "generating") {
-				startRunSpan();
-			}
-
-			// Add an event for every state change while the run span is active.
-			runSpan?.addEvent?.("agent.stateUpdate", {
-				"fragola.state.status": status,
-				"fragola.state.stepCount": stepCount,
-			});
-
-			// When going back to idle, consider the run finished.
-			if (status === "idle") {
-				endRunSpan("idle");
-			}
-		}, { priority: "end" });
-
-		// Track message mutations and reasons (user, tool, ai, etc...).
-		// Use priority "end" so we see the final messages/state after all
-		// other handlers have run, which gives a chronological view.
-		agent.onAfterMessagesUpdate((reason, context) => {
-			const { messages, stepCount, status } = context.state;
-			const attrs: Attributes = {
-				reason,
-				"fragola.messages.count": messages.length,
-				"fragola.state.stepCount": stepCount,
-				"fragola.state.status": status,
-			};
-
-			// Emit generic messages update event.
-			runSpan?.addEvent?.("agent.messagesUpdate", attrs);
-
-			// Derive more structured timeline from the reason and last message.
-			const lastMessage = messages[messages.length - 1];
-			if (!lastMessage) return;
-
-			if (reason === "userMessage" && lastMessage.role === "user") {
-				runSpan?.addEvent?.("agent.message.user", {
-					"fragola.message.role": "user",
-					"fragola.message.index": messages.length - 1,
-				});
-			}
-
-			if (reason === "toolCall" && lastMessage.role === "tool") {
-				// TODO ⚠️: a dedicated `after:toolCall` event would let us
-				// create proper spans per tool execution instead of inferring
-				// from the appended tool message.
-				runSpan?.addEvent?.("agent.message.tool", {
-					"fragola.message.role": "tool",
-					"fragola.message.index": messages.length - 1,
-					"fragola.tool_call.id": (lastMessage as any).tool_call_id ?? "",
-				});
-			}
-
-			if (reason === "partialAiMessage" && lastMessage.role === "assistant") {
-				runSpan?.addEvent?.("agent.message.ai.partial", {
-					"fragola.message.role": "assistant",
-					"fragola.message.index": messages.length - 1,
-				});
-			}
-
-			if (reason === "AiMessage" && lastMessage.role === "assistant") {
-				// Final assistant message for this model invocation.
-				runSpan?.addEvent?.("agent.message.ai", {
-					"fragola.message.role": "assistant",
-					"fragola.message.index": messages.length - 1,
-				});
-
-				// Close any open model span now that we have a response.
-				currentModelSpan?.addEvent?.("agent.modelInvocation.result", {
-					"fragola.state.stepCount": stepCount,
-					"fragola.state.status": status,
-				});
-				currentModelSpan?.end();
-				currentModelSpan = undefined;
-			}
-		}, { priority: "end" });
-
-		// Observe model invocations without taking ownership of the API call.
-		// We return `skip()` so that the default behavior (and other handlers)
-		// still control when `callAPI` is actually executed.
-		agent.onModelInvocation(async (_callAPI, context) => {
-			// If a model span is already open, close it before starting a new one.
-			if (currentModelSpan) {
-				currentModelSpan.addEvent?.("agent.modelInvocation.overlap", {
-					"fragola.state.stepCount": context.state.stepCount,
-					"fragola.state.status": context.state.status,
-				});
-				currentModelSpan.end();
-			}
-
-			currentModelSpan = tracer.startSpan("fragola.agent.modelInvocation", {
-				attributes: {
-					...baseAttributes,
-					"fragola.state.stepCount": context.state.stepCount,
-					"fragola.state.status": context.state.status,
-				},
-			});
-			currentModelSpan.addEvent?.("agent.modelInvocation.start", {
-				"fragola.state.stepCount": context.state.stepCount,
-				"fragola.state.status": context.state.status,
-			});
-
-			// Observer-only: do not call `_callAPI` from telemetry.
-			return skip();
-		}, { priority: "start" });
 	};
 };
 

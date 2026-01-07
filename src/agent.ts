@@ -746,7 +746,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                         paramsParsed = (tool.schema as z.Schema).safeParse(JSON.parse(toolCall.function.arguments));
                         if (!paramsParsed.success) {
                             //TODO: implement retry system for bad arguments
-                            throw new FragolaError("Tool arguments parsing fail");
+                            throw new FragolaError(`Tool arguments parsing fail: ${JSON.stringify(paramsParsed.error, null, 2)}`);
                         }
                     }
                 }

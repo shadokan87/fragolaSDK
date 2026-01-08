@@ -1,3 +1,4 @@
+//@ts-nocheck
 import { describe, it, expect } from "vitest";
 import { tool } from "@fragola-ai/agentic-sdk-core";
 import { createTestClient } from "./createTestClient";

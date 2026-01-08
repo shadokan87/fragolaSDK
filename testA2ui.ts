@@ -5,6 +5,9 @@ import { fileSystemSave } from "./src/hook/presets"
 import { noCompletion } from "@src/utils";
 import { restaurantsSample } from "@src/hook/presets/protocols/a2ui/sampledata/restaurants";
 import { A2ui } from "@src/hook/presets/protocols/a2ui/a2ui";
+import catalog_json from "./src/hook/presets/protocols/a2ui/server_to_client_with_standard_catalog.json";
+import{ $ }from "bun";
+import { writeFile } from 'fs/promises';
 
 const createTestClient = (opts?: ClientOptions) => {
   const defaultOpts: ClientOptions = {
@@ -20,7 +23,16 @@ const createTestClient = (opts?: ClientOptions) => {
   const _opts = opts ? { ...opts, ...defaultOpts } : defaultOpts;
   return new Fragola(_opts);
 }
-
+const catalog = catalog_json;
+const standard_catalog = catalog["properties"]["surfaceUpdate"]["properties"]["components"]["items"]["properties"]["component"]["properties"];
+const path = "/home/motoure/fragolaSDK/src/hook/presets/protocols/a2ui/standard_catalog";
+for (const [key, value] of Object.entries(standard_catalog)) {
+  // console.log(JSON.stringify([key, value], null, 2));
+  await writeFile(`${path}/${key}.json`, JSON.stringify(value, null, 2));
+  // process.exit(0);
+}
+// console.log(JSON.stringify(catalog["properties"]["surfaceUpdate"]["properties"]["components"]["items"]["properties"]["component"]["properties"], null, 2));
+process.exit(0);
 const fragola = createTestClient();
 
 const assistant = fragola.agent({

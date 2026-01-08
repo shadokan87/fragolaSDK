@@ -1,0 +1,39 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "tabItems": {
+      "type": "array",
+      "description": "An array of objects, where each object defines a tab with a title and a child component.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "title": {
+            "type": "object",
+            "description": "The tab title. Defines the value as either a literal value or a path to data model value (e.g. '/options/title').",
+            "additionalProperties": false,
+            "properties": {
+              "literalString": {
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              }
+            }
+          },
+          "child": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "child"
+        ]
+      }
+    }
+  },
+  "required": [
+    "tabItems"
+  ]
+}

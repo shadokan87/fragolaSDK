@@ -1,0 +1,30 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "value": {
+      "type": "object",
+      "description": "The current value of the slider. This can be a literal number ('literalNumber') or a reference to a value in the data model ('path', e.g. '/restaurant/cost').",
+      "additionalProperties": false,
+      "properties": {
+        "literalNumber": {
+          "type": "number"
+        },
+        "path": {
+          "type": "string"
+        }
+      }
+    },
+    "minValue": {
+      "type": "number",
+      "description": "The minimum value of the slider."
+    },
+    "maxValue": {
+      "type": "number",
+      "description": "The maximum value of the slider."
+    }
+  },
+  "required": [
+    "value"
+  ]
+}

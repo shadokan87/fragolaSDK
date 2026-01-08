@@ -1,0 +1,14 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "axis": {
+      "type": "string",
+      "description": "The orientation of the divider.",
+      "enum": [
+        "horizontal",
+        "vertical"
+      ]
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "child": {
+      "type": "string",
+      "description": "The ID of the component to be rendered inside the card."
+    }
+  },
+  "required": [
+    "child"
+  ]
+}

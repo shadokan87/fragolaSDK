@@ -1,4 +1,5 @@
-{
+// Auto-generated from Tabs.json
+export const Tabs = {
   "type": "object",
   "additionalProperties": false,
   "properties": {
@@ -14,26 +15,16 @@
             "description": "The tab title. Defines the value as either a literal value or a path to data model value (e.g. '/options/title').",
             "additionalProperties": false,
             "properties": {
-              "literalString": {
-                "type": "string"
-              },
-              "path": {
-                "type": "string"
-              }
+              "literalString": { "type": "string" },
+              "path": { "type": "string" }
             }
           },
-          "child": {
-            "type": "string"
-          }
+          "child": { "type": "string" }
         },
-        "required": [
-          "title",
-          "child"
-        ]
+        "required": ["title", "child"]
       }
     }
   },
-  "required": [
-    "tabItems"
-  ]
-}
+  "required": ["tabItems"]
+} as const;
+export type Tabs = typeof Tabs;

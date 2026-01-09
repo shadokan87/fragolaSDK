@@ -1,4 +1,5 @@
-{
+// Auto-generated from CheckBox.json
+export const CheckBox = {
   "type": "object",
   "additionalProperties": false,
   "properties": {
@@ -7,12 +8,8 @@
       "description": "The text to display next to the checkbox. Defines the value as either a literal value or a path to data model ('path', e.g. '/option/label').",
       "additionalProperties": false,
       "properties": {
-        "literalString": {
-          "type": "string"
-        },
-        "path": {
-          "type": "string"
-        }
+        "literalString": { "type": "string" },
+        "path": { "type": "string" }
       }
     },
     "value": {
@@ -20,17 +17,11 @@
       "description": "The current state of the checkbox (true for checked, false for unchecked). This can be a literal boolean ('literalBoolean') or a reference to a value in the data model ('path', e.g. '/filter/open').",
       "additionalProperties": false,
       "properties": {
-        "literalBoolean": {
-          "type": "boolean"
-        },
-        "path": {
-          "type": "string"
-        }
+        "literalBoolean": { "type": "boolean" },
+        "path": { "type": "string" }
       }
     }
   },
-  "required": [
-    "label",
-    "value"
-  ]
-}
+  "required": ["label", "value"]
+} as const;
+export type CheckBox = typeof CheckBox;

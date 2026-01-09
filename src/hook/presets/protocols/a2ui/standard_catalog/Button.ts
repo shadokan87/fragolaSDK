@@ -1,0 +1,42 @@
+// Auto-generated from Button.json
+export const Button = {
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "child": { "type": "string", "description": "The ID of the component to display in the button, typically a Text component." },
+    "primary": { "type": "boolean", "description": "Indicates if this button should be styled as the primary action." },
+    "action": {
+      "type": "object",
+      "description": "The client-side action to be dispatched when the button is clicked. It includes the action's name and an optional context payload.",
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "context": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "key": { "type": "string" },
+              "value": {
+                "type": "object",
+                "description": "Defines the value to be included in the context as either a literal value or a path to a data model value (e.g. '/user/name').",
+                "additionalProperties": false,
+                "properties": {
+                  "path": { "type": "string" },
+                  "literalString": { "type": "string" },
+                  "literalNumber": { "type": "number" },
+                  "literalBoolean": { "type": "boolean" }
+                }
+              }
+            },
+            "required": ["key", "value"]
+          }
+        }
+      },
+      "required": ["name"]
+    }
+  },
+  "required": ["child", "action"]
+} as const;
+export type Button = typeof Button;

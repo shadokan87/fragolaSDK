@@ -1,0 +1,20 @@
+// Auto-generated from DateTimeInput.json
+export const DateTimeInput = {
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "value": {
+      "type": "object",
+      "description": "The selected date and/or time value in ISO 8601 format. This can be a literal string ('literalString') or a reference to a value in the data model ('path', e.g. '/user/dob').",
+      "additionalProperties": false,
+      "properties": {
+        "literalString": { "type": "string" },
+        "path": { "type": "string" }
+      }
+    },
+    "enableDate": { "type": "boolean", "description": "If true, allows the user to select a date." },
+    "enableTime": { "type": "boolean", "description": "If true, allows the user to select a time." }
+  },
+  "required": ["value"]
+} as const;
+export type DateTimeInput = typeof DateTimeInput;

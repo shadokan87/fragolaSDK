@@ -1,4 +1,5 @@
-{
+// Auto-generated from MultipleChoice.json
+export const MultipleChoice = {
   "type": "object",
   "additionalProperties": false,
   "properties": {
@@ -7,15 +8,8 @@
       "description": "The currently selected values for the component. This can be a literal array of strings or a path to an array in the data model('path', e.g. '/hotel/options').",
       "additionalProperties": false,
       "properties": {
-        "literalArray": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "path": {
-          "type": "string"
-        }
+        "literalArray": { "type": "array", "items": { "type": "string" } },
+        "path": { "type": "string" }
       }
     },
     "options": {
@@ -30,32 +24,17 @@
             "description": "The text to display for this option. This can be a literal string or a reference to a value in the data model (e.g. '/option/label').",
             "additionalProperties": false,
             "properties": {
-              "literalString": {
-                "type": "string"
-              },
-              "path": {
-                "type": "string"
-              }
+              "literalString": { "type": "string" },
+              "path": { "type": "string" }
             }
           },
-          "value": {
-            "type": "string",
-            "description": "The value to be associated with this option when selected."
-          }
+          "value": { "type": "string", "description": "The value to be associated with this option when selected." }
         },
-        "required": [
-          "label",
-          "value"
-        ]
+        "required": ["label", "value"]
       }
     },
-    "maxAllowedSelections": {
-      "type": "integer",
-      "description": "The maximum number of options that the user is allowed to select."
-    }
+    "maxAllowedSelections": { "type": "integer", "description": "The maximum number of options that the user is allowed to select." }
   },
-  "required": [
-    "selections",
-    "options"
-  ]
-}
+  "required": ["selections", "options"]
+} as const;
+export type MultipleChoice = typeof MultipleChoice;

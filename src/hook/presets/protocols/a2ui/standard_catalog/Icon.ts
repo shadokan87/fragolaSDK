@@ -1,0 +1,18 @@
+// Auto-generated from Icon.json
+export const Icon = {
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "name": {
+      "type": "object",
+      "description": "The name of the icon to display. This can be a literal string or a reference to a value in the data model ('path', e.g. '/form/submit').",
+      "additionalProperties": false,
+      "properties": {
+        "literalString": { "type": "string", "enum": ["accountCircle","add","arrowBack","arrowForward","attachFile","calendarToday","call","camera","check","close","delete","download","edit","event","error","favorite","favoriteOff","folder","help","home","info","locationOn","lock","lockOpen","mail","menu","moreVert","moreHoriz","notificationsOff","notifications","payment","person","phone","photo","print","refresh","search","send","settings","share","shoppingCart","star","starHalf","starOff","upload","visibility","visibilityOff","warning"] },
+        "path": { "type": "string" }
+      }
+    }
+  },
+  "required": ["name"]
+} as const;
+export type Icon = typeof Icon;

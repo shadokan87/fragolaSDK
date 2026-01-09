@@ -1,0 +1,29 @@
+// Auto-generated from TextField.json
+export const TextField = {
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "label": {
+      "type": "object",
+      "description": "The text label for the input field. This can be a literal string or a reference to a value in the data model ('path, e.g. '/user/name').",
+      "additionalProperties": false,
+      "properties": {
+        "literalString": { "type": "string" },
+        "path": { "type": "string" }
+      }
+    },
+    "text": {
+      "type": "object",
+      "description": "The value of the text field. This can be a literal string or a reference to a value in the data model ('path', e.g. '/user/name').",
+      "additionalProperties": false,
+      "properties": {
+        "literalString": { "type": "string" },
+        "path": { "type": "string" }
+      }
+    },
+    "textFieldType": { "type": "string", "description": "The type of input field to display.", "enum": ["date","longText","number","shortText","obscured"] },
+    "validationRegexp": { "type": "string", "description": "A regular expression used for client-side validation of the input." }
+  },
+  "required": ["label"]
+} as const;
+export type TextField = typeof TextField;

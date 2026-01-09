@@ -1,0 +1,11 @@
+// Auto-generated from Modal.json
+export const Modal = {
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "entryPointChild": { "type": "string", "description": "The ID of the component that opens the modal when interacted with (e.g., a button)." },
+    "contentChild": { "type": "string", "description": "The ID of the component to be displayed inside the modal." }
+  },
+  "required": ["entryPointChild", "contentChild"]
+} as const;
+export type Modal = typeof Modal;

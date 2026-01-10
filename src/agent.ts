@@ -234,6 +234,8 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
             }
             this.validateStepOptions(this.opts.stepOptions);
         }
+        
+        this.mergedInstructionsCache = opts.instructions;
     }
 
     private addStore(store: Store<any>): void {
@@ -290,7 +292,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
             getInstructions(scope?: string): string | undefined {
                 if (scope)
                     return _this.instructionScopes.get(scope);
-                return _this.opts.instructions ?? undefined;
+                return _this.mergedInstructionsCache;
             }
             removeInstructions(scope: string): boolean {
                 const existed = _this.instructionScopes.delete(scope);
@@ -502,6 +504,10 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
             if (maxStep <= 0)
                 throw new BadUsage(`field 'maxStep' of 'StepOptions' cannot be less than or equal to 0. Received '${maxStep}'`)
         }
+    }
+
+    async init() {
+        await this.hooksLoaded;
     }
 
     async step(stepParams?: StepParams) {
@@ -1274,6 +1280,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                 // don't break chain on error, but surface a warning
                 console.error("Failed to initialize hook:", err);
             });
+        console.log("#br2");
         return this;
     }
 }

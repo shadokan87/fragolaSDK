@@ -1,0 +1,172 @@
+[
+  {
+    "role": "user",
+    "content": "generate an ui to display this list of restaurant, restaurants: [{\"name\":\"La Bella Italia\",\"address\":\"123 Main Street, Downtown\",\"location\":{\"city\":\"New York\",\"country\":\"USA\"},\"food_types\":[\"Italian\",\"Mediterranean\"],\"pricy_score\":7},{\"name\":\"Sushi Paradise\",\"address\":\"456 Ocean Avenue, Waterfront\",\"location\":{\"city\":\"San Francisco\",\"country\":\"USA\"},\"food_types\":[\"Japanese\",\"Sushi\",\"Asian\"],\"pricy_score\":8},{\"name\":\"Burger Junction\",\"address\":\"789 Park Lane, Midtown\",\"location\":{\"city\":\"Chicago\",\"country\":\"USA\"},\"food_types\":[\"American\",\"Burgers\",\"Fast Food\"],\"pricy_score\":4},{\"name\":\"Le Jardin\",\"address\":\"321 Rose Boulevard, Uptown\",\"location\":{\"city\":\"Paris\",\"country\":\"France\"},\"food_types\":[\"French\",\"Fine Dining\"],\"pricy_score\":9},{\"name\":\"Spice Garden\",\"address\":\"654 Market Street, Downtown\",\"location\":{\"city\":\"London\",\"country\":\"UK\"},\"food_types\":[\"Indian\",\"Vegetarian\",\"Asian\"],\"pricy_score\":5},{\"name\":\"Taco Fiesta\",\"address\":\"987 Beach Road, Beachside\",\"location\":{\"city\":\"Los Angeles\",\"country\":\"USA\"},\"food_types\":[\"Mexican\",\"Latin American\"],\"pricy_score\":3},{\"name\":\"The Golden Dragon\",\"address\":\"147 Temple Street, Chinatown\",\"location\":{\"city\":\"San Francisco\",\"country\":\"USA\"},\"food_types\":[\"Chinese\",\"Asian\",\"Dim Sum\"],\"pricy_score\":6},{\"name\":\"Mediterranean Breeze\",\"address\":\"258 Harbor Drive, Waterfront\",\"location\":{\"city\":\"Barcelona\",\"country\":\"Spain\"},\"food_types\":[\"Mediterranean\",\"Greek\",\"Seafood\"],\"pricy_score\":7},{\"name\":\"The Steakhouse\",\"address\":\"369 Executive Plaza, Business District\",\"location\":{\"city\":\"New York\",\"country\":\"USA\"},\"food_types\":[\"Steakhouse\",\"American\",\"Fine Dining\"],\"pricy_score\":9},{\"name\":\"Café Delights\",\"address\":\"741 College Avenue, University District\",\"location\":{\"city\":\"Boston\",\"country\":\"USA\"},\"food_types\":[\"Café\",\"Breakfast\",\"Bakery\"],\"pricy_score\":3}]"
+  },
+  {
+    "role": "assistant",
+    "content": "I'll create a UI to display this list of restaurants with their details.",
+    "tool_calls": [
+      {
+        "id": "toolu_vrtx_01EGm8yxaMimnwk3f71cBaZd",
+        "type": "function",
+        "function": {
+          "name": "emit_A2ui_payload",
+          "arguments": "{\"beginRendering\": {\"surfaceId\":\"restaurants\",\"root\":\"root\"}}"
+        }
+      },
+      {
+        "id": "toolu_vrtx_01PjZEFbGXzHPgZCxTWezXv6",
+        "type": "function",
+        "function": {
+          "name": "emit_A2ui_payload",
+          "arguments": "{\"surfaceUpdate\": {\"surfaceId\":\"restaurants\",\"components\":[{\"id\":\"root\",\"component\":{\"Column\":{\"children\":{\"explicitList\":[\"header\",\"restaurantList\"]}}}}]}}"
+        }
+      },
+      {
+        "id": "toolu_vrtx_0174zNLjNmAGpEBqjGbM8MpP",
+        "type": "function",
+        "function": {
+          "name": "emit_A2ui_payload",
+          "arguments": "{\"surfaceUpdate\": {\"surfaceId\":\"restaurants\",\"components\":[{\"id\":\"header\",\"component\":{\"Text\":{\"text\":{\"literalString\":\"Restaurants\"},\"usageHint\":\"h1\"}}}]}}"
+        }
+      },
+      {
+        "id": "toolu_vrtx_01LA1UyMJJjk3LNCPdZg1eYD",
+        "type": "function",
+        "function": {
+          "name": "emit_A2ui_payload",
+          "arguments": "{\"surfaceUpdate\": {\"surfaceId\":\"restaurants\",\"components\":[{\"id\":\"restaurantList\",\"component\":{\"List\":{\"children\":{\"template\":{\"componentId\":\"restaurantCard\",\"dataBinding\":\"/restaurants\"}},\"direction\":\"vertical\",\"alignment\":\"stretch\"}}}]}}"
+        }
+      },
+      {
+        "id": "toolu_vrtx_01Huig6kMCycFKuoDnhaBW9K",
+        "type": "function",
+        "function": {
+          "name": "emit_A2ui_payload",
+          "arguments": "{\"surfaceUpdate\": {\"surfaceId\":\"restaurants\",\"components\":[{\"id\":\"restaurantCard\",\"component\":{\"Card\":{\"child\":\"restaurantContent\"}}}]}}"
+        }
+      },
+      {
+        "id": "toolu_vrtx_01LxZW8jxSe69JQWaJw8LKTa",
+        "type": "function",
+        "function": {
+          "name": "emit_A2ui_payload",
+          "arguments": "{\"surfaceUpdate\": {\"surfaceId\":\"restaurants\",\"components\":[{\"id\":\"restaurantContent\",\"component\":{\"Column\":{\"children\":{\"explicitList\":[\"restaurantName\",\"restaurantAddress\",\"restaurantLocation\",\"restaurantFoodTypes\",\"restaurantPrice\"]},\"distribution\":\"start\",\"alignment\":\"start\"}}}]}}"
+        }
+      },
+      {
+        "id": "toolu_vrtx_01PFxd5dvFBZqbzVhBqBDqmu",
+        "type": "function",
+        "function": {
+          "name": "emit_A2ui_payload",
+          "arguments": "{\"surfaceUpdate\": {\"surfaceId\":\"restaurants\",\"components\":[{\"id\":\"restaurantName\",\"component\":{\"Text\":{\"text\":{\"path\":\"/restaurantName\"},\"usageHint\":\"h3\"}}}]}}"
+        }
+      },
+      {
+        "id": "toolu_vrtx_01D6Ddo9PaXDuqpM97z5mGEo",
+        "type": "function",
+        "function": {
+          "name": "emit_A2ui_payload",
+          "arguments": "{\"surfaceUpdate\": {\"surfaceId\":\"restaurants\",\"components\":[{\"id\":\"restaurantAddress\",\"component\":{\"Text\":{\"text\":{\"path\":\"/restaurantAddress\"},\"usageHint\":\"body\"}}}]}}"
+        }
+      },
+      {
+        "id": "toolu_vrtx_01UbAFy8AYJ6EkBz1RVNj3ff",
+        "type": "function",
+        "function": {
+          "name": "emit_A2ui_payload",
+          "arguments": "{\"surfaceUpdate\": {\"surfaceId\":\"restaurants\",\"components\":[{\"id\":\"restaurantLocation\",\"component\":{\"Text\":{\"text\":{\"path\":\"/restaurantLocation\"},\"usageHint\":\"caption\"}}}]}}"
+        }
+      },
+      {
+        "id": "toolu_vrtx_012KBhfBntep8jH2WFbnNpi2",
+        "type": "function",
+        "function": {
+          "name": "emit_A2ui_payload",
+          "arguments": "{\"surfaceUpdate\": {\"surfaceId\":\"restaurants\",\"components\":[{\"id\":\"restaurantFoodTypes\",\"component\":{\"Text\":{\"text\":{\"path\":\"/restaurantFoodTypes\"},\"usageHint\":\"body\"}}}]}}"
+        }
+      },
+      {
+        "id": "toolu_vrtx_01Hm6PtFXoSYn9XaD4o2yvbD",
+        "type": "function",
+        "function": {
+          "name": "emit_A2ui_payload",
+          "arguments": "{\"surfaceUpdate\": {\"surfaceId\":\"restaurants\",\"components\":[{\"id\":\"restaurantPrice\",\"component\":{\"Text\":{\"text\":{\"path\":\"/restaurantPrice\"},\"usageHint\":\"body\"}}}]}}"
+        }
+      },
+      {
+        "id": "toolu_vrtx_01Pwsb39Ly4p3rEEpQAr5M1F",
+        "type": "function",
+        "function": {
+          "name": "emit_A2ui_payload",
+          "arguments": "{\"dataModelUpdate\": {\"surfaceId\":\"restaurants\",\"contents\":[{\"key\":\"restaurants\",\"valueMap\":[{\"key\":\"0\",\"valueMap\":[{\"key\":\"restaurantName\",\"valueString\":\"La Bella Italia\"},{\"key\":\"restaurantAddress\",\"valueString\":\"123 Main Street, Downtown\"},{\"key\":\"restaurantLocation\",\"valueString\":\"New York, USA\"},{\"key\":\"restaurantFoodTypes\",\"valueString\":\"Italian, Mediterranean\"},{\"key\":\"restaurantPrice\",\"valueString\":\"Price Level: 7/10\"}]},{\"key\":\"1\",\"valueMap\":[{\"key\":\"restaurantName\",\"valueString\":\"Sushi Paradise\"},{\"key\":\"restaurantAddress\",\"valueString\":\"456 Ocean Avenue, Waterfront\"},{\"key\":\"restaurantLocation\",\"valueString\":\"San Francisco, USA\"},{\"key\":\"restaurantFoodTypes\",\"valueString\":\"Japanese, Sushi, Asian\"},{\"key\":\"restaurantPrice\",\"valueString\":\"Price Level: 8/10\"}]},{\"key\":\"2\",\"valueMap\":[{\"key\":\"restaurantName\",\"valueString\":\"Burger Junction\"},{\"key\":\"restaurantAddress\",\"valueString\":\"789 Park Lane, Midtown\"},{\"key\":\"restaurantLocation\",\"valueString\":\"Chicago, USA\"},{\"key\":\"restaurantFoodTypes\",\"valueString\":\"American, Burgers, Fast Food\"},{\"key\":\"restaurantPrice\",\"valueString\":\"Price Level: 4/10\"}]},{\"key\":\"3\",\"valueMap\":[{\"key\":\"restaurantName\",\"valueString\":\"Le Jardin\"},{\"key\":\"restaurantAddress\",\"valueString\":\"321 Rose Boulevard, Uptown\"},{\"key\":\"restaurantLocation\",\"valueString\":\"Paris, France\"},{\"key\":\"restaurantFoodTypes\",\"valueString\":\"French, Fine Dining\"},{\"key\":\"restaurantPrice\",\"valueString\":\"Price Level: 9/10\"}]},{\"key\":\"4\",\"valueMap\":[{\"key\":\"restaurantName\",\"valueString\":\"Spice Garden\"},{\"key\":\"restaurantAddress\",\"valueString\":\"654 Market Street, Downtown\"},{\"key\":\"restaurantLocation\",\"valueString\":\"London, UK\"},{\"key\":\"restaurantFoodTypes\",\"valueString\":\"Indian, Vegetarian, Asian\"},{\"key\":\"restaurantPrice\",\"valueString\":\"Price Level: 5/10\"}]},{\"key\":\"5\",\"valueMap\":[{\"key\":\"restaurantName\",\"valueString\":\"Taco Fiesta\"},{\"key\":\"restaurantAddress\",\"valueString\":\"987 Beach Road, Beachside\"},{\"key\":\"restaurantLocation\",\"valueString\":\"Los Angeles, USA\"},{\"key\":\"restaurantFoodTypes\",\"valueString\":\"Mexican, Latin American\"},{\"key\":\"restaurantPrice\",\"valueString\":\"Price Level: 3/10\"}]},{\"key\":\"6\",\"valueMap\":[{\"key\":\"restaurantName\",\"valueString\":\"The Golden Dragon\"},{\"key\":\"restaurantAddress\",\"valueString\":\"147 Temple Street, Chinatown\"},{\"key\":\"restaurantLocation\",\"valueString\":\"San Francisco, USA\"},{\"key\":\"restaurantFoodTypes\",\"valueString\":\"Chinese, Asian, Dim Sum\"},{\"key\":\"restaurantPrice\",\"valueString\":\"Price Level: 6/10\"}]},{\"key\":\"7\",\"valueMap\":[{\"key\":\"restaurantName\",\"valueString\":\"Mediterranean Breeze\"},{\"key\":\"restaurantAddress\",\"valueString\":\"258 Harbor Drive, Waterfront\"},{\"key\":\"restaurantLocation\",\"valueString\":\"Barcelona, Spain\"},{\"key\":\"restaurantFoodTypes\",\"valueString\":\"Mediterranean, Greek, Seafood\"},{\"key\":\"restaurantPrice\",\"valueString\":\"Price Level: 7/10\"}]},{\"key\":\"8\",\"valueMap\":[{\"key\":\"restaurantName\",\"valueString\":\"The Steakhouse\"},{\"key\":\"restaurantAddress\",\"valueString\":\"369 Executive Plaza, Business District\"},{\"key\":\"restaurantLocation\",\"valueString\":\"New York, USA\"},{\"key\":\"restaurantFoodTypes\",\"valueString\":\"Steakhouse, American, Fine Dining\"},{\"key\":\"restaurantPrice\",\"valueString\":\"Price Level: 9/10\"}]},{\"key\":\"9\",\"valueMap\":[{\"key\":\"restaurantName\",\"valueString\":\"Café Delights\"},{\"key\":\"restaurantAddress\",\"valueString\":\"741 College Avenue, University District\"},{\"key\":\"restaurantLocation\",\"valueString\":\"Boston, USA\"},{\"key\":\"restaurantFoodTypes\",\"valueString\":\"Café, Breakfast, Bakery\"},{\"key\":\"restaurantPrice\",\"valueString\":\"Price Level: 3/10\"}]}]}]}}"
+        }
+      }
+    ]
+  },
+  {
+    "role": "tool",
+    "content": "success",
+    "tool_call_id": "toolu_vrtx_01EGm8yxaMimnwk3f71cBaZd"
+  },
+  {
+    "role": "tool",
+    "content": "success",
+    "tool_call_id": "toolu_vrtx_01PjZEFbGXzHPgZCxTWezXv6"
+  },
+  {
+    "role": "tool",
+    "content": "success",
+    "tool_call_id": "toolu_vrtx_0174zNLjNmAGpEBqjGbM8MpP"
+  },
+  {
+    "role": "tool",
+    "content": "success",
+    "tool_call_id": "toolu_vrtx_01LA1UyMJJjk3LNCPdZg1eYD"
+  },
+  {
+    "role": "tool",
+    "content": "success",
+    "tool_call_id": "toolu_vrtx_01Huig6kMCycFKuoDnhaBW9K"
+  },
+  {
+    "role": "tool",
+    "content": "success",
+    "tool_call_id": "toolu_vrtx_01LxZW8jxSe69JQWaJw8LKTa"
+  },
+  {
+    "role": "tool",
+    "content": "success",
+    "tool_call_id": "toolu_vrtx_01PFxd5dvFBZqbzVhBqBDqmu"
+  },
+  {
+    "role": "tool",
+    "content": "success",
+    "tool_call_id": "toolu_vrtx_01D6Ddo9PaXDuqpM97z5mGEo"
+  },
+  {
+    "role": "tool",
+    "content": "success",
+    "tool_call_id": "toolu_vrtx_01UbAFy8AYJ6EkBz1RVNj3ff"
+  },
+  {
+    "role": "tool",
+    "content": "success",
+    "tool_call_id": "toolu_vrtx_012KBhfBntep8jH2WFbnNpi2"
+  },
+  {
+    "role": "tool",
+    "content": "success",
+    "tool_call_id": "toolu_vrtx_01Hm6PtFXoSYn9XaD4o2yvbD"
+  },
+  {
+    "role": "tool",
+    "content": "success",
+    "tool_call_id": "toolu_vrtx_01Pwsb39Ly4p3rEEpQAr5M1F"
+  },
+  {
+    "role": "assistant",
+    "content": "Perfect! I've created a restaurant listing UI with the following features:\n\n**Layout Structure:**\n- **Header**: Displays \"Restaurants\" as the main title\n- **Restaurant List**: A vertical list of restaurant cards\n\n**Each Restaurant Card Contains:**\n- **Restaurant Name** (h3 heading)\n- **Address** (body text)\n- **Location** (city, country in caption style)\n- **Food Types** (comma-separated cuisine types)\n- **Price Level** (displayed as a score out of 10)\n\n**Data Display:**\nAll 10 restaurants are now rendered as cards with their complete information:\n1. La Bella Italia (Italian, Price: 7)\n2. Sushi Paradise (Japanese, Price: 8)\n3. Burger Junction (American, Price: 4)\n4. Le Jardin (French, Price: 9)\n5. Spice Garden (Indian, Price: 5)\n6. Taco Fiesta (Mexican, Price: 3)\n7. The Golden Dragon (Chinese, Price: 6)\n8. Mediterranean Breeze (Mediterranean, Price: 7)\n9. The Steakhouse (American, Price: 9)\n10. Café Delights (Café, Price: 3)\n\nThe UI is responsive and uses card-based layout for a clean, organized presentation of the restaurant information."
+  }
+]

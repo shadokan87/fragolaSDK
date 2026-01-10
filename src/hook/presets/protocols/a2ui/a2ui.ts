@@ -1,4 +1,5 @@
-import { load, Prompt } from "@fragola-ai/prompt";
+import { load } from "@fragola-ai/prompt";
+import Prompt from "@fragola-ai/prompt";
 import type { FragolaHook } from "../../..";
 import { tool } from "@src/fragola";
 import { payloadSchema } from "./payloadSchema";
@@ -19,11 +20,14 @@ export interface a2uiStore {
     setCatalog: (cb: setCatalogCallback) => void
 }
 export interface a2uiOptions {
-    catalog?: CatalogItem[]
+    catalog?: CatalogItem[],
+    method?: "toolcal"
 }
 
 export const A2ui = (options?: a2uiOptions): FragolaHook => (agent) => {
-    const sysPrompt = new Prompt(load("src/hook/presets/protocols/a2ui/systemPrompt.md"));
+    const sysPrompt = new Prompt(load("src/hook/presets/protocols/a2ui/systemPromptToolCall.md"), {
+        "components_catalog": "(no components available)"
+    } as sysPromptVariables);
     const ajv = new Ajv();
     const validate = ajv.compile(payload);
     let catalogString: string[] = [];
@@ -48,19 +52,23 @@ export const A2ui = (options?: a2uiOptions): FragolaHook => (agent) => {
         setCatalog: setCatalog
     });
 
+    const processCatalog = (catalog: CatalogItem[]) => {
+        sysPrompt.setVariables({
+            "components_catalog": catalog.map(item => {
+                return `### ${item.name}\n\n${item.description}\n\n\`\`\`json\n${JSON.stringify(item.item, null, 2)}\n\`\`\``;
+            }).join('\n\n---\n\n')
+        } as sysPromptVariables);
+        agent.context.setInstructions(sysPrompt.value, sysPromptKey);
+        catalogChanged = false;
+    }
+
     if (options && options.catalog != undefined && options.catalog.length > 0) {
-        setCatalog(() => options.catalog!)
+        processCatalog(options.catalog)
     }
 
     store.onChange((data) => {
         if (catalogChanged) {
-            sysPrompt.setVariables({
-                "components_catalog": data.catalog.map(item => {
-                    return `### ${item.name}\n\n${item.description}\n\n\`\`\`json\n${JSON.stringify(item.item, null, 2)}\n\`\`\``;
-                }).join('\n\n---\n\n')
-            } as sysPromptVariables);
-            agent.context.setInstructions(sysPrompt.value, sysPromptKey);
-            catalogChanged = false;
+            processCatalog(data.catalog)
         }
     });
 

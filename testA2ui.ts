@@ -4,7 +4,7 @@ import { createHeaders, PORTKEY_GATEWAY_URL } from 'portkey-ai';
 import { fileSystemSave } from "./src/hook/presets"
 import { noCompletion } from "@src/utils";
 import { restaurantsSample } from "@src/hook/presets/protocols/a2ui/sampledata/restaurants";
-import { A2ui, type CatalogItem } from "@src/hook/presets/protocols/a2ui/a2ui";
+import { A2ui, sysPromptKey, type CatalogItem } from "@src/hook/presets/protocols/a2ui/a2ui";
 import catalog_json from "./src/hook/presets/protocols/a2ui/server_to_client_with_standard_catalog.json";
 import{ $ }from "bun";
 import { writeFile } from 'fs/promises';
@@ -50,7 +50,7 @@ const fragola = createTestClient();
 const assistant = fragola.agent({
   name: "assistant",
   description: "",
-  instructions: "you are a helpful assistant",
+  instructions: "You are a helpful assistant",
   modelSettings: {
     model: fragola.options.model,
     tool_choice: "auto",
@@ -61,6 +61,10 @@ const assistant = fragola.agent({
 .use(A2ui({
   catalog: catalogItems
 }));
-console.log("!sys", assistant.context.getInstructions());
-// const { messages } = await assistant.userMessage({ content: `generate an ui to display this list of restaurant, the user must be able to search and filter by location, price etc. restaurants: ${JSON.stringify(restaurantsSample)}` });
+await assistant.init();
+assistant.onAfterStateUpdate((context) => {
+  console.log(JSON.stringify(context.state.messages, null, 2));
+})
+// console.log("!sys", assistant.context.getInstructions());
+const { messages } = await assistant.userMessage({ content: `generate an ui to display this list of restaurant, restaurant list: ${JSON.stringify(restaurantsSample)}` });
 // console.log(JSON.stringify(messages, null, 2));

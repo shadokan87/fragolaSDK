@@ -2,16 +2,13 @@ import { load } from "@fragola-ai/prompt";
 import Prompt from "@fragola-ai/prompt";
 import type { FragolaHook } from "../../..";
 import { tool } from "@src/fragola";
-import { payloadSchema } from "./payloadSchema";
-import { fileURLToPath } from 'url';
-import path from 'path';
-import standard_catalog from "./server_to_client_with_standard_catalog.json";
 import payload from "./server_to_client.json";
 import Ajv from "ajv";
 import { createStore } from "@src/store";
 import type { variables as sysPromptVariables } from "./systemPrompt.types";
 
-export const sysPromptKey = "A2ui";
+export const a2uiNamespace = "A2ui";
+export const catalogPromptPlaceholder = "components_catalog";
 export type CatalogItem = { name: string, description: string, item: string | Record<string, unknown> };
 export type setCatalogCallback = (prev: CatalogItem[]) => CatalogItem[];
 
@@ -19,13 +16,15 @@ export interface a2uiStore {
     catalog: CatalogItem[]
     setCatalog: (cb: setCatalogCallback) => void
 }
+
 export interface a2uiOptions {
     catalog?: CatalogItem[],
-    method?: "toolcal"
+    method?: "toolcal",
+    sysPrompt: Prompt
 }
 
 export const A2ui = (options?: a2uiOptions): FragolaHook => (agent) => {
-    const sysPrompt = new Prompt(load("src/hook/presets/protocols/a2ui/systemPromptToolCall.md"), {
+    const sysPrompt = options?.sysPrompt ?? new Prompt(load("src/hook/presets/protocols/a2ui/systemPromptToolCall.md"), {
         "components_catalog": "(no components available)"
     } as sysPromptVariables);
     const ajv = new Ajv();
@@ -38,7 +37,7 @@ export const A2ui = (options?: a2uiOptions): FragolaHook => (agent) => {
             if (!newCatalog.length)
                 catalogString = [];
             else
-                catalogString = newCatalog.map((item) => (typeof item == 'string') ? item : JSON.stringify(item.item));
+                catalogString = newCatalog.map((item) => (typeof item == 'string') ? item : JSON.stringify(item.item, null, 2));
             catalogChanged = true;
             return {
                 ...data,
@@ -50,15 +49,17 @@ export const A2ui = (options?: a2uiOptions): FragolaHook => (agent) => {
     const store = createStore<a2uiStore>({
         catalog: [],
         setCatalog: setCatalog
-    });
+    }, a2uiNamespace);
+
+    agent.context.addStore(store);
 
     const processCatalog = (catalog: CatalogItem[]) => {
         sysPrompt.setVariables({
-            "components_catalog": catalog.map(item => {
-                return `### ${item.name}\n\n${item.description}\n\n\`\`\`json\n${JSON.stringify(item.item, null, 2)}\n\`\`\``;
+            [catalogPromptPlaceholder]: catalog.map((item, index) => {
+                return `### ${item.name}\n\n${item.description}\n\n\`\`\`json\n${catalogString[index]}\n\`\`\``;
             }).join('\n\n---\n\n')
         } as sysPromptVariables);
-        agent.context.setInstructions(sysPrompt.value, sysPromptKey);
+        agent.context.setInstructions(sysPrompt.value, a2uiNamespace);
         catalogChanged = false;
     }
 
@@ -72,7 +73,7 @@ export const A2ui = (options?: a2uiOptions): FragolaHook => (agent) => {
         }
     });
 
-    agent.context.setInstructions(sysPrompt.value, sysPromptKey);
+    agent.context.setInstructions(sysPrompt.value, a2uiNamespace);
     agent.context.updateTools((prev) => {
         return [
             ...prev,
@@ -89,7 +90,8 @@ export const A2ui = (options?: a2uiOptions): FragolaHook => (agent) => {
         ]
     })
     return () => {
-        agent.context.removeInstructions(sysPromptKey);
-        agent.context.updateTools(prev => (prev.filter(tool => tool.name !== "A2ui_payload")))
+        agent.context.removeInstructions(a2uiNamespace);
+        agent.context.removeStore(a2uiNamespace);
+        agent.context.updateTools(prev => (prev.filter(tool => tool.name !== "A2ui_payload")));
     }
 }

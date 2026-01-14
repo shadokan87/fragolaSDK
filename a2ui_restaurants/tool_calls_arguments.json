@@ -1,0 +1,557 @@
+[
+  {
+    "beginRendering": {
+      "surfaceId": "restaurant-listings",
+      "root": "root-column",
+      "styles": {
+        "primaryColor": "#D32F2F",
+        "backgroundColor": "#F5F5F5",
+        "fontFamily": "Roboto, sans-serif"
+      }
+    }
+  },
+  {
+    "surfaceUpdate": {
+      "surfaceId": "restaurant-listings",
+      "components": [
+        {
+          "id": "root-column",
+          "component": {
+            "Column": {
+              "children": {
+                "explicitList": [
+                  "header-section",
+                  "restaurants-list"
+                ]
+              },
+              "alignment": "stretch"
+            }
+          }
+        },
+        {
+          "id": "header-section",
+          "component": {
+            "Column": {
+              "children": {
+                "explicitList": [
+                  "page-title",
+                  "subtitle"
+                ]
+              },
+              "alignment": "center"
+            }
+          }
+        },
+        {
+          "id": "page-title",
+          "component": {
+            "Text": {
+              "usageHint": "h1",
+              "text": {
+                "literalString": "Restaurant Directory"
+              }
+            }
+          }
+        },
+        {
+          "id": "subtitle",
+          "component": {
+            "Text": {
+              "usageHint": "body",
+              "text": {
+                "literalString": "Discover amazing dining experiences around the world"
+              }
+            }
+          }
+        },
+        {
+          "id": "restaurants-list",
+          "component": {
+            "List": {
+              "direction": "vertical",
+              "children": {
+                "template": {
+                  "componentId": "restaurant-card-template",
+                  "dataBinding": "/restaurants"
+                }
+              }
+            }
+          }
+        },
+        {
+          "id": "restaurant-card-template",
+          "component": {
+            "Card": {
+              "child": "card-content"
+            }
+          }
+        },
+        {
+          "id": "card-content",
+          "component": {
+            "Column": {
+              "children": {
+                "explicitList": [
+                  "restaurant-name-row",
+                  "address-row",
+                  "location-row",
+                  "food-types-row",
+                  "price-row"
+                ]
+              },
+              "alignment": "stretch"
+            }
+          }
+        },
+        {
+          "id": "restaurant-name-row",
+          "component": {
+            "Text": {
+              "usageHint": "h3",
+              "text": {
+                "path": "name"
+              }
+            }
+          }
+        },
+        {
+          "id": "address-row",
+          "component": {
+            "Text": {
+              "usageHint": "body",
+              "text": {
+                "path": "address"
+              }
+            }
+          }
+        },
+        {
+          "id": "location-row",
+          "component": {
+            "Row": {
+              "children": {
+                "explicitList": [
+                  "location-label",
+                  "city-text",
+                  "country-text"
+                ]
+              },
+              "distribution": "start",
+              "alignment": "center"
+            }
+          }
+        },
+        {
+          "id": "location-label",
+          "component": {
+            "Text": {
+              "usageHint": "caption",
+              "text": {
+                "literalString": "📍 "
+              }
+            }
+          }
+        },
+        {
+          "id": "city-text",
+          "component": {
+            "Text": {
+              "usageHint": "body",
+              "text": {
+                "path": "location/city"
+              }
+            }
+          }
+        },
+        {
+          "id": "country-text",
+          "component": {
+            "Text": {
+              "usageHint": "body",
+              "text": {
+                "path": "location/country"
+              }
+            }
+          }
+        },
+        {
+          "id": "food-types-row",
+          "component": {
+            "Row": {
+              "children": {
+                "explicitList": [
+                  "food-label",
+                  "food-tags"
+                ]
+              },
+              "distribution": "start",
+              "alignment": "start"
+            }
+          }
+        },
+        {
+          "id": "food-label",
+          "component": {
+            "Text": {
+              "usageHint": "caption",
+              "text": {
+                "literalString": "🍽️ Cuisine: "
+              }
+            }
+          }
+        },
+        {
+          "id": "food-tags",
+          "component": {
+            "Text": {
+              "usageHint": "body",
+              "text": {
+                "path": "food_types_display"
+              }
+            }
+          }
+        },
+        {
+          "id": "price-row",
+          "component": {
+            "Row": {
+              "children": {
+                "explicitList": [
+                  "price-label",
+                  "price-value"
+                ]
+              },
+              "distribution": "start",
+              "alignment": "center"
+            }
+          }
+        },
+        {
+          "id": "price-label",
+          "component": {
+            "Text": {
+              "usageHint": "caption",
+              "text": {
+                "literalString": "💰 Price Level: "
+              }
+            }
+          }
+        },
+        {
+          "id": "price-value",
+          "component": {
+            "Text": {
+              "usageHint": "body",
+              "text": {
+                "path": "pricy_score_display"
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "dataModelUpdate": {
+      "surfaceId": "restaurant-listings",
+      "path": "/",
+      "contents": [
+        {
+          "key": "restaurants",
+          "valueMap": [
+            {
+              "key": "r1",
+              "valueMap": [
+                {
+                  "key": "name",
+                  "valueString": "La Bella Italia"
+                },
+                {
+                  "key": "address",
+                  "valueString": "123 Main Street, Downtown"
+                },
+                {
+                  "key": "location/city",
+                  "valueString": "New York"
+                },
+                {
+                  "key": "location/country",
+                  "valueString": "USA"
+                },
+                {
+                  "key": "food_types_display",
+                  "valueString": "Italian, Mediterranean"
+                },
+                {
+                  "key": "pricy_score_display",
+                  "valueString": "💵💵💵💵💵💵💵 (7/10)"
+                }
+              ]
+            },
+            {
+              "key": "r2",
+              "valueMap": [
+                {
+                  "key": "name",
+                  "valueString": "Sushi Paradise"
+                },
+                {
+                  "key": "address",
+                  "valueString": "456 Ocean Avenue, Waterfront"
+                },
+                {
+                  "key": "location/city",
+                  "valueString": "San Francisco"
+                },
+                {
+                  "key": "location/country",
+                  "valueString": "USA"
+                },
+                {
+                  "key": "food_types_display",
+                  "valueString": "Japanese, Sushi, Asian"
+                },
+                {
+                  "key": "pricy_score_display",
+                  "valueString": "💵💵💵💵💵💵💵💵 (8/10)"
+                }
+              ]
+            },
+            {
+              "key": "r3",
+              "valueMap": [
+                {
+                  "key": "name",
+                  "valueString": "Burger Junction"
+                },
+                {
+                  "key": "address",
+                  "valueString": "789 Park Lane, Midtown"
+                },
+                {
+                  "key": "location/city",
+                  "valueString": "Chicago"
+                },
+                {
+                  "key": "location/country",
+                  "valueString": "USA"
+                },
+                {
+                  "key": "food_types_display",
+                  "valueString": "American, Burgers, Fast Food"
+                },
+                {
+                  "key": "pricy_score_display",
+                  "valueString": "💵💵💵💵 (4/10)"
+                }
+              ]
+            },
+            {
+              "key": "r4",
+              "valueMap": [
+                {
+                  "key": "name",
+                  "valueString": "Le Jardin"
+                },
+                {
+                  "key": "address",
+                  "valueString": "321 Rose Boulevard, Uptown"
+                },
+                {
+                  "key": "location/city",
+                  "valueString": "Paris"
+                },
+                {
+                  "key": "location/country",
+                  "valueString": "France"
+                },
+                {
+                  "key": "food_types_display",
+                  "valueString": "French, Fine Dining"
+                },
+                {
+                  "key": "pricy_score_display",
+                  "valueString": "💵💵💵💵💵💵💵💵💵 (9/10)"
+                }
+              ]
+            },
+            {
+              "key": "r5",
+              "valueMap": [
+                {
+                  "key": "name",
+                  "valueString": "Spice Garden"
+                },
+                {
+                  "key": "address",
+                  "valueString": "654 Market Street, Downtown"
+                },
+                {
+                  "key": "location/city",
+                  "valueString": "London"
+                },
+                {
+                  "key": "location/country",
+                  "valueString": "UK"
+                },
+                {
+                  "key": "food_types_display",
+                  "valueString": "Indian, Vegetarian, Asian"
+                },
+                {
+                  "key": "pricy_score_display",
+                  "valueString": "💵💵💵💵💵 (5/10)"
+                }
+              ]
+            },
+            {
+              "key": "r6",
+              "valueMap": [
+                {
+                  "key": "name",
+                  "valueString": "Taco Fiesta"
+                },
+                {
+                  "key": "address",
+                  "valueString": "987 Beach Road, Beachside"
+                },
+                {
+                  "key": "location/city",
+                  "valueString": "Los Angeles"
+                },
+                {
+                  "key": "location/country",
+                  "valueString": "USA"
+                },
+                {
+                  "key": "food_types_display",
+                  "valueString": "Mexican, Latin American"
+                },
+                {
+                  "key": "pricy_score_display",
+                  "valueString": "💵💵💵 (3/10)"
+                }
+              ]
+            },
+            {
+              "key": "r7",
+              "valueMap": [
+                {
+                  "key": "name",
+                  "valueString": "The Golden Dragon"
+                },
+                {
+                  "key": "address",
+                  "valueString": "147 Temple Street, Chinatown"
+                },
+                {
+                  "key": "location/city",
+                  "valueString": "San Francisco"
+                },
+                {
+                  "key": "location/country",
+                  "valueString": "USA"
+                },
+                {
+                  "key": "food_types_display",
+                  "valueString": "Chinese, Asian, Dim Sum"
+                },
+                {
+                  "key": "pricy_score_display",
+                  "valueString": "💵💵💵💵💵💵 (6/10)"
+                }
+              ]
+            },
+            {
+              "key": "r8",
+              "valueMap": [
+                {
+                  "key": "name",
+                  "valueString": "Mediterranean Breeze"
+                },
+                {
+                  "key": "address",
+                  "valueString": "258 Harbor Drive, Waterfront"
+                },
+                {
+                  "key": "location/city",
+                  "valueString": "Barcelona"
+                },
+                {
+                  "key": "location/country",
+                  "valueString": "Spain"
+                },
+                {
+                  "key": "food_types_display",
+                  "valueString": "Mediterranean, Greek, Seafood"
+                },
+                {
+                  "key": "pricy_score_display",
+                  "valueString": "💵💵💵💵💵💵💵 (7/10)"
+                }
+              ]
+            },
+            {
+              "key": "r9",
+              "valueMap": [
+                {
+                  "key": "name",
+                  "valueString": "The Steakhouse"
+                },
+                {
+                  "key": "address",
+                  "valueString": "369 Executive Plaza, Business District"
+                },
+                {
+                  "key": "location/city",
+                  "valueString": "New York"
+                },
+                {
+                  "key": "location/country",
+                  "valueString": "USA"
+                },
+                {
+                  "key": "food_types_display",
+                  "valueString": "Steakhouse, American, Fine Dining"
+                },
+                {
+                  "key": "pricy_score_display",
+                  "valueString": "💵💵💵💵💵💵💵💵💵 (9/10)"
+                }
+              ]
+            },
+            {
+              "key": "r10",
+              "valueMap": [
+                {
+                  "key": "name",
+                  "valueString": "Café Delights"
+                },
+                {
+                  "key": "address",
+                  "valueString": "741 College Avenue, University District"
+                },
+                {
+                  "key": "location/city",
+                  "valueString": "Boston"
+                },
+                {
+                  "key": "location/country",
+                  "valueString": "USA"
+                },
+                {
+                  "key": "food_types_display",
+                  "valueString": "Café, Breakfast, Bakery"
+                },
+                {
+                  "key": "pricy_score_display",
+                  "valueString": "💵💵💵 (3/10)"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+]

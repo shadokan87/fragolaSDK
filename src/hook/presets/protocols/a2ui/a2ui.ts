@@ -20,7 +20,7 @@ export interface a2uiStore {
 export interface a2uiOptions {
     catalog?: CatalogItem[],
     method?: "toolcal",
-    sysPrompt: Prompt
+    sysPrompt?: Prompt
 }
 
 export const A2ui = (options?: a2uiOptions): FragolaHook => (agent) => {

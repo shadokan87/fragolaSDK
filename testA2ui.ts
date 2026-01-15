@@ -4,7 +4,7 @@ import { createHeaders, PORTKEY_GATEWAY_URL } from 'portkey-ai';
 import { fileSystemSave } from "./src/hook/presets"
 import { noCompletion } from "@src/utils";
 import { restaurantsSample } from "@src/hook/presets/protocols/a2ui/sampledata/restaurants";
-import { A2ui, sysPromptKey, type CatalogItem } from "@src/hook/presets/protocols/a2ui/a2ui";
+import { A2ui, a2uiNamespace, type CatalogItem } from "@src/hook/presets/protocols/a2ui/a2ui";
 import catalog_json from "./src/hook/presets/protocols/a2ui/server_to_client_with_standard_catalog.json";
 import{ $ }from "bun";
 import { writeFile } from 'fs/promises';

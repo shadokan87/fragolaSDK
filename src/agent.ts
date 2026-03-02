@@ -80,24 +80,6 @@ export const defaultStepOptions: StepOptions = {
     // skipToolString: "Info: this too execution has been canceled. Do not assume it has been processed and inform the user that you are aware of it."
 }
 
-export type EventOptions = {
-    priority?: number | "start" | "end"
-}
-
-export type PriorityLevel = "start" | "end";
-
-const PRIORITY_LEVELS: Record<PriorityLevel, number> = {
-    start: 1000,
-    end: -1000,
-};
-
-const getPriorityValue = (opts?: EventOptions) => {
-    if (!opts || opts.priority === undefined || opts.priority === null) return 0;
-    const p = opts.priority as number | PriorityLevel;
-    if (typeof p === "number") return p;
-    return PRIORITY_LEVELS[p] ?? 0;
-}
-
 export type ModelSettings = Prettify<Omit<ChatCompletionCreateParamsBase, "messages" | "tools">>;
 
 /**
@@ -1020,26 +1002,13 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      * // later
      * off();
      */
-    on<TEventId extends AgentEventId>(eventId: TEventId, callback: eventIdToCallback<TEventId, TMetaData, TGlobalStore, TStore>
-    , options?: EventOptions) {
+    on<TEventId extends AgentEventId>(eventId: TEventId, callback: eventIdToCallback<TEventId, TMetaData, TGlobalStore, TStore>) {
         type EventTargetType = registeredEvent<TEventId, TMetaData, TGlobalStore, TStore>;
         const events = this.registeredEvents.get(eventId) || [] as EventTargetType[];
         const id = nanoid();
         events.push({
             id,
-            callback: callback,
-            options
-        });
-        // Sort by computed numeric priority (desc). If neither side has an explicit priority, preserve
-        // insertion order (stable): lhs wins. Tie-break by id for deterministic ordering when priorities equal.
-        events.sort((a, b) => {
-            const aHas = a.options && a.options.priority !== undefined && a.options.priority !== null;
-            const bHas = b.options && b.options.priority !== undefined && b.options.priority !== null;
-            if (!aHas && !bHas) return 0; // preserve lhs when neither has priority
-            const pa = getPriorityValue(a.options as EventOptions);
-            const pb = getPriorityValue(b.options as EventOptions);
-            if (pa === pb) return a.id.localeCompare(b.id);
-            return pb - pa;
+            callback: callback
         });
         this.registeredEvents.set(eventId, events);
 
@@ -1076,7 +1045,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      * }
      * });
      */
-    onToolCall<TParams = Record<any, any>>(callback: EventToolCall<TParams, TMetaData, TGlobalStore, TStore>, options?: EventOptions) { return this.on("toolCall", callback, options) }
+    onToolCall<TParams = Record<any, any>>(callback: EventToolCall<TParams, TMetaData, TGlobalStore, TStore>) { return this.on("toolCall", callback) }
 
     /**
      * Register a handler that runs after the messages is updated.
@@ -1090,7 +1059,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      *   context.getStore()?.value.lastSaved = Date.now();
      * });
      */
-    onAfterMessagesUpdate(callback: EventAfterMessagesUpdate<TMetaData, TGlobalStore, TStore>, options?: EventOptions) { return this.on("after:messagesUpdate", callback, options) }
+    onAfterMessagesUpdate(callback: EventAfterMessagesUpdate<TMetaData, TGlobalStore, TStore>) { return this.on("after:messagesUpdate", callback) }
 
     /**
      * Register an AI message event handler.
@@ -1107,7 +1076,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      *   return message;
      * });
      */
-    onAiMessage(callback: EventAiMessage<TMetaData, TGlobalStore, TStore>, options?: EventOptions) { return this.on("aiMessage", callback, options) }
+    onAiMessage(callback: EventAiMessage<TMetaData, TGlobalStore, TStore>) { return this.on("aiMessage", callback) }
 
     /**
      * Register a user message event handler.
@@ -1121,7 +1090,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      *   return { ...message, content: message.content.trim() };
      * });
      */
-    onUserMessage(callback: EventUserMessage<TMetaData, TGlobalStore, TStore>, options?: EventOptions) { return this.on("userMessage", callback, options) }
+    onUserMessage(callback: EventUserMessage<TMetaData, TGlobalStore, TStore>) { return this.on("userMessage", callback) }
 
     /**
      * Register a step event handler.
@@ -1134,7 +1103,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      *   return { ...options, maxStep: 5 };
      * });
      */
-    onStep(callback: EventStep<TMetaData, TGlobalStore, TStore>, options?: EventOptions) { return this.on("step", callback, options) }
+    onStep(callback: EventStep<TMetaData, TGlobalStore, TStore>) { return this.on("step", callback) }
 
     /**
      * Register a before step event handler.
@@ -1146,7 +1115,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      *   console.log('Before step', options);
      * });
      */
-    onBeforeStep(callback: EventBeforeStep<TMetaData, TGlobalStore, TStore>, options?: EventOptions) { return this.on("before:step", callback, options) }
+    onBeforeStep(callback: EventBeforeStep<TMetaData, TGlobalStore, TStore>) { return this.on("before:step", callback) }
 
     /**
      * Register an after step event handler.
@@ -1158,7 +1127,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      *   console.log('After step', options);
      * });
      */
-    onAfterStep(callback: EventAfterStep<TMetaData, TGlobalStore, TStore>, options?: EventOptions) { return this.on("after:step", callback, options) }
+    onAfterStep(callback: EventAfterStep<TMetaData, TGlobalStore, TStore>) { return this.on("after:step", callback) }
 
     /**
      * Register a before model invocation event handler.
@@ -1170,7 +1139,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      *   console.log('Before model invocation');
      * });
      */
-    onBeforeModelInvocation(callback: EventBeforeModelInvocation<TMetaData, TGlobalStore, TStore>, options?: EventOptions) { return this.on("before:modelInvocation", callback, options) }
+    onBeforeModelInvocation(callback: EventBeforeModelInvocation<TMetaData, TGlobalStore, TStore>) { return this.on("before:modelInvocation", callback) }
 
     /**
      * Register an after model invocation event handler.
@@ -1182,7 +1151,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      *   console.log('After model invocation', message);
      * });
      */
-    onAfterModelInvocation(callback: EventAfterModelInvocation<TMetaData, TGlobalStore, TStore>, options?: EventOptions) { return this.on("after:modelInvocation", callback, options) }
+    onAfterModelInvocation(callback: EventAfterModelInvocation<TMetaData, TGlobalStore, TStore>) { return this.on("after:modelInvocation", callback) }
 
     /**
      * Register a before tool call event handler.
@@ -1194,7 +1163,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      *   console.log('Before tool call', tool.name, params);
      * });
      */
-    onBeforeToolCall<TParams = Record<any, any>>(callback: EventBeforeToolCall<TParams, TMetaData, TGlobalStore, TStore>, options?: EventOptions) { return this.on("before:toolCall", callback, options) }
+    onBeforeToolCall<TParams = Record<any, any>>(callback: EventBeforeToolCall<TParams, TMetaData, TGlobalStore, TStore>) { return this.on("before:toolCall", callback) }
 
     /**
      * Register an after tool call event handler.
@@ -1206,7 +1175,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      *   console.log('After tool call', tool.name, result);
      * });
      */
-    onAfterToolCall<TParams = Record<any, any>>(callback: EventAfterToolCall<TParams, TMetaData, TGlobalStore, TStore>, options?: EventOptions) { return this.on("after:toolCall", callback, options) }
+    onAfterToolCall<TParams = Record<any, any>>(callback: EventAfterToolCall<TParams, TMetaData, TGlobalStore, TStore>) { return this.on("after:toolCall", callback) }
 
     /**
      * Register a model invocation event handler.
@@ -1230,7 +1199,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      *   return { ...aiMsg, content: aiMsg.content + '\n\n(checked)' };
      * });
      */
-    onModelInvocation(callback: EventModelInvocation<TMetaData, TGlobalStore, TStore>, options?: EventOptions) { return this.on("modelInvocation", callback, options) }
+    onModelInvocation(callback: EventModelInvocation<TMetaData, TGlobalStore, TStore>) { return this.on("modelInvocation", callback) }
 
     /**
      * Register a handler that runs after the agent state is updated.
@@ -1244,7 +1213,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      *   console.log('stepCount', context.state.stepCount);
      * });
      */
-    onAfterStateUpdate(callback: AfterStateUpdateCallback<TMetaData, TGlobalStore, TStore>, options?: EventOptions) { return this.on("after:stateUpdate", callback, options) };
+    onAfterStateUpdate(callback: AfterStateUpdateCallback<TMetaData, TGlobalStore, TStore>) { return this.on("after:stateUpdate", callback) };
 
     /**
      * Attach a hook to this agent.

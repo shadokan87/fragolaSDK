@@ -9,7 +9,6 @@ import type { StoreLike } from "../../types";
 import { createHandleAiMessage, defaultHandleAiMessage, type HandleAiMessage } from "./aiMessage";
 import { createHandleUserMessage, type HandleUserMessage } from "./userMessage";
 import {AgentContext} from "@src/agentContext";
-import type { EventOptions } from "@src/agent";
 
 /**
  * Maps an event ID to its corresponding callback type based on the event category.
@@ -29,8 +28,7 @@ export type eventIdToCallback<TEventId extends AgentEventId, TMetaData extends D
 
 export type registeredEvent<TEventId extends AgentEventId, TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = {
     id: string,
-    callback: eventIdToCallback<TEventId, TMetaData, TGlobalStore, TStore>,
-    options?: EventOptions
+    callback: eventIdToCallback<TEventId, TMetaData, TGlobalStore, TStore>
 }
 
 export class EventMap<

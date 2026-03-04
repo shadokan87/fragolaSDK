@@ -13,7 +13,7 @@ import { type AgentEventId, type EventDefaultCallback } from "./event"
 import type { CallAPI, CallAPIProcessChuck, EventToolCall, EventUserMessage, EventModelInvocation, EventAiMessage, EventStep } from "./eventDefault";
 import { nanoid } from "nanoid"
 import type { EventAfterMessagesUpdate, AfterStateUpdateCallback, messagesUpdateReason, EventAfterStep, EventAfterModelInvocation, EventAfterToolCall } from "./eventAfter"
-import type { EventBeforeStep, EventBeforeModelInvocation, EventBeforeToolCall } from "./eventBefore"
+import type { EventBeforeStep, EventBeforeModelInvocation, EventBeforeToolCall, ModelInvocationConfig } from "./eventBefore"
 import { type registeredEvent, type eventIdToCallback, EventMap } from "./extendedJS/events/EventMap"
 import type { FragolaHook } from "@src/hook/index";
 import { zodToJsonSchema } from "openai/_vendor/zod-to-json-schema/zodToJsonSchema.js"
@@ -112,8 +112,6 @@ export type CreateAgentOptions<TStore extends StoreLike<any> = {}> = {
 
 export type ResetParams = Prettify<Pick<Required<CreateAgentOptions>, "messages">>;
 
-const AGENT_FRIEND = Symbol('AgentAccess');
-
 // type AppendMessagesFn = (messages: OpenAI.ChatCompletionMessageParam[], replaceLast?: boolean, reason?: messagesUpdateReason) => Promise<void>;
 // type UpdateMessagesFn = (callback: (prev: AgentState<any>["messages"]) => AgentState<any>["messages"], reason: messagesUpdateReason) => Promise<void>;
 // Use these types for your ContextRaw
@@ -129,7 +127,7 @@ type StepBy = Partial<{
 
 export type StepParams = StepBy & StepOptions;
 
-export type UserMessageQuery<TMetaData extends DefineMetaData<any> = {}> = Prettify<Omit<OpenAI.Chat.ChatCompletionUserMessageParam, "role">> & { step?: StepParams, meta?: MessageMeta<TMetaData, "user">};
+export type UserMessageQuery<TMetaData extends DefineMetaData<any> = {}> = Prettify<Omit<OpenAI.Chat.ChatCompletionUserMessageParam, "role">> & { step?: StepParams, meta?: MessageMeta<TMetaData, "user"> };
 
 export type JsonQuery<S extends z.ZodTypeAny = z.ZodTypeAny> = Prettify<UserMessageQuery & {
     /** Set to true to use tool calling to extract json instead of classic 'response_format' */
@@ -155,7 +153,7 @@ type applyEventParams<K extends AgentEventId, TMetaData extends DefineMetaData<a
     K extends "messagesUpdate" ? MessagesUpdateParams :
     K extends "before:step" ? { options: Required<StepOptions> } :
     K extends "after:step" ? { options: Required<StepOptions> } :
-    K extends "before:modelInvocation" ? {} :
+    K extends "before:modelInvocation" ? { config: ModelInvocationConfig<TMetaData> } :
     K extends "after:modelInvocation" ? { message: ChatCompletionAssistantMessageParam<TMetaData> } :
     K extends "before:toolCall" ? { params: any, tool: Tool<any> } :
     K extends "after:toolCall" ? { result: any, params: any, tool: Tool<any> } :
@@ -283,13 +281,13 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
             setOptions(options: SetOptionsParams): void {
                 _this.setOptions(options);
             }
-            async stop(): Promise<{[STOP]: true}> {
+            async stop(): Promise<{ [STOP]: true }> {
                 await _this.stop();
                 return {
                     [STOP]: true
                 }
             }
-            stopSync(): {[STOP]: true} {
+            stopSync(): { [STOP]: true } {
                 _this.stopSync();
                 return {
                     [STOP]: true
@@ -559,7 +557,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         this.stopRequested = true;
         if (this.abortController) {
             this.abortController.abort();
-        } 
+        }
     }
 
     private lastAiMessage(messages: OpenAI.ChatCompletionMessageParam[]): OpenAI.ChatCompletionAssistantMessageParam | undefined {
@@ -642,7 +640,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                 if (this.paramsTools?.length)
                     requestBody["tools"] = this.paramsTools;
 
-                await this.applyEvents("before:modelInvocation", {});
+                const config = await this.applyEvents("before:modelInvocation", { config: {} }) as ModelInvocationConfig<TMetaData>;
                 this.setGenerating();
                 const response = await openai.chat.completions.create(requestBody, { signal: this.abortController!.signal });
 
@@ -746,8 +744,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                             const _event = toolCallEvents[i];
                             const params = paramsParsed?.data ?? rawParams;
                             const callback = _event.callback as EventToolCall<any, TMetaData, TGlobalStore, TStore>;
-                            const result = isAsyncFunction(callback) ? await callback(params, tool as any, this.context)
-                                : callback(params, tool as any, this.context);
+                            const result = await callback(params, tool as any, this.context)
                             if (isSkipEvent(result)) {
                                 continue;
                             }
@@ -912,74 +909,42 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
             switch (eventId) {
                 case "after:stateUpdate": {
                     const params: Parameters<EventDefaultType> = defaultParams;
-                    if (isAsyncFunction(callback)) {
-                        return await (callback as EventDefaultType)(...params) as any;
-                    } else {
-                        return (callback as EventDefaultType)(...params) as any;
-                    }
+                    return await (callback as EventDefaultType)(...params) as any;
                 }
                 case "after:messagesUpdate": {
                     type callbackType = EventAfterMessagesUpdate<TMetaData, TGlobalStore, TStore>;
                     const params: Parameters<callbackType> = [(_params as ApplyAfterMessagesUpdateParams).reason, ...defaultParams];
-                    if (isAsyncFunction(callback)) {
-                        return await (callback as callbackType)(...params) as any;
-                    } else {
-                        return (callback as callbackType)(...params) as any;
-                    }
+                    return await (callback as callbackType)(...params) as any;
                 }
                 case "before:step": {
                     type callbackType = EventBeforeStep<TMetaData, TGlobalStore, TStore>;
                     const params: Parameters<callbackType> = [(_params as any).options, ...defaultParams];
-                    if (isAsyncFunction(callback)) {
-                        return await (callback as callbackType)(...params) as any;
-                    } else {
-                        return (callback as callbackType)(...params) as any;
-                    }
+                    return await (callback as callbackType)(...params) as any;
                 }
                 case "after:step": {
                     type callbackType = EventAfterStep<TMetaData, TGlobalStore, TStore>;
                     const params: Parameters<callbackType> = [(_params as any).options, ...defaultParams];
-                    if (isAsyncFunction(callback)) {
-                        return await (callback as callbackType)(...params) as any;
-                    } else {
-                        return (callback as callbackType)(...params) as any;
-                    }
+                    return await (callback as callbackType)(...params) as any;
                 }
                 case "before:modelInvocation": {
                     type callbackType = EventBeforeModelInvocation<TMetaData, TGlobalStore, TStore>;
-                    const params: Parameters<callbackType> = defaultParams;
-                    if (isAsyncFunction(callback)) {
-                        return await (callback as callbackType)(...params) as any;
-                    } else {
-                        return (callback as callbackType)(...params) as any;
-                    }
+                    const params: Parameters<callbackType> = [(_params as applyEventParams<"before:modelInvocation", TMetaData>).config, ...defaultParams];
+                    return await (callback as callbackType)(...params) as any;
                 }
                 case "after:modelInvocation": {
                     type callbackType = EventAfterModelInvocation<TMetaData, TGlobalStore, TStore>;
                     const params: Parameters<callbackType> = [(_params as any).message, ...defaultParams];
-                    if (isAsyncFunction(callback)) {
-                        return await (callback as callbackType)(...params) as any;
-                    } else {
-                        return (callback as callbackType)(...params) as any;
-                    }
+                    return await (callback as callbackType)(...params) as any;
                 }
                 case "before:toolCall": {
                     type callbackType = EventBeforeToolCall<any, TMetaData, TGlobalStore, TStore>;
                     const params: Parameters<callbackType> = [(_params as any).params, (_params as any).tool, ...defaultParams];
-                    if (isAsyncFunction(callback)) {
-                        return await (callback as callbackType)(...params) as any;
-                    } else {
-                        return (callback as callbackType)(...params) as any;
-                    }
+                    return await (callback as callbackType)(...params) as any;
                 }
                 case "after:toolCall": {
                     type callbackType = EventAfterToolCall<any, TMetaData, TGlobalStore, TStore>;
                     const params: Parameters<callbackType> = [(_params as any).result, (_params as any).params, (_params as any).tool, ...defaultParams];
-                    if (isAsyncFunction(callback)) {
-                        return await (callback as callbackType)(...params) as any;
-                    } else {
-                        return (callback as callbackType)(...params) as any;
-                    }
+                    return await (callback as callbackType)(...params) as any;
                 }
                 default: {
                     throw new FragolaError(`Internal error: event with name '${eventId}' is unknown`)

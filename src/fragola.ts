@@ -231,3 +231,7 @@ export class Fragola<TGlobalStore extends StoreLike<any> = {}> {
         return rest;
     }
 }
+
+export {
+    type OpenaiClientOptions
+}

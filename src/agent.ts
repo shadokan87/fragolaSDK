@@ -1,7 +1,7 @@
 // TODO: dispose method
 // TODO: logger method
 import { createStore, Store } from "@src/store"
-import { Fragola, stripUserMessageMeta, type ChatCompletionAssistantMessageParam, type ChatCompletionMessageParam, type ChatCompletionUserMessageParam, type DefineMetaData, type MessageMeta, type Tool } from "./fragola"
+import { Fragola, stripUserMessageMeta, type ChatCompletionAssistantMessageParam, type ChatCompletionMessageParam, type ChatCompletionUserMessageParam, type DefineMetaData, type MessageMeta, type OpenaiClientOptions, type Tool } from "./fragola"
 import type { ChatCompletionCreateParamsBase } from "openai/resources/chat/completions.js"
 import { streamChunkToMessage, isAsyncFunction, isSkipEvent, skipEventFallback } from "./utils"
 import { BadUsage, FragolaError, JsonModeError, MaxStepHitError } from "./exceptions"
@@ -10,16 +10,28 @@ import { z as zod } from "zod";
 import type { maybePromise, Prettify, StoreLike } from "./types"
 import OpenAI from "openai/index.js"
 import { type AgentEventId, type EventDefaultCallback } from "./event"
-import type { CallAPI, CallAPIProcessChuck, EventToolCall, EventUserMessage, EventModelInvocation, EventAiMessage, EventStep } from "./eventDefault";
+import type { EventToolCall, EventUserMessage, EventModelInvocation, EventAiMessage, EventStep, ModelInvocationKind } from "./eventDefault";
 import { nanoid } from "nanoid"
 import type { EventAfterMessagesUpdate, AfterStateUpdateCallback, messagesUpdateReason, EventAfterStep, EventAfterModelInvocation, EventAfterToolCall } from "./eventAfter"
 import type { EventBeforeStep, EventBeforeModelInvocation, EventBeforeToolCall, ModelInvocationConfig } from "./eventBefore"
 import { type registeredEvent, type eventIdToCallback, EventMap } from "./extendedJS/events/EventMap"
 import type { FragolaHook } from "@src/hook/index";
 import { zodToJsonSchema } from "openai/_vendor/zod-to-json-schema/zodToJsonSchema.js"
-import type { ResponseFormatJSONSchema } from "openai/resources"
+import type { ChatCompletionChunk, ResponseFormatJSONSchema } from "openai/resources"
 import { AgentContext } from "@src/agentContext";
 import { STOP } from "@src/agentContext"
+import {
+    applyAfterStateUpdate,
+    applyAfterMessagesUpdate,
+    applyBeforeStep,
+    applyAfterStep,
+    applyBeforeModelInvocation,
+    applyAfterModelInvocation,
+    applyBeforeToolCall,
+    applyAfterToolCall
+} from "./applyEvent"
+import type { APIPromise, ClientOptions } from "openai"
+import type { Stream } from "openai/streaming"
 
 export type AgentState<TMetaData extends DefineMetaData<any> = {}> = {
     messages: ChatCompletionMessageParam<TMetaData>[],
@@ -148,7 +160,9 @@ type MessagesUpdateParams = {
 
 type ApplyAfterMessagesUpdateParams = MessagesUpdateParams;
 
-type applyEventParams<K extends AgentEventId, TMetaData extends DefineMetaData<any>> =
+
+export type applyEventParams<K extends AgentEventId, TMetaData extends DefineMetaData<any>> =
+    K extends "modelInvocation" ? { kind: ModelInvocationKind, data: OpenAI.ChatCompletionChunk | ChatCompletionAssistantMessageParam<TMetaData> } :
     K extends "after:messagesUpdate" ? ApplyAfterMessagesUpdateParams :
     K extends "messagesUpdate" ? MessagesUpdateParams :
     K extends "before:step" ? { options: Required<StepOptions> } :
@@ -214,6 +228,10 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
             }
             this.validateStepOptions(this.opts.stepOptions);
         }
+    }
+
+    get forkOf() {
+        return this.#forkOf;
     }
 
     private addStore(store: Store<any>): void {
@@ -329,7 +347,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
             clonedOpts,
             this.globalStore,
             this.openai,
-            this.#id,
+            this.#id, // Id for fork
             this.#instance as Fragola<any>,
             clonedState,
         );
@@ -585,6 +603,8 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
             return;
         }
 
+        type CallAPI = (modelSettings?: CreateAgentOptions["modelSettings"], clientOptions?: OpenaiClientOptions) => Promise<OpenAI.ChatCompletionAssistantMessageParam>; //TODO: move somewhere else, akward place for this type
+
         if (stepOptions.resetStepCountAfterUserMessage) {
             if (this.#state.messages.at(-1)?.role == "user")
                 this.setStepCount(0);
@@ -621,42 +641,56 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
 
         if (shouldGenerate) {
             const EmodelInvocation = this.registeredEvents.get("modelInvocation");
-            const defaultProcessChunck: CallAPIProcessChuck = (chunck) => chunck;
+            // const defaultProcessChunck: CallAPIProcessChuck = (chunck) => chunck;
             const defaultModelSettings: ModelSettings = stepOptions.modelSettings ?? this.modelSettings();
             let apiCalled: boolean = false;
-            const callAPI: CallAPI = async (processChunck, modelSettings, clientOpts) => {
-                apiCalled = true;
-                const _processChunck = processChunck || defaultProcessChunck;
-                let _modelSettings = modelSettings ? structuredClone(modelSettings) : structuredClone(defaultModelSettings)
+            const callAPI: CallAPI = async (modelSettings, clientOpts) => {
                 const openai = clientOpts ? new OpenAI(clientOpts) : this.openai;
 
-                const instructionsRole: ChatCompletionCreateParamsBase["messages"][0]["role"] = this.opts.useDeveloperRole ? "developer" : "system";
-                if (!_modelSettings["model"])
-                    _modelSettings["model"] = this.modelSettings().model;
-                const requestBody: ChatCompletionCreateParamsBase = {
-                    ..._modelSettings as ChatCompletionCreateParamsBase,
-                    messages: [{ role: instructionsRole, content: this.getMergedInstructions() }, ...this.#state.messages]
-                };
-                if (this.paramsTools?.length)
-                    requestBody["tools"] = this.paramsTools;
+                let config = await this.applyEvents("before:modelInvocation", { config: {} }) as ModelInvocationConfig<TMetaData>;
+                const response = await (async () => {
+                    if ("injectResponse" in config) {
+                        return await config.injectResponse();
+                    } else if ("injectMessage" in config) {
+                        return undefined as unknown as APIPromise<Stream<OpenAI.Chat.Completions.ChatCompletionChunk> | OpenAI.Chat.Completions.ChatCompletion>; // TODO: implement response mock
+                    } else {
+                        if (!config.clientOptions) {
+                            config.clientOptions = this.context.instance.options
+                        }
+                        if (!config.modelSettings) {
+                            config.modelSettings = this.modelSettings();
+                        }
+                        if (!config.modelSettings["model"])
+                            config.modelSettings["model"] = this.modelSettings().model;
+                        const instructionsRole: ChatCompletionCreateParamsBase["messages"][0]["role"] = this.opts.useDeveloperRole ? "developer" : "system";
 
-                const config = await this.applyEvents("before:modelInvocation", { config: {} }) as ModelInvocationConfig<TMetaData>;
+                        const requestBody: ChatCompletionCreateParamsBase = {
+                            ...config.modelSettings as ChatCompletionCreateParamsBase,
+                            messages: [{ role: instructionsRole, content: this.getMergedInstructions() }, ...this.#state.messages]
+                        };
+                        if (this.paramsTools?.length)
+                            requestBody["tools"] = this.paramsTools;
+                        return await openai.chat.completions.create(requestBody, { signal: this.abortController!.signal });
+                    }
+                })();
+
                 this.setGenerating();
-                const response = await openai.chat.completions.create(requestBody, { signal: this.abortController!.signal });
-
                 // Handle streaming vs non-streaming
                 if (Symbol.asyncIterator in response) {
                     let partialMessage: Partial<OpenAI.Chat.ChatCompletionMessageParam> = {};
                     let replaceLast = false;
-
+                    const createProcessChunck = (): (chunck: OpenAI.Chat.Completions.ChatCompletionChunk | ChatCompletionChunk ) => Promise<OpenAI.Chat.Completions.ChatCompletionChunk | ChatCompletionChunk> => {
+                        if (EmodelInvocation) {
+                            return async (chunck: OpenAI.Chat.Completions.ChatCompletionChunk | ChatCompletionChunk ) => {
+                                return await this.applyEvents("modelInvocation", { kind: "chunck", data: chunck }) as any;
+                            }
+                        } else
+                            return async (chunck) => chunck;
+                    }
+                    const processChunck = createProcessChunck();
                     for await (const chunck of response) {
-                        if (_processChunck.constructor.name == "AsyncFunction") {
-                            const _chunck = await _processChunck(chunck, partialMessage as typeof aiMessage);
-                            partialMessage = streamChunkToMessage(_chunck, partialMessage);
-                        } else {
-                            const _chunck = _processChunck(chunck, partialMessage as typeof aiMessage);
-                            partialMessage = streamChunkToMessage(_chunck as OpenAI.ChatCompletionChunk, partialMessage);
-                        }
+                        let _chunck = await processChunck(chunck);
+                        partialMessage = streamChunkToMessage(_chunck, partialMessage);
                         const updateReason: messagesUpdateReason = !chunck.choices[0].finish_reason ? "partialAiMessage" : "AiMessage";
                         const partialMessageFinal = await this.registeredEvents.handleAiMessage(partialMessage as typeof aiMessage, updateReason == "partialAiMessage");
                         await this.appendMessages([partialMessageFinal as OpenAI.Chat.ChatCompletionMessageParam], replaceLast, updateReason);
@@ -676,18 +710,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                     toolCalls = aiMessage.tool_calls;
                 return aiMessage;
             }
-            if (EmodelInvocation) {
-                for (const event of EmodelInvocation) {
-                    const params: Parameters<EventModelInvocation<TMetaData, TGlobalStore, TStore>> = [callAPI, this.context];
-                    const callback = event.callback as EventModelInvocation<TMetaData, TGlobalStore, TStore>;
-                    aiMessage = await skipEventFallback(await callback(...params), callAPI);
-                    if (!apiCalled) {
-                        await this.appendMessages([aiMessage], false, "AiMessage");
-                        this.setStepCount(this.#state.stepCount + 1);
-                    }
-                }
-            } else
-                await callAPI();
+            await callAPI();
         } else if (lastMessage?.role == "assistant" && lastMessage.tool_calls && lastMessage.tool_calls.length) { // Last message is 'assistant' role without generation required, assign tool calls if any
             toolCalls = lastMessage.tool_calls;
         }
@@ -712,10 +735,10 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
 
                 let paramsParsed: z.SafeParseReturnType<any, any> | undefined;
                 let rawParams: any;
-
+                //TODO: for the errors, indicate if it is zod or schema string
                 if (tool.schema) {
                     if (typeof tool.schema === 'string') {
-                        // If schema is a string, no validation - just parse the arguments
+                        // If schema is a string, no validation - we just parse the arguments
                         try {
                             rawParams = JSON.parse(toolCall.function.arguments);
                         } catch {
@@ -837,7 +860,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
             return { ...parsed, state };
         } catch (e) {
             console.error(e);
-            throw new JsonModeError(`JSON.parse() of model response failed: `);
+            throw new JsonModeError(`JSON.parse() of model response failed: `); //TODO: error message not clear
         }
     }
 
@@ -900,58 +923,29 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      */
     private async applyEvents<TEventId extends AgentEventId>(eventId: TEventId, _params: applyEventParams<TEventId, TMetaData> | null): Promise<ReturnType<eventIdToCallback<TEventId, TMetaData, TGlobalStore, TStore>>> {
         const events = this.registeredEvents.get(eventId);
-        type EventDefaultType = EventDefaultCallback<TMetaData, TGlobalStore, TStore>;
         if (!events)
             return undefined as ReturnType<eventIdToCallback<TEventId, TMetaData, TGlobalStore, TStore>>;
-        for (let i = 0; i < events.length; i++) {
-            const callback = events[i].callback;
-            const defaultParams: Parameters<EventDefaultType> = [this.context];
-            switch (eventId) {
-                case "after:stateUpdate": {
-                    const params: Parameters<EventDefaultType> = defaultParams;
-                    return await (callback as EventDefaultType)(...params) as any;
-                }
-                case "after:messagesUpdate": {
-                    type callbackType = EventAfterMessagesUpdate<TMetaData, TGlobalStore, TStore>;
-                    const params: Parameters<callbackType> = [(_params as ApplyAfterMessagesUpdateParams).reason, ...defaultParams];
-                    return await (callback as callbackType)(...params) as any;
-                }
-                case "before:step": {
-                    type callbackType = EventBeforeStep<TMetaData, TGlobalStore, TStore>;
-                    const params: Parameters<callbackType> = [(_params as any).options, ...defaultParams];
-                    return await (callback as callbackType)(...params) as any;
-                }
-                case "after:step": {
-                    type callbackType = EventAfterStep<TMetaData, TGlobalStore, TStore>;
-                    const params: Parameters<callbackType> = [(_params as any).options, ...defaultParams];
-                    return await (callback as callbackType)(...params) as any;
-                }
-                case "before:modelInvocation": {
-                    type callbackType = EventBeforeModelInvocation<TMetaData, TGlobalStore, TStore>;
-                    const params: Parameters<callbackType> = [(_params as applyEventParams<"before:modelInvocation", TMetaData>).config, ...defaultParams];
-                    return await (callback as callbackType)(...params) as any;
-                }
-                case "after:modelInvocation": {
-                    type callbackType = EventAfterModelInvocation<TMetaData, TGlobalStore, TStore>;
-                    const params: Parameters<callbackType> = [(_params as any).message, ...defaultParams];
-                    return await (callback as callbackType)(...params) as any;
-                }
-                case "before:toolCall": {
-                    type callbackType = EventBeforeToolCall<any, TMetaData, TGlobalStore, TStore>;
-                    const params: Parameters<callbackType> = [(_params as any).params, (_params as any).tool, ...defaultParams];
-                    return await (callback as callbackType)(...params) as any;
-                }
-                case "after:toolCall": {
-                    type callbackType = EventAfterToolCall<any, TMetaData, TGlobalStore, TStore>;
-                    const params: Parameters<callbackType> = [(_params as any).result, (_params as any).params, (_params as any).tool, ...defaultParams];
-                    return await (callback as callbackType)(...params) as any;
-                }
-                default: {
-                    throw new FragolaError(`Internal error: event with name '${eventId}' is unknown`)
-                }
-            }
+        const params = _params as any;
+        switch (eventId) {
+            case "after:stateUpdate":
+                return await applyAfterStateUpdate(events as any, this.context) as any;
+            case "after:messagesUpdate":
+                return await applyAfterMessagesUpdate(events as any, this.context, params) as any;
+            case "before:step":
+                return await applyBeforeStep(events as any, this.context, params) as any;
+            case "after:step":
+                return await applyAfterStep(events as any, this.context, params) as any;
+            case "before:modelInvocation":
+                return await applyBeforeModelInvocation(events as any, this.context, params) as any;
+            case "after:modelInvocation":
+                return await applyAfterModelInvocation(events as any, this.context, params) as any;
+            case "before:toolCall":
+                return await applyBeforeToolCall(events as any, this.context, params) as any;
+            case "after:toolCall":
+                return await applyAfterToolCall(events as any, this.context, params) as any;
+            default:
+                throw new FragolaError(`Internal error: event with name '${eventId}' is unknown`)
         }
-        return undefined as ReturnType<eventIdToCallback<TEventId, TMetaData, TGlobalStore, TStore>>;
     }
 
     /**

@@ -3,6 +3,9 @@ import type { maybePromise, StoreLike } from "./types";
 import type { AgentContext } from "@src/agentContext";
 import type { OpenaiClientOptions, DefineMetaData, Tool, ChatCompletionAssistantMessageParam } from "./fragola";
 import type { CreateAgentOptions, StepOptions } from "./agent";
+import type OpenAI from "openai";
+import type { APIPromise } from "openai";
+import type { Stream } from "openai/streaming";
 
 export type AgentBeforeEventId = `before:${AgentDefaultEventId}`;
 
@@ -11,13 +14,15 @@ export type EventBeforeStep<TMetaData extends DefineMetaData<any>, TGlobalStore 
     context: AgentContext<TMetaData, TGlobalStore, TStore>
 ) => maybePromise<void>;
 
+export type InjectResponse = () => APIPromise<Stream<OpenAI.Chat.Completions.ChatCompletionChunk> | OpenAI.Chat.Completions.ChatCompletion>;
+
 export type ModelInvocationConfig<TMetaData extends DefineMetaData<any> = {}> = {
     modelSettings?: CreateAgentOptions["modelSettings"],
     clientOptions?: OpenaiClientOptions
 } | {
-    injectResponse: {
-        message: ChatCompletionAssistantMessageParam<TMetaData>
-    }
+    injectResponse: InjectResponse;
+} | {
+    injectMessage: Omit<ChatCompletionAssistantMessageParam<TMetaData>, "role">,
 }
 
 export type EventBeforeModelInvocation<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = (

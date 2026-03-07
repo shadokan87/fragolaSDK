@@ -7,6 +7,8 @@ import type { Store } from "@src/store";
 import { BadUsage } from "./exceptions";
 import type { AgentContext } from "@src/agentContext";
 import { type AgentAny } from "./agent";
+import type { Stream } from "openai/streaming";
+import type { APIPromise } from "openai";
 
 export type ToolHandlerReturnTypeNonAsync = any[] | Record<any, any> | Function | number | bigint | boolean | string;
 export type ToolHandlerReturnType = maybePromise<ToolHandlerReturnTypeNonAsync>;

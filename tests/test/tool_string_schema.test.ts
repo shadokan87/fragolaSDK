@@ -10,7 +10,13 @@ import {fileSystemSave} from "@fragola-ai/agentic-sdk-core/hook/presets"
 const fragola = createTestClient();
 // Used to avoid token cost for tests where model response is not relevant
 const noCompletion: FragolaHook = (agent) => {
-    agent.onModelInvocation(async () => ({role: "assistant", content: ""}))
+    agent.onBeforeModelInvocation(async () => {
+        return {
+            injectMessage: {
+                    content: ""
+            }
+        }
+    });
 }
 
 describe("Tool schema parsing in step()", () => {

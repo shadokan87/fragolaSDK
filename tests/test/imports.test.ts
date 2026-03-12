@@ -4,7 +4,7 @@
 import {
 	tool,
 	stripMeta,
-	stripConversationMeta,
+	stripMessagesMeta,
 	stripAiMessageMeta,
 	stripUserMessageMeta,
 	stripToolMessageMeta,
@@ -49,7 +49,6 @@ import type { StoreChangeCallback } from '@fragola-ai/agentic-sdk-core/store';
 import { SKIP_EVENT, skip as skipFromEvent } from '@fragola-ai/agentic-sdk-core/event';
 import type {
 	AgentDefaultEventId,
-	AgentAfterEventId,
 	eventResult,
 	AgentEventId,
 	EventDefaultCallback

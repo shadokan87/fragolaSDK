@@ -28,7 +28,7 @@ describe("Agent streaming behavior (real model via stream: true)", () => {
             test: false
         }});
 
-        const lastAssistant = assistant.state.conversation.filter((m) => m.role === "assistant").pop();
+        const lastAssistant = assistant.state.messages.filter((m) => m.role === "assistant").pop();
         expect(lastAssistant).toBeDefined();
         if (lastAssistant)
             expect(lastAssistant.content).toBeDefined();
@@ -59,7 +59,7 @@ describe("Agent streaming behavior (real model via stream: true)", () => {
 
         await assistant.userMessage({ content: "use the test tool to add a client with the name banana" });
 
-        const conv = assistant.state.conversation;
+        const conv = assistant.state.messages;
         const assistantMsg = conv.filter((m) => m.role === "assistant").pop();
         const toolMsg = conv.filter((m) => m.role === "tool").pop();
 

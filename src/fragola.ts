@@ -109,19 +109,31 @@ export interface FragolaEvents {
 export type ClientOptions = OpenaiClientOptions & PreferedModel & {events?: FragolaEvents};
 
 export class Fragola<TGlobalStore extends StoreLike<any> = {}> {
-    private openai: OpenAI;
+    #sdk: typeof OpenAI;
+    #sdkInstance: OpenAI;
     #namespaceStore: Map<string, Store<any>> = new Map();
-    constructor(private clientOptions: ClientOptions, private globalStore: Store<TGlobalStore> | undefined = undefined) {
+    constructor(private clientOptions: ClientOptions, private globalStore: Store<TGlobalStore> | undefined = undefined, sdk: typeof OpenAI = OpenAI) {
         const opts = clientOptions ? (() => {
             const copy = { ...clientOptions };
             const { model, ...rest } = copy;
             return rest;
         })() : undefined;
-        this.openai = opts ? new OpenAI(opts) : new OpenAI();
+        this.#sdk = sdk;
+        this.#sdkInstance = opts ? new this.sdk(opts) : new this.sdk();
+    }
+
+    // get createSDK(): typeof this
+
+    get sdk() {
+        return this.#sdk;
+    }
+
+    get SdkInstance() {
+        return this.#sdkInstance;
     }
 
     agent<TMetaData extends DefineMetaData<any> = {}, TStore = {}>(opts: CreateAgentOptions<TStore>): Agent<TMetaData, TGlobalStore, TStore> {
-        const created = new Agent<TMetaData, TGlobalStore, TStore>(opts, this.globalStore, this.openai, undefined, this as Fragola<any>);
+        const created = new Agent<TMetaData, TGlobalStore, TStore>(opts, this.globalStore, this.#sdkInstance, undefined, this as Fragola<any>);
         (async () => {
             if (this.clientOptions.events?.agentCreated) {
                 void await this.clientOptions.events.agentCreated(created)

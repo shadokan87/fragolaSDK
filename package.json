@@ -1,6 +1,6 @@
 {
   "name": "@fragola-ai/agentic-sdk-core",
-  "version": "0.2.2-a",
+  "version": "0.2.2-alpha.4",
   "description": "Fragola is a 100% OpenAI-compatible library for building AI-first software with minimal abstractions. Fragola help you create software such as programming assistants, vertical AI SaaS products, and automation workflows through an event-driven architecture and extensible hook system. Create custom hooks or leverage community-built extensions to rapidly expand agent capabilities.",
   "main": "./dist/package/fragola.index.js",
   "module": "./dist/package/fragola.index.js",
@@ -105,6 +105,7 @@
     "test:build": "bun run build && cd tests && rm -rf node_modules && bun i && bunx vitest --run",
     "test": "cd tests && bunx vitest --run",
     "test:watch": "cd tests && bunx vitest",
+    "test:local": "cd tests && rm -rf node_modules && bun i --verbose --registry http://localhost:4873 && bunx vitest --run",
     "proxy:start": "bunx verdaccio --config verdaccio.config.yaml",
     "pub:local": "npm publish --registry http://localhost:4873",
     "publish:prod": "npm publish --registry https://registry.npmjs.org",

@@ -5,6 +5,17 @@ max_body_size: 900mb
 # Storage path
 storage: ./verdaccioStorage
 
+# Server listen
+listen: 0.0.0.0:4873
+
+# Uplinks - define upstream registries
+uplinks:
+  npmjs:
+    url: https://registry.npmjs.org/
+    timeout: 30s
+    cache: true
+    strict_ssl: false
+
 # Packages configuration
 packages:
   '@fragola-ai/agentic-sdk-core':
@@ -17,8 +28,3 @@ packages:
     publish: $all
     unpublish: $all
     proxy: npmjs
-
-# Uplinks - define upstream registries
-uplinks:
-  npmjs:
-    url: https://registry.npmjs.org/

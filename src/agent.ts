@@ -67,6 +67,8 @@ export type StepOptions = Partial<{
     skipToolString: string,
     /** Will override the agent model settings. `response_format` will always be ovrride when using `json` method*/
     modelSettings?: ModelSettings,
+    /** Will override Openai SDK client options */
+    clientOptions?: OpenaiClientOptions,
     //@ts-nocheck
     /**
      * Execute the steps on a cloned agent using  so the original state is not changed.
@@ -171,6 +173,7 @@ export type applyEventParams<K extends AgentEventId, TMetaData extends DefineMet
     K extends "after:modelInvocation" ? { message: ChatCompletionAssistantMessageParam<TMetaData> } :
     K extends "before:toolCall" ? { params: any, tool: Tool<any> } :
     K extends "after:toolCall" ? { result: any, params: any, tool: Tool<any> } :
+    K extends "after:stateUpdate" ? null :
     never;
 
 const FORK_FRIEND = Symbol("fork_friend");
@@ -641,27 +644,34 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
 
         if (shouldGenerate) {
             const EmodelInvocation = this.registeredEvents.get("modelInvocation");
-            // const defaultProcessChunck: CallAPIProcessChuck = (chunck) => chunck;
             const defaultModelSettings: ModelSettings = stepOptions.modelSettings ?? this.modelSettings();
-            let apiCalled: boolean = false;
+            const defaultClientOptions = stepOptions.clientOptions ?? this.#instance.options;
             const callAPI: CallAPI = async (modelSettings, clientOpts) => {
                 const openai = clientOpts ? new OpenAI(clientOpts) : this.openai;
 
-                let config = await this.applyEvents("before:modelInvocation", { config: {} }) as ModelInvocationConfig<TMetaData>;
+                let config = await this.applyEvents("before:modelInvocation", { config: {
+                    modelSettings: modelSettings ?? this.modelSettings(),
+                    clientOptions: this.context.instance.options
+                } }) as ModelInvocationConfig<TMetaData>;
+
                 const response = await (async () => {
                     if ("injectResponse" in config) {
                         return await config.injectResponse();
                     } else if ("injectMessage" in config) {
-                        return undefined as unknown as APIPromise<Stream<OpenAI.Chat.Completions.ChatCompletionChunk> | OpenAI.Chat.Completions.ChatCompletion>; // TODO: implement response mock
+                        const injectedMessage: ChatCompletionAssistantMessageParam<TMetaData> = {
+                            role: "assistant",
+                            ...config.injectMessage
+                        }
+                        return {
+                            id: `fragola-injected-${nanoid()}`,
+                            object: "chat.completion" as const,
+                            created: Math.floor(Date.now() / 1000),
+                            model: modelSettings?.model || "NO_MODEL",
+                            choices: [{ index: 0, message: injectedMessage as unknown as OpenAI.ChatCompletionMessage, finish_reason: "stop" as const, logprobs: null }],
+                        } satisfies OpenAI.ChatCompletion;
                     } else {
-                        if (!config.clientOptions) {
-                            config.clientOptions = this.context.instance.options
-                        }
-                        if (!config.modelSettings) {
-                            config.modelSettings = this.modelSettings();
-                        }
-                        if (!config.modelSettings["model"])
-                            config.modelSettings["model"] = this.modelSettings().model;
+                        if (!config.modelSettings!["model"])
+                            config.modelSettings!["model"] = this.modelSettings().model;
                         const instructionsRole: ChatCompletionCreateParamsBase["messages"][0]["role"] = this.opts.useDeveloperRole ? "developer" : "system";
 
                         const requestBody: ChatCompletionCreateParamsBase = {
@@ -710,7 +720,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                     toolCalls = aiMessage.tool_calls;
                 return aiMessage;
             }
-            await callAPI();
+            await callAPI(defaultModelSettings, defaultClientOptions);
         } else if (lastMessage?.role == "assistant" && lastMessage.tool_calls && lastMessage.tool_calls.length) { // Last message is 'assistant' role without generation required, assign tool calls if any
             toolCalls = lastMessage.tool_calls;
         }
@@ -921,10 +931,8 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      * @param _params  - the parameters to pass to the callback
      * @returns 
      */
-    private async applyEvents<TEventId extends AgentEventId>(eventId: TEventId, _params: applyEventParams<TEventId, TMetaData> | null): Promise<ReturnType<eventIdToCallback<TEventId, TMetaData, TGlobalStore, TStore>>> {
-        const events = this.registeredEvents.get(eventId);
-        if (!events)
-            return undefined as ReturnType<eventIdToCallback<TEventId, TMetaData, TGlobalStore, TStore>>;
+    private async applyEvents<TEventId extends AgentEventId>(eventId: TEventId, _params: applyEventParams<TEventId, TMetaData>): Promise<ReturnType<eventIdToCallback<TEventId, TMetaData, TGlobalStore, TStore>>> {
+        const events = this.registeredEvents.get(eventId) || [];
         const params = _params as any;
         switch (eventId) {
             case "after:stateUpdate":

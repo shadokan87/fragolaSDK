@@ -48,7 +48,7 @@ describe("Tool schema parsing in step()", () => {
             description: "d",
             instructions: "i",
             tools: [weatherTool],
-            initialConversation: [
+            messages: [
                 { role: "user", content: "What is the weather?" },
                 makeAssistantToolCall("get_weather", { location: 123 })
             ]
@@ -70,14 +70,14 @@ describe("Tool schema parsing in step()", () => {
             description: "d",
             instructions: "i",
             tools: [weatherTool],
-            initialConversation: [
+            messages: [
                 { role: "user", content: "Weather?" },
                 makeAssistantToolCall("get_weather", { location: "Paris" })
             ]
         }).use(noCompletion).use(fileSystemSave("./inspect/conv"))
 
         const state = await agent.step({ by: 1 });
-        const last = state.conversation.at(-2)!;
+        const last = state.messages.at(-2)!;
         expect(last.role).toBe("tool");
         expect(typeof (last as any).tool_call_id).toBe("string");
         expect((last as any).content).toContain("OK:Paris");
@@ -112,13 +112,13 @@ describe("Tool schema parsing in step()", () => {
             description: "d",
             instructions: "i",
             tools: [weatherTool],
-            initialConversation: [
+            messages: [
                 { role: "user", content: "Weather?" },
                 makeAssistantToolCall("get_weather", { location: 42 })
             ]
         }).use(noCompletion);
         const stateInvalid = await agentInvalid.step({ by: 1 });
-        const lastInvalid = stateInvalid.conversation.at(-2)!;
+        const lastInvalid = stateInvalid.messages.at(-2)!;
         expect(lastInvalid.role).toBe("tool");
         expect((lastInvalid as any).content).toContain("INVALID");
 
@@ -128,13 +128,13 @@ describe("Tool schema parsing in step()", () => {
             description: "d",
             instructions: "i",
             tools: [weatherTool],
-            initialConversation: [
+            messages: [
                 { role: "user", content: "Weather?" },
                 makeAssistantToolCall("get_weather", { location: "Paris" })
             ]
         }).use(noCompletion);
         const stateValid = await agentValid.step({ by: 1 });
-        const lastValid = stateValid.conversation.at(-2)!;
+        const lastValid = stateValid.messages.at(-2)!;
         expect(lastValid.role).toBe("tool");
         expect((lastValid as any).content).toContain("RAW:Paris");
     });

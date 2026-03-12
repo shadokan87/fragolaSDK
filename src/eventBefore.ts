@@ -17,8 +17,8 @@ export type EventBeforeStep<TMetaData extends DefineMetaData<any>, TGlobalStore 
 export type InjectResponse = () => APIPromise<Stream<OpenAI.Chat.Completions.ChatCompletionChunk> | OpenAI.Chat.Completions.ChatCompletion>;
 
 export type ModelInvocationConfig<TMetaData extends DefineMetaData<any> = {}> = {
-    modelSettings?: CreateAgentOptions["modelSettings"],
-    clientOptions?: OpenaiClientOptions
+    modelSettings: CreateAgentOptions["modelSettings"],
+    clientOptions: OpenaiClientOptions
 } | {
     injectResponse: InjectResponse;
 } | {

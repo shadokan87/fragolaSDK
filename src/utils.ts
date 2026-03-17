@@ -1,6 +1,7 @@
 import type OpenAI from "openai";
 import { SKIP_EVENT } from "./event";
 import type { FragolaHook } from "./hook/index";
+import { STOP } from "./agentContext";
 
 export const noCompletion: FragolaHook = (agent) => {
     agent.onModelInvocation(async () => ({role: "assistant", content: ""}))
@@ -57,6 +58,9 @@ export const streamChunkToMessage = (chunk: OpenAI.Chat.Completions.ChatCompleti
 
 export const isSkipEvent = (data: any) => {
     return typeof data == "object" && (data as any)[SKIP_EVENT] == true
+}
+export const isStopEvent = (data: any) => {
+    return typeof data == "object" && (data as any)[STOP] == true
 }
 export const skipEventFallback = async <T>(data: any, fallback: () => Promise<T>): Promise<T> => {
     if (isSkipEvent(data))

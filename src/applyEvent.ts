@@ -6,7 +6,7 @@ import type { DefineMetaData } from "./fragola"
 import type { StoreLike } from "./types"
 import type { AgentContext } from "./agentContext"
 import { type applyEventParams } from "./agent"
-import type { EventModelInvocation } from "./eventDefault"
+import { isSkipEvent, isStopEvent } from "./utils"
 
 export async function applyAfterStateUpdate<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>>(
     events: registeredEvent<"after:stateUpdate", TMetaData, TGlobalStore, TStore>[],
@@ -61,10 +61,15 @@ export async function applyBeforeModelInvocation<TMetaData extends DefineMetaDat
     _params: applyEventParams<"before:modelInvocation", TMetaData>
 ) {
     let { config } = _params;
+    let configTmp: ModelInvocationConfig<TMetaData>;
     for (let i = 0; i < events.length; i++) {
         const callback = events[i].callback as EventBeforeModelInvocation<TMetaData, TGlobalStore, TStore>;
         const params: Parameters<typeof callback> = [config, context];
-        config = await callback(...params) as any;
+        configTmp = await callback(...params) as any;
+        if (isStopEvent(configTmp))
+            return configTmp;
+        if (!isSkipEvent(configTmp))
+            config = configTmp;
     }
     return config;
 }
@@ -77,8 +82,8 @@ export async function applyModelInvocation<TMetaData extends DefineMetaData<any>
     for (let i = 0; i < events.length; i++) {
         const {callback} = events[i];
         const res = await callback(_params.kind, _params.data, context);
-        if (res && typeof res === 'object' && typeof res === 'object' && Symbol.for('skip_event') in res)
-            continue;
+        if (isSkipEvent(res))
+            continue ;
         _params.data = res as any;
     }
     return _params.data;

@@ -3,7 +3,7 @@
 import { createStore, Store } from "@src/store"
 import { Fragola, stripUserMessageMeta, type ChatCompletionAssistantMessageParam, type ChatCompletionMessageParam, type ChatCompletionUserMessageParam, type DefineMetaData, type MessageMeta, type OpenaiClientOptions, type Tool } from "./fragola"
 import type { ChatCompletionCreateParamsBase } from "openai/resources/chat/completions.js"
-import { streamChunkToMessage, isAsyncFunction, isSkipEvent, skipEventFallback } from "./utils"
+import { streamChunkToMessage, isAsyncFunction, isSkipEvent, skipEventFallback, isStopEvent } from "./utils"
 import { BadUsage, FragolaError, JsonModeError, MaxStepHitError } from "./exceptions"
 import type z from "zod";
 import { z as zod } from "zod";
@@ -28,7 +28,8 @@ import {
     applyBeforeModelInvocation,
     applyAfterModelInvocation,
     applyBeforeToolCall,
-    applyAfterToolCall
+    applyAfterToolCall,
+    applyModelInvocation
 } from "./applyEvent"
 import type { APIPromise, ClientOptions } from "openai"
 import type { Stream } from "openai/streaming"
@@ -654,6 +655,10 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                     clientOptions: this.context.instance.options
                 } }) as ModelInvocationConfig<TMetaData>;
 
+                if (this.stopRequested) {
+                    return aiMessage;
+                }
+
                 const response = await (async () => {
                     if ("injectResponse" in config) {
                         return await config.injectResponse();
@@ -692,7 +697,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                     const createProcessChunck = (): (chunck: OpenAI.Chat.Completions.ChatCompletionChunk | ChatCompletionChunk ) => Promise<OpenAI.Chat.Completions.ChatCompletionChunk | ChatCompletionChunk> => {
                         if (EmodelInvocation) {
                             return async (chunck: OpenAI.Chat.Completions.ChatCompletionChunk | ChatCompletionChunk ) => {
-                                return await this.applyEvents("modelInvocation", { kind: "chunck", data: chunck }) as any;
+                                return await this.applyEvents("modelInvocation", { kind: "chunck", data: chunck }, EmodelInvocation) as any;
                             }
                         } else
                             return async (chunck) => chunck;
@@ -931,8 +936,8 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      * @param _params  - the parameters to pass to the callback
      * @returns 
      */
-    private async applyEvents<TEventId extends AgentEventId>(eventId: TEventId, _params: applyEventParams<TEventId, TMetaData>): Promise<ReturnType<eventIdToCallback<TEventId, TMetaData, TGlobalStore, TStore>>> {
-        const events = this.registeredEvents.get(eventId) || [];
+    private async applyEvents<TEventId extends AgentEventId>(eventId: TEventId, _params: applyEventParams<TEventId, TMetaData>, _events?: registeredEvent<AgentEventId, TMetaData, TGlobalStore, TStore>[]): Promise<ReturnType<eventIdToCallback<TEventId, TMetaData, TGlobalStore, TStore>>> {
+        const events = _events ?? this.registeredEvents.get(eventId) ?? [];
         const params = _params as any;
         switch (eventId) {
             case "after:stateUpdate":
@@ -943,6 +948,8 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                 return await applyBeforeStep(events as any, this.context, params) as any;
             case "after:step":
                 return await applyAfterStep(events as any, this.context, params) as any;
+            case "modelInvocation":
+                return await applyModelInvocation(events as any, this.context, params) as any;
             case "before:modelInvocation":
                 return await applyBeforeModelInvocation(events as any, this.context, params) as any;
             case "after:modelInvocation":

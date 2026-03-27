@@ -8,6 +8,7 @@ import type { AgentContext } from "./agentContext"
 import { type applyEventParams } from "./agent"
 import { isSkipEvent, isStopEvent } from "./utils"
 
+//no skip
 export async function applyAfterStateUpdate<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>>(
     events: registeredEvent<"after:stateUpdate", TMetaData, TGlobalStore, TStore>[],
     context: AgentContext<TMetaData, TGlobalStore, TStore>
@@ -15,7 +16,10 @@ export async function applyAfterStateUpdate<TMetaData extends DefineMetaData<any
     for (let i = 0; i < events.length; i++) {
         const callback = events[i].callback as AfterStateUpdateCallback<TMetaData, TGlobalStore, TStore>;
         const params: Parameters<typeof callback> = [context];
-        return await callback(...params) as any;
+
+        const res = await callback(...params) as any;
+        if (isStopEvent(res))
+            break ;
     }
 }
 

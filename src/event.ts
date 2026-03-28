@@ -1,4 +1,5 @@
 import type { AgentContext } from "@src/agentContext";
+import { STOP } from "./agentContext";
 import type { StoreLike, maybePromise } from "./types";
 import type { DefineMetaData } from "./fragola";
 import type { AgentAfterEventId } from "./eventAfter";
@@ -14,6 +15,7 @@ export const SKIP_EVENT = Symbol('skip_event');
  * @returns An object with the SKIP_EVENT symbol that signals the event system to skip this event
  */
 export const skip = () => ({[SKIP_EVENT]: true});
+export const stop = () => ({[STOP]: true});
 
 export type eventResult<T> = T | ReturnType<typeof skip> | ReturnType<typeof stop>; //TODO: fix stop not imported
 

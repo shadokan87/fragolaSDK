@@ -6,9 +6,6 @@ import { type callbackMap as eventAfterCallbackMap } from "../../eventAfter";
 import { type callbackMap as eventBeforeCallbackMap } from "../../eventBefore";
 import type { DefineMetaData } from "../../fragola";
 import type { StoreLike } from "../../types";
-import { createHandleAiMessage, defaultHandleAiMessage, type HandleAiMessage } from "./aiMessage";
-import { createHandleUserMessage, type HandleUserMessage } from "./userMessage";
-import {AgentContext} from "@src/agentContext";
 
 /**
  * Maps an event ID to its corresponding callback type based on the event category.
@@ -36,56 +33,4 @@ export class EventMap<
     TMetaData extends DefineMetaData<any>,
     TGlobalStore extends StoreLike<any> = {},
     TStore extends StoreLike<any> = {}>
-    extends globalThis.Map<K, V> {
-
-    #handleAiMessage: HandleAiMessage = defaultHandleAiMessage;
-    #handleUserMessage: HandleUserMessage | undefined = undefined;
-    constructor(private getContext: () => AgentContext<TMetaData, TGlobalStore, TStore>, ...args: ConstructorParameters<typeof Map<K, V>>) {
-        super(...args);
-    }
-
-    get handleAiMessage() {
-        return this.#handleAiMessage;
-    }
-
-    get handleUserMessage() {
-        return this.#handleUserMessage;
-    }
-
-    set(key: K, value: V): this {
-        super.set(key, value);
-        switch (key) {
-            case "aiMessage": {
-                this.#handleAiMessage = createHandleAiMessage(value as registeredEvent<"aiMessage", TMetaData, TGlobalStore, TStore>[], this.getContext as unknown as () => AgentContext<any>);
-                break;
-            }
-            case "userMessage": {
-                this.#handleUserMessage = createHandleUserMessage(value as registeredEvent<"userMessage", TMetaData, TGlobalStore, TStore>[], this.getContext as unknown as () => AgentContext<any>)
-                break ;
-            }
-            default: {
-                break;
-            }
-        }
-        return this;
-    }
-
-    delete(key: K): boolean {
-        const res = super.delete(key);
-        if (res) {
-            switch (key) {
-                case "aiMessage": {
-                    this.#handleAiMessage = defaultHandleAiMessage;
-                    break;
-                } case "userMessage": {
-                    this.#handleUserMessage = undefined;
-                    break ;
-                }
-                default: {
-                    break;
-                }
-            }
-        }
-        return res;
-    }
-}
+    extends globalThis.Map<K, V> {}

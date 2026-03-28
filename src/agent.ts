@@ -130,6 +130,8 @@ export type ResetParams = Prettify<Pick<Required<CreateAgentOptions>, "messages"
 
 // Use these types for your ContextRaw
 export type ContextRaw<TMetaData extends DefineMetaData<any> = {}> = {
+    appendMessages(messages: OpenAI.ChatCompletionMessageParam[], replaceLast: boolean | undefined): Promise<void>,
+    updateMessages(callback: (prev: AgentState<TMetaData>["messages"]) => AgentState<TMetaData>["messages"]): Promise<void>
 }
 
 type StepBy = Partial<{

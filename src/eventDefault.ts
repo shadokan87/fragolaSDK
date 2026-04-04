@@ -21,7 +21,12 @@ export type EventToolCall<TParams = Record<any, any>, TMetaData extends DefineMe
 
 export type EventAiMessage<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> = (message: ChatCompletionAssistantMessageParam<TMetaData>, isPartial: boolean, context: AgentContext<TMetaData, TGlobalStore, TStore>) => maybePromise<eventResult<ChatCompletionAssistantMessageParam>>;
 export type EventUserMessage<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> = (message: ChatCompletionUserMessageParam<TMetaData>, context: AgentContext<TMetaData, TGlobalStore, TStore>) => maybePromise<eventResult<ChatCompletionUserMessageParam>>;
-export type EventStep<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> = (options: Required<StepOptions>, context: AgentContext<TMetaData, TGlobalStore, TStore>) => maybePromise<eventResult<Required<StepOptions>>>;
+export type EventStep<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> = (
+  options: Required<StepOptions>,
+  lastMessageRole: OpenAI.ChatCompletionMessageParam["role"] | undefined,
+  lastMessageIndex: number,
+  context: AgentContext<TMetaData, TGlobalStore, TStore>
+) => maybePromise<eventResult<Required<StepOptions>>>;
 
 //@prettier-ignore
 export type callbackMap<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = {

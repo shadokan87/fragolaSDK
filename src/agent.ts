@@ -12,7 +12,7 @@ import OpenAI from "openai/index.js"
 import { type AgentEventId, type EventDefaultCallback } from "./event"
 import type { EventToolCall, EventUserMessage, EventModelInvocation, EventAiMessage, EventStep, ModelInvocationKind } from "./eventDefault";
 import { nanoid } from "nanoid"
-import type { AfterStateUpdateCallback, EventAfterStep, EventAfterModelInvocation, EventAfterToolCall } from "./eventAfter"
+import type { EventAfterStateUpdate, EventAfterStep, EventAfterModelInvocation, EventAfterToolCall } from "./eventAfter"
 import type { EventBeforeStep, EventBeforeModelInvocation, EventBeforeToolCall, ModelInvocationConfig } from "./eventBefore"
 import { type registeredEvent, type eventIdToCallback, EventMap } from "./extendedJS/events/EventMap"
 import type { FragolaHook } from "@src/hook/index";
@@ -32,7 +32,9 @@ import {
     applyBeforeToolCall,
     applyAfterToolCall,
     applyModelInvocation,
-    applyToolCall
+    applyToolCall,
+    type EventResult,
+    type AccumulateCallback
 } from "./applyEvent"
 
 export type AgentState<TMetaData extends DefineMetaData<any> = {}> = {
@@ -162,9 +164,9 @@ export type applyEventParams<K extends AgentEventId, TMetaData extends DefineMet
     K extends "modelInvocation" ? { kind: ModelInvocationKind, data: OpenAI.ChatCompletionChunk | ChatCompletionAssistantMessageParam<TMetaData> } :
     K extends "aiMessage" ? { message: ChatCompletionAssistantMessageParam<TMetaData>, isPartial: boolean } :
     K extends "userMessage" ? { message: Omit<ChatCompletionUserMessageParam<TMetaData>, "role"> } :
-    K extends "step" ? { options: Required<StepOptions> } :
+    K extends "step" ? { options: Required<StepOptions>, lastMessageRole: OpenAI.ChatCompletionMessageParam["role"] | undefined, lastMessageIndex: number } :
     K extends "before:step" ? { options: Required<StepOptions> } :
-    K extends "after:step" ? { options: Required<StepOptions> } :
+    K extends "after:step" ? { options: Required<StepOptions>, newMessages: ChatCompletionMessageParam<TMetaData>[], stepsTaken: number } :
     K extends "before:modelInvocation" ? { config: ModelInvocationConfig<TMetaData> } :
     K extends "after:modelInvocation" ? { message: ChatCompletionAssistantMessageParam<TMetaData> } :
     K extends "toolCall" ? { params: any, tool: Tool<any> } :
@@ -518,13 +520,18 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         if (overrideStepOptions)
             this.validateStepOptions(overrideStepOptions);
         let stepOptions: Required<StepOptions> = overrideStepOptions ? { ...defaultStepOptions, ...overrideStepOptions } as Required<StepOptions> : this.stepOptions();
+        const stepCountBefore = this.#state.stepCount;
+        const messagesLengthBefore = this.#state.messages.length;
+        console.log("_STEP_OPTIONS_", JSON.stringify(stepOptions, null, 2))
         const beforeStepResult = await this.applyEvents("before:step", { options: stepOptions });
         if (isStopEvent(beforeStepResult))
             return this.#state;
-        const stepEventResult = await this.applyEvents("step", { options: stepOptions });
-        if (isStopEvent(stepEventResult))
-            return this.#state;
-        stepOptions = stepEventResult as Required<StepOptions>;
+        if (beforeStepResult && !isSkipEvent(beforeStepResult))
+            stepOptions = beforeStepResult;
+        // const stepEventResult = await this.applyEvents("step", { options: stepOptions, lastMessageRole, lastMessageIndex });
+        // if (isStopEvent(stepEventResult))
+        //     return this.#state;
+        // stepOptions = stepEventResult as Required<StepOptions>;
         if (this.#state.messages.length != 0)
             await this.recursiveAgent(stepOptions, () => {
                 if (stepParams?.by != undefined)
@@ -534,7 +541,9 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                 this.abortController = undefined;
                 this.stopRequested = false;
             });
-        await this.applyEvents("after:step", { options: stepOptions });
+        const newMessages = this.#state.messages.slice(messagesLengthBefore);
+        const stepsTaken = this.#state.stepCount - stepCountBefore;
+        await this.applyEvents("after:step", { options: stepOptions, newMessages, stepsTaken });
         return this.#state;
     }
 
@@ -643,10 +652,12 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                 const openai = clientOpts ? new OpenAI(clientOpts) : this.openai;
                 const emptyAssistantMessage = { role: "assistant", content: "" } as OpenAI.ChatCompletionAssistantMessageParam;
 
-                let config = await this.applyEvents("before:modelInvocation", { config: {
-                    modelSettings: modelSettings ?? this.modelSettings(),
-                    clientOptions: this.context.instance.options
-                } }) as ModelInvocationConfig<TMetaData>;
+                let config = await this.applyEvents("before:modelInvocation", {
+                    config: {
+                        modelSettings: modelSettings ?? this.modelSettings(),
+                        clientOptions: this.context.instance.options //TODO: check if this is correct
+                    }
+                }) as ModelInvocationConfig<TMetaData>;
 
                 if (isStopEvent(config) || this.stopRequested) {
                     return emptyAssistantMessage;
@@ -688,9 +699,9 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                     let partialMessage: Partial<OpenAI.Chat.ChatCompletionMessageParam> = {};
                     let finalProcessedMessage: OpenAI.ChatCompletionAssistantMessageParam | undefined = undefined;
                     let replaceLast = false;
-                    const createProcessChunck = (): (chunck: OpenAI.Chat.Completions.ChatCompletionChunk | ChatCompletionChunk ) => Promise<OpenAI.Chat.Completions.ChatCompletionChunk | ChatCompletionChunk> => {
+                    const createProcessChunck = (): (chunck: OpenAI.Chat.Completions.ChatCompletionChunk | ChatCompletionChunk) => Promise<OpenAI.Chat.Completions.ChatCompletionChunk | ChatCompletionChunk> => {
                         if (EmodelInvocation) {
-                            return async (chunck: OpenAI.Chat.Completions.ChatCompletionChunk | ChatCompletionChunk ) => {
+                            return async (chunck: OpenAI.Chat.Completions.ChatCompletionChunk | ChatCompletionChunk) => {
                                 return await this.applyEvents("modelInvocation", { kind: "chunck", data: chunck }, EmodelInvocation) as any;
                             }
                         } else
@@ -712,7 +723,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                         if (!isPartial)
                             finalProcessedMessage = partialMessageFinal as typeof finalProcessedMessage;
                         await this.appendMessages([partialMessageFinal as OpenAI.Chat.ChatCompletionMessageParam], replaceLast);
-                        if (!replaceLast) this.setStepCount(this.#state.stepCount + 1);
+                        // if (!replaceLast) this.setStepCount(this.#state.stepCount + 1);
                         replaceLast = true;
                     }
                     this.abortController = undefined;
@@ -727,8 +738,20 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                         return emptyAssistantMessage;
                     aiMessage = messageProcessed as typeof aiMessage;
                     await this.appendMessages([aiMessage], false);
-                    this.setStepCount(this.#state.stepCount + 1);
                 }
+                this.setStepCount(this.#state.stepCount + 1);
+
+                const lastMessageIndex = this.#state.messages.length - 1;
+                const lastMessageRole = this.#state.messages.at(-1)?.role;
+                let stepEventOptions: Required<StepOptions> | undefined;
+                const accunulateStep: AccumulateCallback<ReturnType<EventStep<TMetaData, TGlobalStore, TStore>>> = (data) => {
+                    if (!isSkipEvent(data) && !isStopEvent(data))
+                        stepEventOptions = data as Required<StepOptions>;
+                };
+                await this.applyEvents("step", { options: stepOptions, lastMessageRole, lastMessageIndex }, undefined, accunulateStep);
+                if (stepEventOptions)
+                    stepEventOptions = stepEventOptions;
+
                 await this.applyEvents("after:modelInvocation", { message: aiMessage });
                 if (aiMessage.role == "assistant" && aiMessage.tool_calls && aiMessage.tool_calls.length)
                     toolCalls = aiMessage.tool_calls;
@@ -930,34 +953,34 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      * @param _params  - the parameters to pass to the callback
      * @returns 
      */
-    private async applyEvents<TEventId extends AgentEventId>(eventId: TEventId, _params: applyEventParams<TEventId, TMetaData>, _events?: registeredEvent<AgentEventId, TMetaData, TGlobalStore, TStore>[]): Promise<any> {
+    private async applyEvents<TEventId extends AgentEventId>(eventId: TEventId, _params: applyEventParams<TEventId, TMetaData>, _events?: registeredEvent<TEventId, TMetaData, TGlobalStore, TStore>[], accumulate?: AccumulateCallback<any>): Promise<any> {
         const events = _events ?? this.registeredEvents.get(eventId) ?? [];
         const params = _params as any;
         switch (eventId) {
             case "aiMessage":
-                return await applyAiMessage(events as any, this.context, params) as any;
+                return await applyAiMessage(events as any, this.context, params, accumulate) as any;
             case "userMessage":
-                return await applyUserMessage(events as any, this.context, params) as any;
+                return await applyUserMessage(events as any, this.context, params, accumulate) as any;
             case "after:stateUpdate":
-                return await applyAfterStateUpdate(events as any, this.context) as any;
+                return await applyAfterStateUpdate(events as any, this.context, accumulate) as any;
             case "step":
-                return await applyStep(events as any, this.context, params) as any;
+                return await applyStep(events as any, this.context, params, accumulate) as any;
             case "before:step":
-                return await applyBeforeStep(events as any, this.context, params) as any;
+                return await applyBeforeStep(events as any, this.context, params, accumulate) as any;
             case "after:step":
-                return await applyAfterStep(events as any, this.context, params) as any;
+                return await applyAfterStep(events as any, this.context, params, accumulate) as any;
             case "modelInvocation":
-                return await applyModelInvocation(events as any, this.context, params) as any;
+                return await applyModelInvocation(events as any, this.context, params, accumulate) as any;
             case "before:modelInvocation":
-                return await applyBeforeModelInvocation(events as any, this.context, params) as any;
+                return await applyBeforeModelInvocation(events as any, this.context, params, accumulate) as any;
             case "after:modelInvocation":
-                return await applyAfterModelInvocation(events as any, this.context, params) as any;
+                return await applyAfterModelInvocation(events as any, this.context, params, accumulate) as any;
             case "toolCall":
-                return await applyToolCall(events as any, this.context, params) as any;
+                return await applyToolCall(events as any, this.context, params, accumulate) as any;
             case "before:toolCall":
-                return await applyBeforeToolCall(events as any, this.context, params) as any;
+                return await applyBeforeToolCall(events as any, this.context, params, accumulate) as any;
             case "after:toolCall":
-                return await applyAfterToolCall(events as any, this.context, params) as any;
+                return await applyAfterToolCall(events as any, this.context, params, accumulate) as any;
             default:
                 throw new FragolaError(`Internal error: event with name '${eventId}' is unknown`)
         }
@@ -1074,7 +1097,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      * Called when a step is executed. Handlers may return modified step options.
      *
      * @example
-     * agent.onStep((options, context) => {
+        * agent.onStep((options, lastMessageRole, lastMessageIndex, context) => {
      *   // modify step options
      *   return { ...options, maxStep: 5 };
      * });
@@ -1099,8 +1122,8 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      * Called after a step is executed.
      *
      * @example
-     * agent.onAfterStep((options, context) => {
-     *   console.log('After step', options);
+        * agent.onAfterStep((options, newMessages, stepsTaken, context) => {
+        *   console.log('After step', options, newMessages, stepsTaken);
      * });
      */
     onAfterStep(callback: EventAfterStep<TMetaData, TGlobalStore, TStore>) { return this.on("after:step", callback) }
@@ -1189,7 +1212,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      *   console.log('stepCount', context.state.stepCount);
      * });
      */
-    onAfterStateUpdate(callback: AfterStateUpdateCallback<TMetaData, TGlobalStore, TStore>) { return this.on("after:stateUpdate", callback) };
+    onAfterStateUpdate(callback: EventAfterStateUpdate<TMetaData, TGlobalStore, TStore>) { return this.on("after:stateUpdate", callback) };
 
     /**
      * Attach a hook to this agent.

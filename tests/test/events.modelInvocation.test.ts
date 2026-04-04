@@ -16,15 +16,10 @@
  */
 import { describe, it, expect, vi } from "vitest";
 import { skip, stop } from "@fragola-ai/agentic-sdk-core/event";
-import type { AgentAny } from "@fragola-ai/agentic-sdk-core/agent";
+import { injectReply } from "../injectReply";
 import { createTestClient } from "./createTestClient";
 
 const fragola = createTestClient();
-
-function injectReply(agent: AgentAny, content = "injected-reply") {
-    return agent.onBeforeModelInvocation(() => ({ injectMessage: { content } }));
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // before:modelInvocation
 // ─────────────────────────────────────────────────────────────────────────────
@@ -119,7 +114,7 @@ describe("after:modelInvocation — callback behavior", () => {
     it("multiple after:modelInvocation handlers are all called", async () => {
         const calls: number[] = [];
         const agent = fragola.agent({ name: "a", instructions: "", description: "" });
-        injectReply(agent, "ok");
+        agent.use(injectReply("ok"));
 
         agent.onAfterModelInvocation(() => { calls.push(1); });
         agent.onAfterModelInvocation(() => { calls.push(2); });
@@ -131,7 +126,7 @@ describe("after:modelInvocation — callback behavior", () => {
     it("unsubscribe removes an after:modelInvocation handler", async () => {
         const called = vi.fn();
         const agent = fragola.agent({ name: "a", instructions: "", description: "" });
-        injectReply(agent, "ok");
+        agent.use(injectReply("ok"));
 
         const off = agent.onAfterModelInvocation(() => { called(); });
         off();

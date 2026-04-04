@@ -5,7 +5,7 @@
     "": {
       "name": "fragolasdk-test",
       "dependencies": {
-        "@fragola-ai/agentic-sdk-core": "^0.2.2-alpha.6",
+        "@fragola-ai/agentic-sdk-core": "^0.2.2-alpha.15",
         "ajv": "^8.17.1",
         "portkey-ai": "^3.0.1",
       },
@@ -37,7 +37,7 @@
 
     "@eslint/plugin-kit": ["@eslint/plugin-kit@0.4.1", "http://localhost:4873/@eslint/plugin-kit/-/plugin-kit-0.4.1.tgz", { "dependencies": { "@eslint/core": "^0.17.0", "levn": "^0.4.1" } }, "sha512-43/qtrDUokr7LJqoF2c3+RInu/t4zfrpYdoSDfYyhg52rwLV6TnOvdG4fXm7IkSB3wErkcmJS9iEhjVtOSEjjA=="],
 
-    "@fragola-ai/agentic-sdk-core": ["@fragola-ai/agentic-sdk-core@0.2.2-alpha.6", "http://localhost:4873/@fragola-ai/agentic-sdk-core/-/agentic-sdk-core-0.2.2-alpha.6.tgz", { "dependencies": { "@eslint/js": "^9.34.0", "@fragola-ai/prompt": "^1.0.4", "@modelcontextprotocol/sdk": "^1.21.1", "@opentelemetry/sdk-node": "^0.208.0", "ajv": "^8.17.1", "eslint": "^9.34.0", "json-schema-to-zod": "^2.6.1", "nanoid": "^5.1.5", "openai": "6.9.0", "puppeteer": "^24.27.0", "typescript-eslint": "^8.42.0", "zod": "^3.25.67" }, "peerDependencies": { "typescript": "^5.9.2" } }, "sha512-+SKez07fWfRfNo9SXLSuHlgJ8NavLRms3UNrSgj7rRG+xn5F9/5uDh9xf5FKKiIKY7HmKhYL//57/wwCVHJy7A=="],
+    "@fragola-ai/agentic-sdk-core": ["@fragola-ai/agentic-sdk-core@0.2.2-alpha.15", "http://localhost:4873/@fragola-ai/agentic-sdk-core/-/agentic-sdk-core-0.2.2-alpha.15.tgz", { "dependencies": { "@eslint/js": "^9.34.0", "@fragola-ai/prompt": "^1.0.4", "@modelcontextprotocol/sdk": "^1.21.1", "@opentelemetry/sdk-node": "^0.208.0", "ajv": "^8.17.1", "eslint": "^9.34.0", "json-schema-to-zod": "^2.6.1", "nanoid": "^5.1.5", "openai": "6.9.0", "puppeteer": "^24.27.0", "typescript-eslint": "^8.42.0", "zod": "^3.25.67" }, "peerDependencies": { "typescript": "^5.9.2" } }, "sha512-gKX5GVK3fZX0NB8Sh8zW7srBYG08+cLsJZrZBBGYYsReW8qD6Xg6u31Z2UyCdp8xKTHroZzbwjFRNW+dYrkQ+Q=="],
 
     "@fragola-ai/prompt": ["@fragola-ai/prompt@1.1.0", "http://localhost:4873/@fragola-ai/prompt/-/prompt-1.1.0.tgz", { "peerDependencies": { "typescript": "^5.0.0" } }, "sha512-fvmNqVqf8j5Eq5vr/Zk4BlUeLt4gy2N0Z0N8jAG18Ng49YQpUrSgPUQKPpF9+bikDeoUELkk/TJiWnV2ZHor7A=="],
 

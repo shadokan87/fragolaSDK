@@ -38,40 +38,40 @@ export const guardrail = (guardrails: Guardrail[], rejectionBehaviour: "keepAndA
     return (agent) => {
         agent.onUserMessage(async (message, context) => {
             // If the last message is from a user role but has been rejected by a guardrail, we remove it from the messages
-            const lastMessage = context.state.messages.at(-1);
-            if (lastMessage?.role == "user") {
-                const meta = lastMessage.meta as GuardRailMeta | undefined;
-                if (meta?.guardrail.rejected) {
-                    await context.raw.updateMessages((prev) => (prev.slice(0, -1)), "remove:userMessage")
-                }
-            }
-            // We test the user message against the guardrail array
-            for (const guard of guardrails) {
-                const response = await guard(fail, message, context);
-                if (response && typeof response === 'object' && 'message' in response && response[SYM_GUARDRAIL_FAIL]) {
-                    await context.stop();
-                    if (rejectionBehaviour == "keepAndAnnotate") {
-                        const meta: GuardRailMeta = {
-                            guardrail: {
-                                rejected: true,
-                                guard: guard.name,
-                                reason: response.message
-                            }
-                        }
-                        if (!message["meta"]) {
-                            message["meta"] = meta;
-                        } else {
-                            message.meta = {
-                                ...message.meta,
-                                ...meta
-                            }
-                        }
-                    context.raw.appendMessages([message], false, "userMessage");
-                    } else if (rejectionBehaviour == "remove")
-                    { /** no-op (message return won't be reached because we throw an error) */ }
-                    throw new GuardrailConstrain(response.message, guard.name);
-                }
-            }
+            // const lastMessage = context.state.messages.at(-1);
+            // if (lastMessage?.role == "user") {
+            //     const meta = lastMessage.meta as GuardRailMeta | undefined;
+            //     if (meta?.guardrail.rejected) {
+            //         await context.raw.updateMessages((prev) => (prev.slice(0, -1)), "remove:userMessage")
+            //     }
+            // }
+            // // We test the user message against the guardrail array
+            // for (const guard of guardrails) {
+            //     const response = await guard(fail, message, context);
+            //     if (response && typeof response === 'object' && 'message' in response && response[SYM_GUARDRAIL_FAIL]) {
+            //         await context.stop();
+            //         if (rejectionBehaviour == "keepAndAnnotate") {
+            //             const meta: GuardRailMeta = {
+            //                 guardrail: {
+            //                     rejected: true,
+            //                     guard: guard.name,
+            //                     reason: response.message
+            //                 }
+            //             }
+            //             if (!message["meta"]) {
+            //                 message["meta"] = meta;
+            //             } else {
+            //                 message.meta = {
+            //                     ...message.meta,
+            //                     ...meta
+            //                 }
+            //             }
+            //         context.raw.appendMessages([message], false, "userMessage");
+            //         } else if (rejectionBehaviour == "remove")
+            //         { /** no-op (message return won't be reached because we throw an error) */ }
+            //         throw new GuardrailConstrain(response.message, guard.name);
+            //     }
+            // }
             return message;
         });
     }

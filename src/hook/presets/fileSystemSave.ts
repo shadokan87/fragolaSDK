@@ -41,49 +41,49 @@ export const fileSystemSave = (path: string): FragolaHook => {
     return (agent) => {
         let fullPath: string | undefined = undefined;
 
-        agent.onAfterMessagesUpdate(async (reason, context) => {
-            if (reason == "partialAiMessage")
-                return;
-            const { messages } = context.state;
-            let firstUserMessage: OpenAI.ChatCompletionUserMessageParam | undefined = undefined;
-            for (let i = 0; i < messages.length; i++) {
-                if (messages[i].role == "user") {
-                    firstUserMessage = messages[i] as OpenAI.ChatCompletionUserMessageParam;
-                }
-            }
-            if (!firstUserMessage)
-                return;
-            if (!fullPath) {
-                const label = (() => {
-                    if (typeof firstUserMessage.content == "string") {
-                        return firstUserMessage.content.length > 10
-                            ? firstUserMessage.content.substring(0, 3) + "..." + firstUserMessage.content.slice(-3)
-                            : firstUserMessage.content;
-                    } else if (Array.isArray(firstUserMessage.content)) {
-                        const textContent = firstUserMessage.content
-                            .filter(item => item.type === "text")
-                            .map(item => item.text)
-                            .join(" ");
-                        return textContent.length > 10
-                            ? textContent.substring(0, 3) + "..." + textContent.slice(-3)
-                            : textContent;
-                    }
-                    return "<no_label>";
-                })();
-                fullPath = nodePath.join(path, label);
-                if (syncFs.existsSync(fullPath + ".json")) {
-                    fullPath = `${fullPath}-${nanoid()}.json`
-                } else {
-                    fullPath = `${fullPath}.json`
-                }
-            }
-            try {
-                await fs.mkdir(path, { recursive: true });
-                await fs.writeFile(fullPath, JSON.stringify(messages, null, 2), "utf8");
-            } catch (err) {
-                // eslint-disable-next-line no-console
-                console.error("Failed to save messages:", err);
-            }
-        });
+        // agent.onAfterMessagesUpdate(async (reason, context) => {
+        //     if (reason == "partialAiMessage")
+        //         return;
+        //     const { messages } = context.state;
+        //     let firstUserMessage: OpenAI.ChatCompletionUserMessageParam | undefined = undefined;
+        //     for (let i = 0; i < messages.length; i++) {
+        //         if (messages[i].role == "user") {
+        //             firstUserMessage = messages[i] as OpenAI.ChatCompletionUserMessageParam;
+        //         }
+        //     }
+        //     if (!firstUserMessage)
+        //         return;
+        //     if (!fullPath) {
+        //         const label = (() => {
+        //             if (typeof firstUserMessage.content == "string") {
+        //                 return firstUserMessage.content.length > 10
+        //                     ? firstUserMessage.content.substring(0, 3) + "..." + firstUserMessage.content.slice(-3)
+        //                     : firstUserMessage.content;
+        //             } else if (Array.isArray(firstUserMessage.content)) {
+        //                 const textContent = firstUserMessage.content
+        //                     .filter(item => item.type === "text")
+        //                     .map(item => item.text)
+        //                     .join(" ");
+        //                 return textContent.length > 10
+        //                     ? textContent.substring(0, 3) + "..." + textContent.slice(-3)
+        //                     : textContent;
+        //             }
+        //             return "<no_label>";
+        //         })();
+        //         fullPath = nodePath.join(path, label);
+        //         if (syncFs.existsSync(fullPath + ".json")) {
+        //             fullPath = `${fullPath}-${nanoid()}.json`
+        //         } else {
+        //             fullPath = `${fullPath}.json`
+        //         }
+        //     }
+        //     try {
+        //         await fs.mkdir(path, { recursive: true });
+        //         await fs.writeFile(fullPath, JSON.stringify(messages, null, 2), "utf8");
+        //     } catch (err) {
+        //         // eslint-disable-next-line no-console
+        //         console.error("Failed to save messages:", err);
+        //     }
+        // });
     };
 }

@@ -1,7 +1,7 @@
 import { skip, SKIP_EVENT, stop } from "./event"
 import type { EventAfterStateUpdate, EventAfterStep, EventAfterModelInvocation, EventAfterToolCall } from "./eventAfter"
 import type { EventBeforeStep, EventBeforeModelInvocation, EventBeforeToolCall, ModelInvocationConfig } from "./eventBefore"
-import type { EventAiMessage, EventModelInvocation, EventStep, EventToolCall, EventUserMessage } from "./eventDefault"
+import type { EventAiMessage, EventModelInvocation, EventToolCall, EventUserMessage } from "./eventDefault"
 import type { registeredEvent } from "./extendedJS/events/EventMap"
 import type { ChatCompletionAssistantMessageParam, ChatCompletionUserMessageParam, DefineMetaData, ToolHandlerReturnTypeNonAsync } from "./fragola"
 import type { maybePromise, StoreLike } from "./types"
@@ -90,36 +90,6 @@ export async function applyAfterStep<TMetaData extends DefineMetaData<any>, TGlo
         }
     }
     return stopSignal;
-}
-
-export async function applyStep<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>>(
-    events: registeredEvent<"step", TMetaData, TGlobalStore, TStore>[],
-    context: AgentContext<TMetaData, TGlobalStore, TStore>,
-    _params: applyEventParams<"step", TMetaData>,
-    accumulate?: AccumulateCallback<ReturnType<EventStep<TMetaData, TGlobalStore, TStore>>>
-) {
-    let result: ApplyEventResult<EventStep<TMetaData, TGlobalStore, TStore>> = {
-        signal: undefined,
-        value: _params.options
-    } //TODO: here
-    let options = _params.options;
-    for (let i = 0; i < events.length; i++) {
-        const callback = events[i].callback as EventStep<TMetaData, TGlobalStore, TStore>;
-        const params: Parameters<typeof callback> = [options, _params.lastMessageRole, _params.lastMessageIndex, context];
-        const res = await callback(...params) as any;
-        if (accumulate)
-            await accumulate(res);
-        if (isStopEvent(res)) {
-            result.signal = res;
-            return res;
-        }
-        if (isSkipEvent(res)) {
-            result.signal = res;
-            continue;
-        }
-        result.value = res;
-    }
-    return result;
 }
 
 export async function applyBeforeModelInvocation<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>>(

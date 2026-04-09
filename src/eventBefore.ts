@@ -7,7 +7,9 @@ import type OpenAI from "openai";
 import type { APIPromise } from "openai";
 import type { Stream } from "openai/streaming";
 
-export type AgentBeforeEventId = `before:${AgentDefaultEventId}`;
+export type AgentBeforeEventExclusive = "before:step";
+
+export type AgentBeforeEventId = `before:${AgentDefaultEventId}` | AgentBeforeEventExclusive;
 
 export type EventBeforeStep<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = (
     options: Required<StepOptions>,

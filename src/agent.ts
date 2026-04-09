@@ -10,7 +10,7 @@ import { z as zod } from "zod";
 import type { maybePromise, Prettify, StoreLike } from "./types"
 import OpenAI from "openai/index.js"
 import { type AgentEventId, type EventDefaultCallback } from "./event"
-import type { EventToolCall, EventUserMessage, EventModelInvocation, EventAiMessage, EventStep, ModelInvocationKind } from "./eventDefault";
+import type { EventToolCall, EventUserMessage, EventModelInvocation, EventAiMessage, ModelInvocationKind } from "./eventDefault";
 import { nanoid } from "nanoid"
 import type { EventAfterStateUpdate, EventAfterStep, EventAfterModelInvocation, EventAfterToolCall } from "./eventAfter"
 import type { EventBeforeStep, EventBeforeModelInvocation, EventBeforeToolCall, ModelInvocationConfig } from "./eventBefore"
@@ -25,7 +25,6 @@ import {
     applyAfterStateUpdate,
     applyBeforeStep,
     applyAfterStep,
-    applyStep,
     applyBeforeModelInvocation,
     applyAfterModelInvocation,
     applyUserMessage,
@@ -744,11 +743,6 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                 const lastMessageIndex = this.#state.messages.length - 1;
                 const lastMessageRole = this.#state.messages.at(-1)?.role;
                 let stepEventOptions: Required<StepOptions> | undefined;
-                const accunulateStep: AccumulateCallback<ReturnType<EventStep<TMetaData, TGlobalStore, TStore>>> = (data) => {
-                    if (!isSkipEvent(data) && !isStopEvent(data))
-                        stepEventOptions = data as Required<StepOptions>;
-                };
-                await this.applyEvents("step", { options: stepOptions, lastMessageRole, lastMessageIndex }, undefined, accunulateStep);
                 if (stepEventOptions)
                     stepEventOptions = stepEventOptions;
 
@@ -957,30 +951,28 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         const events = _events ?? this.registeredEvents.get(eventId) ?? [];
         const params = _params as any;
         switch (eventId) {
-            case "aiMessage":
-                return await applyAiMessage(events as any, this.context, params, accumulate) as any;
             case "userMessage":
                 return await applyUserMessage(events as any, this.context, params, accumulate) as any;
-            case "after:stateUpdate":
-                return await applyAfterStateUpdate(events as any, this.context, accumulate) as any;
-            case "step":
-                return await applyStep(events as any, this.context, params, accumulate) as any;
             case "before:step":
                 return await applyBeforeStep(events as any, this.context, params, accumulate) as any;
-            case "after:step":
-                return await applyAfterStep(events as any, this.context, params, accumulate) as any;
-            case "modelInvocation":
-                return await applyModelInvocation(events as any, this.context, params, accumulate) as any;
             case "before:modelInvocation":
                 return await applyBeforeModelInvocation(events as any, this.context, params, accumulate) as any;
+            case "modelInvocation":
+                return await applyModelInvocation(events as any, this.context, params, accumulate) as any;
             case "after:modelInvocation":
                 return await applyAfterModelInvocation(events as any, this.context, params, accumulate) as any;
-            case "toolCall":
-                return await applyToolCall(events as any, this.context, params, accumulate) as any;
             case "before:toolCall":
                 return await applyBeforeToolCall(events as any, this.context, params, accumulate) as any;
+            case "toolCall":
+                return await applyToolCall(events as any, this.context, params, accumulate) as any;
             case "after:toolCall":
                 return await applyAfterToolCall(events as any, this.context, params, accumulate) as any;
+            case "aiMessage":
+                return await applyAiMessage(events as any, this.context, params, accumulate) as any;
+            case "after:stateUpdate":
+                return await applyAfterStateUpdate(events as any, this.context, accumulate) as any;
+            case "after:step":
+                return await applyAfterStep(events as any, this.context, params, accumulate) as any;
             default:
                 throw new FragolaError(`Internal error: event with name '${eventId}' is unknown`)
         }
@@ -1090,19 +1082,6 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      * });
      */
     onUserMessage(callback: EventUserMessage<TMetaData, TGlobalStore, TStore>) { return this.on("userMessage", callback) }
-
-    /**
-     * Register a step event handler.
-     *
-     * Called when a step is executed. Handlers may return modified step options.
-     *
-     * @example
-        * agent.onStep((options, lastMessageRole, lastMessageIndex, context) => {
-     *   // modify step options
-     *   return { ...options, maxStep: 5 };
-     * });
-     */
-    onStep(callback: EventStep<TMetaData, TGlobalStore, TStore>) { return this.on("step", callback) }
 
     /**
      * Register a before step event handler.

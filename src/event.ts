@@ -6,7 +6,7 @@ import type { AgentAfterEventId } from "./eventAfter";
 import type { AgentBeforeEventId } from "./eventBefore";
 
 export type AgentDefaultEventId =
-   "modelInvocation" | "toolCall" | "aiMessage" | "userMessage" | "step";
+   "modelInvocation" | "toolCall" | "aiMessage" | "userMessage";
 
 export const SKIP_EVENT = Symbol('skip_event');
 /**

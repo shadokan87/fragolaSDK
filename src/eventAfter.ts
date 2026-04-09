@@ -4,7 +4,7 @@ import type { AgentContext } from "@src/agentContext";
 import type { ChatCompletionAssistantMessageParam, ChatCompletionMessageParam, DefineMetaData, Tool, ToolHandlerReturnTypeNonAsync } from "./fragola";
 import type { StepOptions } from "./agent";
 
-export type AgentAfterEventExclusive = "after:stateUpdate";
+export type AgentAfterEventExclusive = "after:stateUpdate" | "after:step";
 
 export type AgentAfterEventId = `after:${AgentDefaultEventId}` | AgentAfterEventExclusive;
 

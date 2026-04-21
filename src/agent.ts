@@ -768,6 +768,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
 
         // Handle tool calls if present
         if (toolCalls.length > 0) {
+            console.log("#br1");
             await this.setWaiting();
             for (const toolCall of toolCalls) {
                 // Check if stop was requested before processing each tool
@@ -813,8 +814,8 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                 if (isStopEvent(eventToolResult.signal))
                     break;
                 const content = await (async () => {
-                    if (!isSkipEvent(eventToolResult))
-                        return eventToolResult;
+                    if (!isSkipEvent(eventToolResult.signal) && eventToolResult.value !== undefined)
+                        return eventToolResult.value;
                     if (tool.handler == "dynamic")
                         throw new BadUsage(`Tools with dynamic handlers must have at least 1 'toolCall' event that produces a result.`);
                     return isAsyncFunction(tool.handler) ? await tool.handler(params, this.context as any) : tool.handler(params, this.context as any);

@@ -62,7 +62,6 @@ describe("Agent streaming behavior (real model via stream: true)", () => {
         const conv = assistant.state.messages;
         const assistantMsg = conv.filter((m) => m.role === "assistant").pop();
         const toolMsg = conv.filter((m) => m.role === "tool").pop();
-
         expect(assistantMsg).toBeDefined();
         // tool_calls may or may not be present depending on model; ensure tool message exists when tool was called
         if (toolMsg) {

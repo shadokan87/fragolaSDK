@@ -33,7 +33,8 @@ import {
     applyModelInvocation,
     applyToolCall,
     type EventResult,
-    type AccumulateCallback
+    type AccumulateCallback,
+    type ApplyEventResult
 } from "./applyEvent"
 
 export type AgentState<TMetaData extends DefineMetaData<any> = {}> = {
@@ -60,7 +61,7 @@ export type JsonOptions<T extends z.ZodTypeAny = z.ZodTypeAny> = {
 export type StepOptions = Partial<{
     /** The maximum number of steps to execute in one call (default: 10). */
     maxStep: number,
-    /** Wether or not to reset agent state `stepCount` after each user messages. `true` is recommanded for messagesal agents.*/
+    /** Wether or not to reset agent state `stepCount` after each user messages. `true` is recommanded for conversational agents.*/
     resetStepCountAfterUserMessage: boolean,
 
     //TODO: unanswered tool behaviour fields
@@ -158,13 +159,12 @@ export type JsonResult<S extends z.ZodTypeAny = z.ZodTypeAny, TMetaData extends 
 } & z.SafeParseReturnType<unknown, z.infer<S>>;
 
 
-
 export type applyEventParams<K extends AgentEventId, TMetaData extends DefineMetaData<any>> =
     K extends "modelInvocation" ? { kind: ModelInvocationKind, data: OpenAI.ChatCompletionChunk | ChatCompletionAssistantMessageParam<TMetaData> } :
     K extends "aiMessage" ? { message: ChatCompletionAssistantMessageParam<TMetaData>, isPartial: boolean } :
     K extends "userMessage" ? { message: Omit<ChatCompletionUserMessageParam<TMetaData>, "role"> } :
     K extends "step" ? { options: Required<StepOptions>, lastMessageRole: OpenAI.ChatCompletionMessageParam["role"] | undefined, lastMessageIndex: number } :
-    K extends "before:step" ? { options: Required<StepOptions> } :
+    K extends "before:step" ? { options: StepOptions } :
     K extends "after:step" ? { options: Required<StepOptions>, newMessages: ChatCompletionMessageParam<TMetaData>[], stepsTaken: number } :
     K extends "before:modelInvocation" ? { config: ModelInvocationConfig<TMetaData> } :
     K extends "after:modelInvocation" ? { message: ChatCompletionAssistantMessageParam<TMetaData> } :
@@ -172,6 +172,21 @@ export type applyEventParams<K extends AgentEventId, TMetaData extends DefineMet
     K extends "before:toolCall" ? { params: any, tool: Tool<any> } :
     K extends "after:toolCall" ? { result: any, params: any, tool: Tool<any> } :
     K extends "after:stateUpdate" ? null :
+    never;
+
+export type appliedEvent<K extends AgentEventId, TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> =
+    K extends "modelInvocation" ? ApplyEventResult<EventModelInvocation<TMetaData, TGlobalStore, TStore>> :
+    K extends "aiMessage" ? ApplyEventResult<EventAiMessage<TMetaData, TGlobalStore, TStore>> :
+    K extends "userMessage" ? ApplyEventResult<EventUserMessage<TMetaData, TGlobalStore, TStore>> :
+    K extends "step" ? never :
+    K extends "before:step" ? ApplyEventResult<EventBeforeStep<TMetaData, TGlobalStore, TStore>> :
+    K extends "after:step" ? ApplyEventResult<EventAfterStep<TMetaData, TGlobalStore, TStore>> :
+    K extends "before:modelInvocation" ? ApplyEventResult<EventBeforeModelInvocation<TMetaData, TGlobalStore, TStore>> :
+    K extends "after:modelInvocation" ? ApplyEventResult<EventAfterModelInvocation<TMetaData, TGlobalStore, TStore>> :
+    K extends "toolCall" ? ApplyEventResult<EventToolCall<any, TMetaData, TGlobalStore, TStore>> :
+    K extends "before:toolCall" ? ApplyEventResult<EventBeforeToolCall<any, TMetaData, TGlobalStore, TStore>> :
+    K extends "after:toolCall" ? ApplyEventResult<EventAfterToolCall<any, TMetaData, TGlobalStore, TStore>> :
+    K extends "after:stateUpdate" ? ApplyEventResult<EventAfterStateUpdate<TMetaData, TGlobalStore, TStore>> :
     never;
 
 const FORK_FRIEND = Symbol("fork_friend");
@@ -185,7 +200,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
 
     private openai: OpenAI;
     private paramsTools: ChatCompletionCreateParamsBase["tools"] = [];
-    private registeredEvents: EventMap<AgentEventId, registeredEvent<AgentEventId, TMetaData, TGlobalStore, TStore>[], TMetaData, TGlobalStore, TStore> = new EventMap<AgentEventId, registeredEvent<AgentEventId, TMetaData, TGlobalStore, TStore>[], TMetaData, TGlobalStore, TStore>()
+    private registeredEvents = new EventMap<AgentEventId, registeredEvent<AgentEventId, TMetaData, TGlobalStore, TStore>[], TMetaData, TGlobalStore, TStore>()
     private abortController: AbortController | undefined = undefined;
     private stopRequested: boolean = false;
     private hooks: FragolaHook[] = [];
@@ -521,20 +536,14 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         let stepOptions: Required<StepOptions> = overrideStepOptions ? { ...defaultStepOptions, ...overrideStepOptions } as Required<StepOptions> : this.stepOptions();
         const stepCountBefore = this.#state.stepCount;
         const messagesLengthBefore = this.#state.messages.length;
-        console.log("_STEP_OPTIONS_", JSON.stringify(stepOptions, null, 2))
-        const beforeStepResult = await this.applyEvents("before:step", { options: stepOptions });
-        if (isStopEvent(beforeStepResult))
+        const beforeStepResult = await this.applyEvents("before:step", { options: stepOptions }); //TODO: here
+        if (isStopEvent(beforeStepResult.signal))
             return this.#state;
-        if (beforeStepResult && !isSkipEvent(beforeStepResult))
-            stepOptions = beforeStepResult;
-        // const stepEventResult = await this.applyEvents("step", { options: stepOptions, lastMessageRole, lastMessageIndex });
-        // if (isStopEvent(stepEventResult))
-        //     return this.#state;
-        // stepOptions = stepEventResult as Required<StepOptions>;
+        stepOptions = { ...defaultStepOptions, ...beforeStepResult.value } as Required<StepOptions>;
         if (this.#state.messages.length != 0)
             await this.recursiveAgent(stepOptions, () => {
                 if (stepParams?.by != undefined)
-                    return this.#state.stepCount == (this.#state.stepCount + stepParams.by);
+                    return this.#state.stepCount == (stepCountBefore + stepParams.by);
                 return false;
             }).finally(() => {
                 this.abortController = undefined;
@@ -614,7 +623,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                 this.setStepCount(0);
         }
         if (this.#state.stepCount == stepOptions.maxStep)
-            throw new MaxStepHitError(``);
+            throw new MaxStepHitError(``); //TODO: error message
 
         this.abortController = new AbortController();
 
@@ -651,12 +660,12 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                 const openai = clientOpts ? new OpenAI(clientOpts) : this.openai;
                 const emptyAssistantMessage = { role: "assistant", content: "" } as OpenAI.ChatCompletionAssistantMessageParam;
 
-                let config = await this.applyEvents("before:modelInvocation", {
+                let config = (await this.applyEvents("before:modelInvocation", {
                     config: {
                         modelSettings: modelSettings ?? this.modelSettings(),
                         clientOptions: this.context.instance.options //TODO: check if this is correct
                     }
-                }) as ModelInvocationConfig<TMetaData>;
+                })).value;
 
                 if (isStopEvent(config) || this.stopRequested) {
                     return emptyAssistantMessage;
@@ -701,7 +710,8 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                     const createProcessChunck = (): (chunck: OpenAI.Chat.Completions.ChatCompletionChunk | ChatCompletionChunk) => Promise<OpenAI.Chat.Completions.ChatCompletionChunk | ChatCompletionChunk> => {
                         if (EmodelInvocation) {
                             return async (chunck: OpenAI.Chat.Completions.ChatCompletionChunk | ChatCompletionChunk) => {
-                                return await this.applyEvents("modelInvocation", { kind: "chunck", data: chunck }, EmodelInvocation) as any;
+                                const eModelInvocation = await this.applyEvents("modelInvocation", { kind: "chunck", data: chunck }, EmodelInvocation);
+                                return eModelInvocation.value as any;
                             }
                         } else
                             return async (chunck) => chunck;
@@ -717,11 +727,11 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                             message: partialMessage as typeof aiMessage,
                             isPartial
                         });
-                        if (isStopEvent(partialMessageFinal))
+                        if (isStopEvent(partialMessageFinal.signal))
                             break;
                         if (!isPartial)
-                            finalProcessedMessage = partialMessageFinal as typeof finalProcessedMessage;
-                        await this.appendMessages([partialMessageFinal as OpenAI.Chat.ChatCompletionMessageParam], replaceLast);
+                            finalProcessedMessage = partialMessageFinal.value;
+                        await this.appendMessages([partialMessageFinal.value as OpenAI.Chat.ChatCompletionMessageParam], replaceLast);
                         // if (!replaceLast) this.setStepCount(this.#state.stepCount + 1);
                         replaceLast = true;
                     }
@@ -733,9 +743,9 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                         message: response.choices[0].message as typeof aiMessage,
                         isPartial: false
                     });
-                    if (isStopEvent(messageProcessed))
+                    if (isStopEvent(messageProcessed.signal))
                         return emptyAssistantMessage;
-                    aiMessage = messageProcessed as typeof aiMessage;
+                    aiMessage = messageProcessed.value as typeof aiMessage;
                     await this.appendMessages([aiMessage], false);
                 }
                 this.setStepCount(this.#state.stepCount + 1);
@@ -797,10 +807,10 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
 
                 const params = paramsParsed?.data ?? rawParams;
                 const beforeToolCallResult = await this.applyEvents("before:toolCall", { params, tool: tool as any });
-                if (isStopEvent(beforeToolCallResult))
+                if (isStopEvent(beforeToolCallResult.signal))
                     break;
                 const eventToolResult = await this.applyEvents("toolCall", { params, tool: tool as any });
-                if (isStopEvent(eventToolResult))
+                if (isStopEvent(eventToolResult.signal))
                     break;
                 const content = await (async () => {
                     if (!isSkipEvent(eventToolResult))
@@ -833,7 +843,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                     tool_call_id: toolCall.id
                 }
                 await this.updateMessages((prev) => [...prev, message]);
-                if (isStopEvent(afterToolCallResult))
+                if (isStopEvent(afterToolCallResult.signal))
                     break;
             }
             await this.setIdle();
@@ -861,12 +871,12 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
             _message = message as Omit<ChatCompletionUserMessageParam<TMetaData>, "role">;
         else {
             const userMessageProcessed = await this.applyEvents("userMessage", { message: message as Omit<ChatCompletionUserMessageParam<TMetaData>, "role"> });
-            if (isStopEvent(userMessageProcessed))
+            if (isStopEvent(userMessageProcessed.signal))
                 throw new JsonModeError(`JSON generation stopped during 'userMessage' event processing.`);
-            _message = userMessageProcessed as typeof _message;
+            _message = userMessageProcessed.value as typeof _message;
         }
         await this.updateMessages((prev) => [...prev, stripUserMessageMeta({ role: "user", ..._message })]);
-        if (preferToolCalling) {
+        if (preferToolCalling) { //TODO: implement tool calling json
 
         } else {
             if (!_step?.modelSettings)
@@ -933,11 +943,10 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
     async userMessage(query: UserMessageQuery<TMetaData>): Promise<AgentState> {
         const { step, ...message } = query;
         void step;
-        const userMessageProcessed = await this.applyEvents("userMessage", { message: message as Omit<ChatCompletionUserMessageParam<TMetaData>, "role"> });
-        if (isStopEvent(userMessageProcessed))
+        const userMessageFinal = await this.applyEvents("userMessage", { message: message as Omit<ChatCompletionUserMessageParam<TMetaData>, "role"> }) as ApplyEventResult<EventUserMessage<TMetaData, TGlobalStore, TStore>>;
+        if (isStopEvent(userMessageFinal.signal))
             return this.#state;
-        const _message: Omit<ChatCompletionUserMessageParam<TMetaData>, "role"> = userMessageProcessed as Omit<ChatCompletionUserMessageParam<TMetaData>, "role">;
-        await this.updateMessages((prev) => [...prev, stripUserMessageMeta({ role: "user", ..._message })]);
+        await this.updateMessages((prev) => [...prev, stripUserMessageMeta(userMessageFinal.value)]);
         return await this.step(query.step);
     }
 
@@ -947,7 +956,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      * @param _params  - the parameters to pass to the callback
      * @returns 
      */
-    private async applyEvents<TEventId extends AgentEventId>(eventId: TEventId, _params: applyEventParams<TEventId, TMetaData>, _events?: registeredEvent<TEventId, TMetaData, TGlobalStore, TStore>[], accumulate?: AccumulateCallback<any>): Promise<any> {
+    private async applyEvents<TEventId extends AgentEventId>(eventId: TEventId, _params: applyEventParams<TEventId, TMetaData>, _events?: registeredEvent<NoInfer<TEventId>, TMetaData, TGlobalStore, TStore>[], accumulate?: AccumulateCallback<any>): Promise<appliedEvent<TEventId, TMetaData, TGlobalStore, TStore>> {
         const events = _events ?? this.registeredEvents.get(eventId) ?? [];
         const params = _params as any;
         switch (eventId) {

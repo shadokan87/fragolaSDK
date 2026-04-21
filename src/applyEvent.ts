@@ -46,6 +46,11 @@ export async function applyAfterStateUpdate<TMetaData extends DefineMetaData<any
             result.signal = res;
             break;
         }
+        if (isSkipEvent(res)) {
+            result.signal = res;
+            continue;
+        }
+        result.value = res;
     }
     return result;
 }
@@ -56,7 +61,10 @@ export async function applyBeforeStep<TMetaData extends DefineMetaData<any>, TGl
     _params: applyEventParams<"before:step", TMetaData>,
     accumulate?: AccumulateCallback<ReturnType<EventBeforeStep<TMetaData, TGlobalStore, TStore>>>
 ) {
-    let stopSignal: any;
+    let result: ApplyEventResult<EventBeforeStep<TMetaData, TGlobalStore, TStore>> = {
+        signal: undefined,
+        value: _params.options
+    }
     for (let i = 0; i < events.length; i++) {
         const callback = events[i].callback as EventBeforeStep<TMetaData, TGlobalStore, TStore>;
         const params: Parameters<typeof callback> = [_params.options, context];
@@ -64,11 +72,16 @@ export async function applyBeforeStep<TMetaData extends DefineMetaData<any>, TGl
         if (accumulate)
             await accumulate(res);
         if (isStopEvent(res)) {
-            stopSignal = res;
+            result.signal = res;
             break;
         }
+        if (isSkipEvent(res)) {
+            result.signal = res;
+            continue;
+        }
+        result.value = res;
     }
-    return stopSignal;
+    return result;
 }
 
 export async function applyAfterStep<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>>(
@@ -77,7 +90,10 @@ export async function applyAfterStep<TMetaData extends DefineMetaData<any>, TGlo
     _params: applyEventParams<"after:step", TMetaData>,
     accumulate?: AccumulateCallback<ReturnType<EventAfterStep<TMetaData, TGlobalStore, TStore>>>
 ) {
-    let stopSignal: any;
+    let result: ApplyEventResult<EventAfterStep<TMetaData, TGlobalStore, TStore>> = {
+        signal: undefined,
+        value: undefined
+    }
     for (let i = 0; i < events.length; i++) {
         const callback = events[i].callback as EventAfterStep<TMetaData, TGlobalStore, TStore>;
         const params: Parameters<typeof callback> = [_params.options, _params.newMessages, _params.stepsTaken, context];
@@ -85,11 +101,16 @@ export async function applyAfterStep<TMetaData extends DefineMetaData<any>, TGlo
         if (accumulate)
             await accumulate(res);
         if (isStopEvent(res)) {
-            stopSignal = res;
+            result.signal = res;
             break;
         }
+        if (isSkipEvent(res)) {
+            result.signal = res;
+            continue;
+        }
+        result.value = res;
     }
-    return stopSignal;
+    return result;
 }
 
 export async function applyBeforeModelInvocation<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>>(
@@ -98,20 +119,28 @@ export async function applyBeforeModelInvocation<TMetaData extends DefineMetaDat
     _params: applyEventParams<"before:modelInvocation", TMetaData>,
     accumulate?: AccumulateCallback<ReturnType<EventBeforeModelInvocation<TMetaData, TGlobalStore, TStore>>>
 ) {
-    let { config } = _params;
+    let result: ApplyEventResult<EventBeforeModelInvocation<TMetaData, TGlobalStore, TStore>> = {
+        signal: undefined,
+        value: _params.config
+    }
     let configTmp: ModelInvocationConfig<TMetaData>;
     for (let i = 0; i < events.length; i++) {
         const callback = events[i].callback as EventBeforeModelInvocation<TMetaData, TGlobalStore, TStore>;
-        const params: Parameters<typeof callback> = [config, context];
+        const params: Parameters<typeof callback> = [result.value, context];
         configTmp = await callback(...params) as any;
         if (accumulate)
             await accumulate(configTmp);
-        if (isStopEvent(configTmp))
-            return configTmp;
-        if (!isSkipEvent(configTmp))
-            config = configTmp;
+        if (isStopEvent(configTmp)) {
+            result.signal = configTmp as any;
+            return result;
+        }
+        if (isSkipEvent(configTmp)) {
+            result.signal = configTmp as any;
+            continue;
+        }
+        result.value = configTmp;
     }
-    return config;
+    return result;
 }
 
 export async function applyModelInvocation<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>>(
@@ -120,18 +149,26 @@ export async function applyModelInvocation<TMetaData extends DefineMetaData<any>
     _params: applyEventParams<"modelInvocation", TMetaData>,
     accumulate?: AccumulateCallback<ReturnType<EventModelInvocation<TMetaData, TGlobalStore, TStore>>>
 ) {
+    let result: ApplyEventResult<EventModelInvocation<TMetaData, TGlobalStore, TStore>> = {
+        signal: undefined,
+        value: _params.data as any
+    }
     for (let i = 0; i < events.length; i++) {
         const {callback} = events[i];
-        const res = await callback(_params.kind, _params.data, context);
+        const res = await callback(_params.kind, result.value, context);
         if (accumulate)
             await accumulate(res);
-        if (isStopEvent(res))
-            return res;
-        if (isSkipEvent(res))
-            continue ;
-        _params.data = res as any;
+        if (isStopEvent(res)) {
+            result.signal = res as any;
+            return result;
+        }
+        if (isSkipEvent(res)) {
+            result.signal = res as any;
+            continue;
+        }
+        result.value = res as any;
     }
-    return _params.data;
+    return result;
 }
 
 export async function applyAfterModelInvocation<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>>(
@@ -140,7 +177,10 @@ export async function applyAfterModelInvocation<TMetaData extends DefineMetaData
     _params: applyEventParams<"after:modelInvocation", TMetaData>,
     accumulate?: AccumulateCallback<ReturnType<EventAfterModelInvocation<TMetaData, TGlobalStore, TStore>>>
 ) {
-    let stopSignal: any;
+    let result: ApplyEventResult<EventAfterModelInvocation<TMetaData, TGlobalStore, TStore>> = {
+        signal: undefined,
+        value: undefined
+    }
     for (let i = 0; i < events.length; i++) {
         const callback = events[i].callback as EventAfterModelInvocation<TMetaData, TGlobalStore, TStore>;
         const params: Parameters<typeof callback> = [_params.message, context];
@@ -148,11 +188,16 @@ export async function applyAfterModelInvocation<TMetaData extends DefineMetaData
         if (accumulate)
             await accumulate(res);
         if (isStopEvent(res)) {
-            stopSignal = res;
+            result.signal = res;
             break;
         }
+        if (isSkipEvent(res)) {
+            result.signal = res;
+            continue;
+        }
+        result.value = res;
     }
-    return stopSignal;
+    return result;
 }
 
 export async function applyAiMessage<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>>(
@@ -161,20 +206,27 @@ export async function applyAiMessage<TMetaData extends DefineMetaData<any>, TGlo
     _params: applyEventParams<"aiMessage", TMetaData>,
     accumulate?: AccumulateCallback<ReturnType<EventAiMessage<TMetaData, TGlobalStore, TStore>>>
 ) {
-    let message = _params.message;
+    let result: ApplyEventResult<EventAiMessage<TMetaData, TGlobalStore, TStore>> = {
+        signal: undefined,
+        value: _params.message
+    }
     for (let i = 0; i < events.length; i++) {
         const callback = events[i].callback as EventAiMessage<TMetaData, TGlobalStore, TStore>;
-        const params: Parameters<typeof callback> = [message, _params.isPartial, context];
+        const params: Parameters<typeof callback> = [result.value as ChatCompletionAssistantMessageParam<TMetaData>, _params.isPartial, context];
         const res = await callback(...params) as any;
         if (accumulate)
             await accumulate(res);
-        if (isStopEvent(res))
-            return res;
-        if (isSkipEvent(res))
+        if (isStopEvent(res)) {
+            result.signal = res;
+            return result;
+        }
+        if (isSkipEvent(res)) {
+            result.signal = res;
             continue;
-        message = res as ChatCompletionAssistantMessageParam<TMetaData>;
+        }
+        result.value = res as ChatCompletionAssistantMessageParam<TMetaData>;
     }
-    return message;
+    return result;
 }
 
 export async function applyUserMessage<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>>(
@@ -183,22 +235,30 @@ export async function applyUserMessage<TMetaData extends DefineMetaData<any>, TG
     _params: applyEventParams<"userMessage", TMetaData>,
     accumulate?: AccumulateCallback<ReturnType<EventUserMessage<TMetaData, TGlobalStore, TStore>>>
 ) {
-    let message = _params.message;
+    let result: ApplyEventResult<EventUserMessage<TMetaData, TGlobalStore, TStore>> = {
+        value: {role: "user", ..._params.message},
+        signal: undefined
+    }
+    // let message = _params.message;
     for (let i = 0; i < events.length; i++) {
         const callback = events[i].callback as EventUserMessage<TMetaData, TGlobalStore, TStore>;
-        const params: Parameters<typeof callback> = [{ role: "user", ...message } as ChatCompletionUserMessageParam<TMetaData>, context];
+        const params: Parameters<typeof callback> = [result.value as ChatCompletionUserMessageParam<TMetaData>, context];
         const res = await callback(...params) as any;
         if (accumulate)
             await accumulate(res);
-        if (isStopEvent(res))
+        if (isStopEvent(res)) {
+            result.signal = res;
             return res;
-        if (isSkipEvent(res))
+        }
+        if (isSkipEvent(res)) {
+            result.signal = res;
             continue;
+        }
         const { role, ...nextMessage } = res as ChatCompletionUserMessageParam<TMetaData>;
         void role;
-        message = nextMessage as typeof message;
+        result.value = nextMessage as typeof result.value;
     }
-    return message;
+    return result;
 }
 
 export async function applyBeforeToolCall<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>>(
@@ -207,7 +267,10 @@ export async function applyBeforeToolCall<TMetaData extends DefineMetaData<any>,
     _params: applyEventParams<"before:toolCall", TMetaData>,
     accumulate?: AccumulateCallback<ReturnType<EventBeforeToolCall<any, TMetaData, TGlobalStore, TStore>>>
 ) {
-    let stopSignal: any;
+    let result: ApplyEventResult<EventBeforeToolCall<any, TMetaData, TGlobalStore, TStore>> = {
+        signal: undefined,
+        value: undefined
+    }
     for (let i = 0; i < events.length; i++) {
         const callback = events[i].callback as EventBeforeToolCall<any, TMetaData, TGlobalStore, TStore>;
         const params: Parameters<typeof callback> = [_params.params, _params.tool, context];
@@ -215,11 +278,16 @@ export async function applyBeforeToolCall<TMetaData extends DefineMetaData<any>,
         if (accumulate)
             await accumulate(res);
         if (isStopEvent(res)) {
-            stopSignal = res;
+            result.signal = res;
             break;
         }
+        if (isSkipEvent(res)) {
+            result.signal = res;
+            continue;
+        }
+        result.value = res;
     }
-    return stopSignal;
+    return result;
 }
 
 export async function applyToolCall<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>>(
@@ -228,19 +296,28 @@ export async function applyToolCall<TMetaData extends DefineMetaData<any>, TGlob
     _params: applyEventParams<"toolCall", TMetaData>,
     accumulate?: AccumulateCallback<ReturnType<EventToolCall<any, TMetaData, TGlobalStore, TStore>>>
 ) {
+    let result: ApplyEventResult<EventToolCall<any, TMetaData, TGlobalStore, TStore>> = {
+        signal: undefined,
+        value: undefined as any
+    }
     for (let i = 0; i < events.length; i++) {
         const callback = events[i].callback as EventToolCall<any, TMetaData, TGlobalStore, TStore>;
         const params: Parameters<typeof callback> = [_params.params, _params.tool, context];
         const res = await callback(...params) as any;
         if (accumulate)
             await accumulate(res);
-        if (isStopEvent(res))
-            return res;
-        if (isSkipEvent(res))
+        if (isStopEvent(res)) {
+            result.signal = res;
+            return result;
+        }
+        if (isSkipEvent(res)) {
+            result.signal = res;
             continue;
-        return res as ToolHandlerReturnTypeNonAsync;
+        }
+        result.value = res as ToolHandlerReturnTypeNonAsync;
+        return result;
     }
-    return skip();
+    return result;
 }
 
 export async function applyAfterToolCall<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>>(
@@ -249,7 +326,10 @@ export async function applyAfterToolCall<TMetaData extends DefineMetaData<any>, 
     _params: applyEventParams<"after:toolCall", TMetaData>,
     accumulate?: AccumulateCallback<ReturnType<EventAfterToolCall<any, TMetaData, TGlobalStore, TStore>>>
 ) {
-    let stopSignal: any;
+    let result: ApplyEventResult<EventAfterToolCall<any, TMetaData, TGlobalStore, TStore>> = {
+        signal: undefined,
+        value: undefined
+    }
     for (let i = 0; i < events.length; i++) {
         const callback = events[i].callback as EventAfterToolCall<any, TMetaData, TGlobalStore, TStore>;
         const params: Parameters<typeof callback> = [_params.result, _params.params, _params.tool, context];
@@ -257,9 +337,14 @@ export async function applyAfterToolCall<TMetaData extends DefineMetaData<any>, 
         if (accumulate)
             await accumulate(res);
         if (isStopEvent(res)) {
-            stopSignal = res;
+            result.signal = res;
             break;
         }
+        if (isSkipEvent(res)) {
+            result.signal = res;
+            continue;
+        }
+        result.value = res;
     }
-    return stopSignal;
+    return result;
 }

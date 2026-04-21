@@ -29,8 +29,17 @@ export type registeredEvent<TEventId extends AgentEventId, TMetaData extends Def
 }
 
 export class EventMap<
-    K extends AgentEventId, V extends registeredEvent<AgentEventId, TMetaData, TGlobalStore, TStore>[],
+    K extends AgentEventId, V extends registeredEvent<K, TMetaData, TGlobalStore, TStore>[],
     TMetaData extends DefineMetaData<any>,
     TGlobalStore extends StoreLike<any> = {},
     TStore extends StoreLike<any> = {}>
-    extends globalThis.Map<K, V> {}
+    extends globalThis.Map<K, V> {
+        // @ts-ignore - intentionally overrides with a different return type than Map<K, V>.get
+        get<TKey extends K>(key: TKey): registeredEvent<TKey, TMetaData, TGlobalStore, TStore>[] | undefined {
+            return super.get(key) as unknown as registeredEvent<TKey, TMetaData, TGlobalStore, TStore>[] | undefined;
+        }
+        // get<TEventId extends AgentEventId>(key: TEventId): registeredEvent<TEventId, TMetaData, TGlobalStore, TStore> | undefined {
+        //     const v  = super.get(key as any);
+        //     return v as unknown as registeredEvent<TEventId, TMetaData, TGlobalStore, TStore> | undefined ;
+        // }
+    }

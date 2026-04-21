@@ -1,4 +1,4 @@
-import type { AgentDefaultEventId } from "./event";
+import type { AgentDefaultEventId, eventResult } from "./event";
 import type { maybePromise, StoreLike } from "./types";
 import type { AgentContext } from "@src/agentContext";
 import type { OpenaiClientOptions, DefineMetaData, Tool, ChatCompletionAssistantMessageParam } from "./fragola";
@@ -12,9 +12,9 @@ export type AgentBeforeEventExclusive = "before:step";
 export type AgentBeforeEventId = `before:${AgentDefaultEventId}` | AgentBeforeEventExclusive;
 
 export type EventBeforeStep<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = (
-    options: Required<StepOptions>,
+    options: StepOptions,
     context: AgentContext<TMetaData, TGlobalStore, TStore>
-) => maybePromise<void>;
+) => maybePromise<eventResult<StepOptions>>;
 
 export type InjectResponse = () => APIPromise<Stream<OpenAI.Chat.Completions.ChatCompletionChunk> | OpenAI.Chat.Completions.ChatCompletion>;
 

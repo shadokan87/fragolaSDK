@@ -11,9 +11,19 @@ export function isAsyncFunction(fn: Function): boolean {
     return fn.constructor.name === 'AsyncFunction';
 }
 
+export const isChunkPartial = (chunk: OpenAI.Chat.Completions.ChatCompletionChunk): boolean => {
+    const { choices } = chunk;
+
+    if (!choices.length && chunk.usage)
+        return false;
+    const finish_reason = choices[0].finish_reason;
+    return finish_reason === null || finish_reason === 'length';
+}
+
 export const streamChunkToMessage = (chunk: OpenAI.Chat.Completions.ChatCompletionChunk, message: Partial<OpenAI.Chat.ChatCompletionMessageParam> = {} as Partial<OpenAI.Chat.ChatCompletionMessageParam>) => {
     const updatedMessage = structuredClone(message);
-
+    if (chunk.usage || !chunk["choices"] || chunk.choices.length == 0)
+        return updatedMessage;
     // Handle role if present in delta
     if (chunk.choices[0].delta?.role) {
         updatedMessage.role = chunk.choices[0].delta.role;

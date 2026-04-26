@@ -27,5 +27,16 @@ cd tests
 bun update @fragola-ai/agentic-sdk-core --registry http://localhost:4873
 
 echo -e "\n🧪 \033[1;31mRunning tests...\033[0m"
+# Parse optional --tests=<file1,file2> argument
+TESTS_ARG=""
+for arg in "$@"; do
+  case "$arg" in
+    --tests=*)
+      TESTS_ARG="${arg#--tests=}"
+      TESTS_ARG="${TESTS_ARG//,/ }"
+      ;;
+  esac
+done
+
 # Run tests
-bunx vitest --run
+bunx vitest --run $TESTS_ARG

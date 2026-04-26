@@ -1,7 +1,7 @@
 import type { AgentDefaultEventId, eventResult } from "./event";
 import type { maybePromise, StoreLike } from "./types";
 import type { AgentContext } from "@src/agentContext";
-import type { OpenaiClientOptions, DefineMetaData, Tool, ChatCompletionAssistantMessageParam } from "./fragola";
+import type { OpenaiClientOptions, DefineMetaData, Tool, ChatCompletionAssistantMessageParam, ToolHandlerReturnTypeNonAsync } from "./fragola";
 import type { CreateAgentOptions, StepOptions } from "./agent";
 import type OpenAI from "openai";
 import type { APIPromise } from "openai";
@@ -32,11 +32,15 @@ export type EventBeforeModelInvocation<TMetaData extends DefineMetaData<any>, TG
     context: AgentContext<TMetaData, TGlobalStore, TStore>
 ) => maybePromise<ModelInvocationConfig<TMetaData>>;
 
+export type ToolCallConfig<TParams = Record<any, any>> =
+    | { params: TParams }
+    | { injectResult: ToolHandlerReturnTypeNonAsync };
+
 export type EventBeforeToolCall<TParams = Record<any, any>, TMetaData extends DefineMetaData<any> = {}, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> = (
-    params: TParams,
+    config: ToolCallConfig<TParams>,
     tool: Tool<any>,
     context: AgentContext<TMetaData, TGlobalStore, TStore>
-) => maybePromise<void>;
+) => maybePromise<ToolCallConfig<TParams>>;
 
 //@prettier-ignore
 export type callbackMap<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = {

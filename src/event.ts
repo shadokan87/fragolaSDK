@@ -8,7 +8,7 @@ import type { AgentBeforeEventId } from "./eventBefore";
 export type AgentDefaultEventId =
    "modelInvocation" | "toolCall" | "aiMessage" | "userMessage";
 
-export const SKIP_EVENT = Symbol('skip_event');
+export const SKIP_EVENT = Symbol.for('skip_event');
 /**
  * When returned from an event handler, the event will be ignored.
  * 

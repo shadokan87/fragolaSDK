@@ -5,8 +5,9 @@
     "": {
       "name": "fragolasdk-test",
       "dependencies": {
-        "@fragola-ai/agentic-sdk-core": "^0.2.2-alpha.18",
+        "@fragola-ai/agentic-sdk-core": "^0.2.2-alpha.40",
         "ajv": "^8.17.1",
+        "nanoid": "^5.1.9",
         "portkey-ai": "^3.0.1",
       },
       "devDependencies": {
@@ -37,7 +38,7 @@
 
     "@eslint/plugin-kit": ["@eslint/plugin-kit@0.4.1", "http://localhost:4873/@eslint/plugin-kit/-/plugin-kit-0.4.1.tgz", { "dependencies": { "@eslint/core": "^0.17.0", "levn": "^0.4.1" } }, "sha512-43/qtrDUokr7LJqoF2c3+RInu/t4zfrpYdoSDfYyhg52rwLV6TnOvdG4fXm7IkSB3wErkcmJS9iEhjVtOSEjjA=="],
 
-    "@fragola-ai/agentic-sdk-core": ["@fragola-ai/agentic-sdk-core@0.2.2-alpha.18", "http://localhost:4873/@fragola-ai/agentic-sdk-core/-/agentic-sdk-core-0.2.2-alpha.18.tgz", { "dependencies": { "@eslint/js": "^9.34.0", "@fragola-ai/prompt": "^1.0.4", "@modelcontextprotocol/sdk": "^1.21.1", "@opentelemetry/sdk-node": "^0.208.0", "ajv": "^8.17.1", "eslint": "^9.34.0", "json-schema-to-zod": "^2.6.1", "nanoid": "^5.1.5", "openai": "6.9.0", "puppeteer": "^24.27.0", "typescript-eslint": "^8.42.0", "zod": "^3.25.67" }, "peerDependencies": { "typescript": "^5.9.2" } }, "sha512-PEMBQxqg87plUWHP86PkVQVxzDydJkYwcLPUQNumqdUfnHFR3LgKX9elTXzBQc2Bsi3mQY+kdeV7QG4S0P8WwQ=="],
+    "@fragola-ai/agentic-sdk-core": ["@fragola-ai/agentic-sdk-core@0.2.2-alpha.40", "http://localhost:4873/@fragola-ai/agentic-sdk-core/-/agentic-sdk-core-0.2.2-alpha.40.tgz", { "dependencies": { "@eslint/js": "^9.34.0", "@fragola-ai/prompt": "^1.0.4", "@modelcontextprotocol/sdk": "^1.21.1", "@opentelemetry/sdk-node": "^0.208.0", "ajv": "^8.17.1", "eslint": "^9.34.0", "json-schema-to-zod": "^2.6.1", "nanoid": "^5.1.5", "openai": "6.9.0", "puppeteer": "^24.27.0", "typescript-eslint": "^8.42.0", "zod": "^3.25.67" }, "peerDependencies": { "typescript": "^5.9.2" } }, "sha512-82dzmUesU2aMrJNR907R8+l2jjv77SfzrFRZjs6L2xal8s+rD9EZDTVIhBlz1pD2VVWcgFZbwZIpMpGKI1jifA=="],
 
     "@fragola-ai/prompt": ["@fragola-ai/prompt@1.1.0", "http://localhost:4873/@fragola-ai/prompt/-/prompt-1.1.0.tgz", { "peerDependencies": { "typescript": "^5.0.0" } }, "sha512-fvmNqVqf8j5Eq5vr/Zk4BlUeLt4gy2N0Z0N8jAG18Ng49YQpUrSgPUQKPpF9+bikDeoUELkk/TJiWnV2ZHor7A=="],
 
@@ -473,7 +474,7 @@
 
     "ms": ["ms@2.1.3", "http://localhost:4873/ms/-/ms-2.1.3.tgz", {}, "sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA=="],
 
-    "nanoid": ["nanoid@5.1.6", "http://localhost:4873/nanoid/-/nanoid-5.1.6.tgz", { "bin": { "nanoid": "bin/nanoid.js" } }, "sha512-c7+7RQ+dMB5dPwwCp4ee1/iV/q2P6aK1mTZcfr1BTuVlyW9hJYiMPybJCcnBlQtuSmTIWNeazm/zqNoZSSElBg=="],
+    "nanoid": ["nanoid@5.1.9", "http://localhost:4873/nanoid/-/nanoid-5.1.9.tgz", { "bin": { "nanoid": "bin/nanoid.js" } }, "sha512-ZUvP7KeBLe3OZ1ypw6dI/TzYJuvHP77IM4Ry73waSQTLn8/g8rpdjfyVAh7t1/+FjBtG4lCP42MEbDxOsRpBMw=="],
 
     "natural-compare": ["natural-compare@1.4.0", "http://localhost:4873/natural-compare/-/natural-compare-1.4.0.tgz", {}, "sha512-OWND8ei3VtNC9h7V60qff3SVobHr996CTwgxubgyQYEpg290h9J0buyECNNJexkFm5sOajh5G116RYA1c8ZMSw=="],
 

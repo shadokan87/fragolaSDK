@@ -1,6 +1,6 @@
 import { skip, SKIP_EVENT, stop } from "./event"
 import type { EventAfterStateUpdate, EventAfterStep, EventAfterModelInvocation, EventAfterToolCall } from "./eventAfter"
-import type { EventBeforeStep, EventBeforeModelInvocation, EventBeforeToolCall, ModelInvocationConfig } from "./eventBefore"
+import type { EventBeforeStep, EventBeforeModelInvocation, EventBeforeToolCall, ModelInvocationConfig, ToolCallConfig } from "./eventBefore"
 import type { EventAiMessage, EventModelInvocation, EventToolCall, EventUserMessage } from "./eventDefault"
 import type { registeredEvent } from "./extendedJS/events/EventMap"
 import type { ChatCompletionAssistantMessageParam, ChatCompletionUserMessageParam, DefineMetaData, ToolHandlerReturnTypeNonAsync } from "./fragola"
@@ -212,7 +212,7 @@ export async function applyAiMessage<TMetaData extends DefineMetaData<any>, TGlo
     }
     for (let i = 0; i < events.length; i++) {
         const callback = events[i].callback as EventAiMessage<TMetaData, TGlobalStore, TStore>;
-        const params: Parameters<typeof callback> = [result.value as ChatCompletionAssistantMessageParam<TMetaData>, _params.isPartial, context];
+        const params: Parameters<typeof callback> = [result.value as ChatCompletionAssistantMessageParam<TMetaData>, _params.finish_reason, _params.usage, context];
         const res = await callback(...params) as any;
         if (accumulate)
             await accumulate(res);
@@ -269,23 +269,23 @@ export async function applyBeforeToolCall<TMetaData extends DefineMetaData<any>,
 ) {
     let result: ApplyEventResult<EventBeforeToolCall<any, TMetaData, TGlobalStore, TStore>> = {
         signal: undefined,
-        value: undefined
+        value: _params.config
     }
+    let configTmp: ToolCallConfig<any>;
     for (let i = 0; i < events.length; i++) {
         const callback = events[i].callback as EventBeforeToolCall<any, TMetaData, TGlobalStore, TStore>;
-        const params: Parameters<typeof callback> = [_params.params, _params.tool, context];
-        const res = await callback(...params) as any;
+        configTmp = await callback(result.value, _params.tool, context) as any;
         if (accumulate)
-            await accumulate(res);
-        if (isStopEvent(res)) {
-            result.signal = res;
-            break;
+            await accumulate(configTmp);
+        if (isStopEvent(configTmp)) {
+            result.signal = configTmp as any;
+            return result;
         }
-        if (isSkipEvent(res)) {
-            result.signal = res;
+        if (isSkipEvent(configTmp)) {
+            result.signal = configTmp as any;
             continue;
         }
-        result.value = res;
+        result.value = configTmp;
     }
     return result;
 }
@@ -298,24 +298,22 @@ export async function applyToolCall<TMetaData extends DefineMetaData<any>, TGlob
 ) {
     let result: ApplyEventResult<EventToolCall<any, TMetaData, TGlobalStore, TStore>> = {
         signal: undefined,
-        value: undefined as any
+        value: _params.result as any
     }
     for (let i = 0; i < events.length; i++) {
         const callback = events[i].callback as EventToolCall<any, TMetaData, TGlobalStore, TStore>;
-        const params: Parameters<typeof callback> = [_params.params, _params.tool, context];
-        const res = await callback(...params) as any;
+        const res = await callback(result.value, _params.params, _params.tool, context) as any;
         if (accumulate)
             await accumulate(res);
         if (isStopEvent(res)) {
-            result.signal = res;
+            result.signal = res as any;
             return result;
         }
         if (isSkipEvent(res)) {
-            result.signal = res;
+            result.signal = res as any;
             continue;
         }
         result.value = res as ToolHandlerReturnTypeNonAsync;
-        return result;
     }
     return result;
 }

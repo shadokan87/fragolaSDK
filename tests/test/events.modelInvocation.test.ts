@@ -1,21 +1,10 @@
 /**
  * Tests for the modelInvocation event trio:
  *   before:modelInvocation → modelInvocation → after:modelInvocation
- *
- * Signatures:
- *   before:modelInvocation  (config, context)       => config|skip|stop
- *     — can replace config with { injectMessage }, { injectResponse }, or modified modelSettings
- *   modelInvocation         (kind, data, context)   => data|skip|stop
- *     — fired per streaming chunk; skip preserves current data, stop aborts stream
- *   after:modelInvocation   (message, context)      => void
- *     — receives the final assistant message; can stop (signal not observed by caller in current code)
- *
- * Note: `modelInvocation` is only fired during streaming (stream:true). Tests for it use
- * the real API with stream:true. Tests for before/after use `injectMessage` so no real
- * API call is needed.
  */
 import { describe, it, expect, vi } from "vitest";
-import { skip, stop } from "@fragola-ai/agentic-sdk-core/event";
+import { nanoid } from "nanoid";
+import { skip } from "@fragola-ai/agentic-sdk-core/event";
 import { injectReply } from "../injectReply";
 import { createTestClient } from "./createTestClient";
 
@@ -72,7 +61,7 @@ describe("before:modelInvocation — stop", () => {
         const afterCalled = vi.fn();
         const agent = fragola.agent({ name: "a", instructions: "", description: "" });
 
-        agent.onBeforeModelInvocation(() => stop() as any);
+        agent.onBeforeModelInvocation((_, ctx) => ctx.stop() as any);
         agent.onAfterModelInvocation(() => { afterCalled(); });
 
         const state = await agent.userMessage({ content: "hi" });
@@ -84,7 +73,7 @@ describe("before:modelInvocation — stop", () => {
         const secondCalled = vi.fn();
         const agent = fragola.agent({ name: "a", instructions: "", description: "" });
 
-        agent.onBeforeModelInvocation(() => stop() as any);
+        agent.onBeforeModelInvocation((_, ctx) => ctx.stop() as any);
         agent.onBeforeModelInvocation(() => { secondCalled(); return { injectMessage: { content: "ok" } }; });
 
         await agent.userMessage({ content: "hi" });
@@ -159,7 +148,7 @@ describe("before:modelInvocation → after:modelInvocation connection", () => {
         const afterFired = vi.fn();
         const agent = fragola.agent({ name: "a", instructions: "", description: "" });
 
-        agent.onBeforeModelInvocation(() => stop() as any);
+        agent.onBeforeModelInvocation((_, ctx) => ctx.stop() as any);
         agent.onAfterModelInvocation(() => { afterFired(); });
 
         await agent.userMessage({ content: "hi" });
@@ -210,9 +199,9 @@ describe("modelInvocation — streaming chunk events (real API)", () => {
         });
 
         let chunksBeforeStop = 0;
-        agent.onModelInvocation((_kind, data) => {
+        agent.onModelInvocation((_kind, data, ctx) => {
             chunksBeforeStop++;
-            if (chunksBeforeStop >= 1) return stop();
+            if (chunksBeforeStop >= 1) return ctx.stop();
             return data as any;
         });
 
@@ -229,25 +218,39 @@ describe("modelInvocation — streaming chunk events (real API)", () => {
             modelSettings: { stream: true, max_tokens: 50 },
         });
 
-        let transformApplied = false;
+        const [id1, id2, id3] = [nanoid(), nanoid(), nanoid()];
+        let firstContentChunkSeen = false;
+
+        // Guard handler: marks when the first content-bearing chunk arrives so the
+        // three transform handlers below can all target that same chunk in chain order.
         agent.onModelInvocation((_kind, data: any) => {
-            transformApplied = true;
-            // modify delta content if present
-            if (data?.choices?.[0]?.delta?.content) {
-                return {
-                    ...data,
-                    choices: [
-                        {
-                            ...data.choices[0],
-                            delta: { ...data.choices[0].delta, content: data.choices[0].delta.content },
-                        },
-                    ],
-                } as any;
-            }
+            if (!firstContentChunkSeen && data?.choices?.[0]?.delta?.content)
+                firstContentChunkSeen = true;
             return data as any;
         });
 
-        await agent.userMessage({ content: "say hello" });
-        expect(transformApplied).toBe(true);
+        const makeHandler = (id: string) => (_kind: any, data: any) => {
+            if (firstContentChunkSeen && data?.choices?.[0]?.delta?.content) {
+                return {
+                    ...data,
+                    choices: [{
+                        ...data.choices[0],
+                        delta: { ...data.choices[0].delta, content: data.choices[0].delta.content + id },
+                    }],
+                } as any;
+            }
+            return data as any;
+        };
+
+        agent.onModelInvocation(makeHandler(id1));
+        agent.onModelInvocation(makeHandler(id2));
+        agent.onModelInvocation(makeHandler(id3));
+
+        const state = await agent.userMessage({ content: "say hello" });
+        const aiContent = state.messages.find((m) => m.role === "assistant")?.content ?? "";
+        expect(typeof aiContent).toBe("string");
+        expect(aiContent).toContain(id1);
+        expect(aiContent).toContain(id2);
+        expect(aiContent).toContain(id3);
     });
 });

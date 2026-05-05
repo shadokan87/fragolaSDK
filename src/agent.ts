@@ -147,7 +147,7 @@ export type UserMessageQuery<TMetaData extends DefineMetaData<any> = {}> = Prett
 
 export type JsonQuery<S extends z.ZodTypeAny = z.ZodTypeAny> = Prettify<UserMessageQuery & {
     /** Set to true to use tool calling to extract json instead of classic 'response_format' */
-    preferToolCalling?: boolean
+    // preferToolCalling?: boolean //TODO: for next versions
     /** Zod schema describing the expected JSON shape for the response */
     schema: S,
     /** If set to true, `userMessage` events will not be applied for this query */
@@ -872,9 +872,8 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
     }
 
     async json<S extends z.ZodTypeAny = z.ZodTypeAny>(query: JsonQuery<S>): Promise<JsonResult<S, TMetaData>> {
-        const { step, preferToolCalling, name, schema, strict, description, ignoreUserMessageEvents, ...message } = query;
+        const { step, name, schema, strict, description, ignoreUserMessageEvents, ...message } = query;
         let _step = { ...step };
-        void step;
         let _message: Omit<ChatCompletionUserMessageParam<TMetaData>, "role">;
         if (ignoreUserMessageEvents)
             _message = message as Omit<ChatCompletionUserMessageParam<TMetaData>, "role">;
@@ -885,19 +884,15 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
             _message = userMessageProcessed.value as typeof _message;
         }
         await this.updateMessages((prev) => [...prev, stripUserMessageMeta({ role: "user", ..._message })]);
-        if (preferToolCalling) { //TODO: implement tool calling json
-
-        } else {
-            if (!_step?.modelSettings)
-                _step["modelSettings"] = { ...this.modelSettings() }
-            let jsonSchema = zodToJsonSchema(schema);
-            _step.modelSettings.response_format = {
-                type: "json_schema", json_schema: {
-                    name,
-                    description,
-                    strict,
-                    schema: jsonSchema,
-                }
+        if (!_step?.modelSettings)
+            _step["modelSettings"] = { ...this.modelSettings() }
+        let jsonSchema = zodToJsonSchema(schema);
+        _step.modelSettings.response_format = {
+            type: "json_schema", json_schema: {
+                name,
+                description,
+                strict,
+                schema: jsonSchema,
             }
         }
         const state = await this.step(_step);

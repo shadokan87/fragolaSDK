@@ -116,11 +116,14 @@ const dynamicTool = tool({
 });
 
 // /src/app.ts
-agent.onToolCall(async (params, tool) => {
-  if (tool.name === "dynamic_action") {
-    const result = await performDynamicAction(params);
-    return result;
+agent.onBeforeToolCall(async (config, tool) => {
+  if (tool.name !== "dynamic_action" || !("params" in config)) {
+    return config;
   }
+
+  return {
+    injectResult: await performDynamicAction(config.params)
+  };
 });
 ```
 

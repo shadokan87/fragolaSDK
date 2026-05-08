@@ -1,3 +1,4 @@
+import type OpenAI from "openai/index.js";
 import { skip, SKIP_EVENT, stop } from "./event"
 import type { EventAfterStateUpdate, EventAfterStep, EventAfterModelInvocation, EventAfterToolCall } from "./eventAfter"
 import type { EventBeforeStep, EventBeforeModelInvocation, EventBeforeToolCall, ModelInvocationConfig, ToolCallConfig } from "./eventBefore"
@@ -155,7 +156,10 @@ export async function applyModelInvocation<TMetaData extends DefineMetaData<any>
     }
     for (let i = 0; i < events.length; i++) {
         const {callback} = events[i];
-        const res = await callback(_params.kind, result.value, context);
+        const invocation = _params.kind === "chunk"
+            ? { kind: "chunk" as const, data: result.value as OpenAI.ChatCompletionChunk }
+            : { kind: "completion" as const, data: result.value as ChatCompletionAssistantMessageParam<TMetaData> };
+        const res = await callback(invocation, context);
         if (accumulate)
             await accumulate(res);
         if (isStopEvent(res)) {

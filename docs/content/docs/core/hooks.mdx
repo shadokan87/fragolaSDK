@@ -116,8 +116,8 @@ const analyticsHook = Hook((agent) => {
     return message;
   });
 
-  agent.onAiMessage((message, isPartial, context) => {
-    if (!isPartial) aiMessages++;
+  agent.onAiMessage((message, finishReason, usage, context) => {
+    if (finishReason !== null) aiMessages++;
     return message;
   });
 

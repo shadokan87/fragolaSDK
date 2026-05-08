@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@fragola-ai/agentic-sdk-core": "^0.2.2-alpha.40",
+    "@fragola-ai/agentic-sdk-core": "^0.2.2-alpha.41",
     "ajv": "^8.17.1",
     "nanoid": "^5.1.9",
     "portkey-ai": "^3.0.1"

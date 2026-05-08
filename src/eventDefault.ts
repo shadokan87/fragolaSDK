@@ -9,18 +9,20 @@ import type { StepOptions } from "./agent";
 
 export type ModelInvocationKind = "chunk" | "completion";
 
-//TODO: maybe use this type and remove 'kind' as separate argument
-// export type ModelInvocationData<TMetaData extends DefineMetaData<any>> = {
-//   kind: "chunk"
-// } & OpenAI.ChatCompletionChunk | {
-//   kind: "completion"
-// } & ChatCompletionAssistantMessageParam<TMetaData>;
+export type ModelInvocationPayload<TMetaData extends DefineMetaData<any>> =
+  | {
+      kind: "chunk";
+      data: OpenAI.ChatCompletionChunk;
+    }
+  | {
+      kind: "completion";
+      data: ChatCompletionAssistantMessageParam<TMetaData>;
+    };
 
 export type EventModelInvocation<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = (
-  kind: ModelInvocationKind,
-  data: OpenAI.ChatCompletionChunk | ChatCompletionAssistantMessageParam<TMetaData>,
+  payload: ModelInvocationPayload<TMetaData>,
   context: AgentContext<TMetaData, TGlobalStore, TStore>
-) => maybePromise<eventResult<OpenAI.ChatCompletionChunk | ChatCompletionAssistantMessageParam<TMetaData>>>;
+) => maybePromise<eventResult<ModelInvocationPayload<TMetaData>["data"]>>;
 
 export type EventToolCall<TParams = Record<any, any>, TMetaData extends DefineMetaData<any> = {}, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}>
   = (result: ToolHandlerReturnTypeNonAsync, params: TParams, tool: Tool<any>, context: AgentContext<TMetaData, TGlobalStore, TStore>)

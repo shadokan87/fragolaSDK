@@ -59,26 +59,28 @@ const maxStep = agent.context.options.stepOptions?.maxStep;
 
 # raw
 Low-level async helpers to mutate messages directly. Avoid unless you need precise control; prefer high-level APIs.
-- `appendMessages(messages, replaceLast, reason)`
-- `updateMessages(callback, reason)`
-`reason` influences after-events (`after:messagesUpdate`). Valid add reasons: `userMessage | toolCall | partialAiMessage | AiMessage` (removal reasons prefixed by `remove:`).
+- `appendMessages(messages, replaceLast)`
+- `updateMessages(callback)`
+
+These helpers mutate `context.state.messages` directly through the agent internals. Use them when
+you need low-level control over replacement vs append behavior.
 
 **Examples**
 ```ts
 // 1) Append a synthetic assistant summary
 await agent.context.raw.appendMessages([
   { role: 'assistant', content: 'Summary: conversation compressed.' }
-], false, 'AiMessage');
+], false);
 
 // 2) Replace last assistant partial with a finalized version
 await agent.context.raw.appendMessages([
   { role: 'assistant', content: 'Final answer.' }
-], true, 'AiMessage');
+], true);
 
 // 3) Bulk redact messages
 await agent.context.raw.updateMessages(prev => prev.map(m => (
   m.role === 'user' ? { ...m, content: '[REDACTED]' } : m
-)), 'partialAiMessage');
+)));
 ```
 
 ---
@@ -268,7 +270,9 @@ Synchronous variant of `stop()` for scenarios where awaiting is unnecessary (sti
 ```ts
 // 1) Immediate stop inside event
 agent.onAiMessage((msg, partial, ctx) => {
-  if (!partial && msg.content.includes('unsafe')) ctx.stopSync();
+  if (partial !== null && typeof msg.content === 'string' && msg.content.includes('unsafe')) {
+    ctx.stopSync();
+  }
   return msg;
 });
 

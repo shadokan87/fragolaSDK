@@ -251,8 +251,8 @@ const getAnalyticsTool = tool({
 Event handlers also have access to the agent context:
 
 ```typescript
-agent.onAiMessage((message, isPartial, context) => {
-  if (isPartial) return message;
+agent.onAiMessage((message, finishReason, usage, context) => {
+  if (finishReason === null) return message;
 
   // Update a metrics store when AI responds
   const metrics = context.getStore("metrics");
@@ -264,8 +264,8 @@ agent.onAiMessage((message, isPartial, context) => {
   return message;
 });
 
-agent.onAfterMessagesUpdate((reason, context) => {
-  // Persist store to database on message updates
+agent.onAfterStateUpdate((context) => {
+  // Persist store to database after state changes
   const store = context.store;
   saveToDatabase(store.value);
 });

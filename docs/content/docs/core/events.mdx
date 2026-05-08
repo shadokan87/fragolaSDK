@@ -6,23 +6,36 @@ description: Observe and influence your Agent using an event-driven API.
 
 # Overview
 
-Fragola Agents expose a rich event system so you can:
+Fragola Agents expose lifecycle events so you can:
 - Inspect and mutate user and assistant messages.
-- Intercept tool calls and provide custom results.
-- Wrap the model call for tracing, retries or streaming transforms.
-- React to state and messages updates for persistence, metrics or side‑effects.
+- Intercept tool calls before and after execution.
+- Adjust model invocation config or transform streamed chunks.
+- Observe step completion and state transitions for persistence, metrics, or orchestration.
 
 You register handlers on the `Agent` itself (not on `AgentContext`) using methods like:
 - `agent.onUserMessage(...)`
 - `agent.onAiMessage(...)`
+- `agent.onBeforeStep(...)`
+- `agent.onAfterStep(...)`
+- `agent.onBeforeModelInvocation(...)`
+- `agent.onAfterModelInvocation(...)`
+- `agent.onBeforeToolCall(...)`
 - `agent.onToolCall(...)`
 - `agent.onModelInvocation(...)`
-- `agent.onAfterMessagesUpdate(...)`
+- `agent.onAfterToolCall(...)`
 - `agent.onAfterStateUpdate(...)`
 
 Each method:
 - Returns an **unsubscribe** function.
 - Receives an `AgentContext` instance so handlers can read state, stores, tools, and instructions.
+- Runs in registration order.
+
+Handlers that transform a value can return:
+- the replacement value
+- `skip()` to keep the current value unchanged and continue to the next handler
+- `context.stop()` or `context.stopSync()` to abort the current pipeline early
+
+Observation-only events such as `after:*` ignore replacement values and are best used for side-effects.
 
 <Callout type="warn">
   Event handlers run inside the Agent execution loop. Avoid blocking operations and prefer short, deterministic logic or well‑bounded async calls.
@@ -41,7 +54,7 @@ Use this to:
 **Examples**
 ```ts
 // 1) Trim whitespace and collapse multiple spaces
-agent.onUserMessage((message, context) => {
+agent.onUserMessage((message) => {
   const content = typeof message.content === 'string'
     ? message.content.replace(/\s+/g, ' ').trim()
     : message.content;
@@ -74,7 +87,9 @@ agent.onUserMessage((message) => {
 Register a handler that runs when an assistant message is generated or streamed. Handlers can **inspect and replace** the AI message.
 
 The callback signature is:
-- `(message, isPartial, context) => maybePromise<message>`
+- `(message, finish_reason, usage, context) => maybePromise<message>`
+
+`finish_reason === null` means the stream is still in progress.
 
 Use this to:
 - Post‑process final answers (redaction, formatting, translation).
@@ -84,8 +99,8 @@ Use this to:
 **Examples**
 ```ts
 // 1) Append a disclaimer to final answers only
-agent.onAiMessage((message, isPartial) => {
-  if (isPartial) return message;
+agent.onAiMessage((message, finish_reason) => {
+  if (finish_reason === null) return message;
   if (typeof message.content === 'string') {
     return {
       ...message,
@@ -107,8 +122,8 @@ agent.onAiMessage((message) => {
 });
 
 // 3) Mirror assistant messages into a metrics store
-agent.onAiMessage((message, isPartial, context) => {
-  if (isPartial) return message;
+agent.onAiMessage((message, finish_reason, usage, context) => {
+  if (finish_reason === null) return message;
   const metrics = context.getStore('metrics');
   metrics?.update(v => ({
     ...v,
@@ -120,140 +135,217 @@ agent.onAiMessage((message, isPartial, context) => {
 
 ---
 
-# onToolCall
-Register a handler that runs when the agent needs to execute a tool. Handlers can:
-- Run the tool handler themselves and return a custom result.
-- Short‑circuit execution (e.g. from cache).
-- Compose multiple handlers for logging, validation, or routing.
+# onBeforeStep
+Register a handler that runs before a step starts.
 
-If no `toolCall` event returns a result, the Agent falls back to calling the tool's own `handler`.
+Use this to:
+- clamp per-call step options
+- flip feature flags for the next step
+- stop execution before the step begins
+
+**Example**
+```ts
+agent.onBeforeStep((options) => {
+  if ((options.maxStep ?? 10) <= 2) return options;
+  return { ...options, maxStep: 2 };
+});
+```
+
+---
+
+# onAfterStep
+Register a handler that runs after a step completes.
+
+The callback receives the resolved options, the messages appended during the step, and how many
+model generations happened in that step.
+
+**Example**
+```ts
+agent.onAfterStep((options, newMessages, stepsTaken, context) => {
+  console.log('step completed', {
+    stepsTaken,
+    appendedMessages: newMessages.length,
+    status: context.state.status,
+  });
+});
+```
+
+---
+
+# onBeforeModelInvocation
+Register a handler that runs before the model request is made.
+
+The callback receives the current config and may:
+- return `{ modelSettings, clientOptions }` to override the request
+- return `{ injectMessage }` to bypass the API call with a final assistant message
+- return `{ injectResponse }` to provide a custom SDK response
+- return `skip()` to preserve the current config
+- return `context.stop()` to cancel the invocation
 
 **Examples**
 ```ts
-// 1) Simple logging wrapper around every tool call
-agent.onToolCall(async (params, tool, context) => {
-  console.log('Calling tool', tool.name, 'with', params);
-  const result = await (tool as any).handler(params, context);
-  console.log('Tool result', result);
-  return result;
+// 1) Override request settings for the next invocation
+agent.onBeforeModelInvocation((config) => {
+  if (!("modelSettings" in config)) return config;
+  return {
+    modelSettings: {
+      ...config.modelSettings,
+      temperature: 0,
+    },
+    clientOptions: config.clientOptions,
+  };
 });
 
-// 2) Cache results for idempotent tools
-const cache = new Map<string, unknown>();
-agent.onToolCall(async (params, tool, context) => {
-  const key = `${tool.name}:${JSON.stringify(params)}`;
-  if (cache.has(key)) return cache.get(key);
-  const result = await (tool as any).handler(params, context);
-  cache.set(key, result);
-  return result;
-});
-
-// 3) Enforce access control for sensitive tools
-agent.onToolCall((params, tool, context) => {
-  if (tool.name === 'delete_user') {
-    const auth = context.getStore('auth');
-    const role = auth?.value.role;
-    if (role !== 'admin') {
-      throw new Error('Only admins can delete users');
-    }
-  }
-  return (tool as any).handler(params, context);
-});
+// 2) Inject a synthetic assistant reply without calling the API
+agent.onBeforeModelInvocation(() => ({
+  injectMessage: { content: 'hello from cache' },
+}));
 ```
 
 ---
 
 # onModelInvocation
-Wrap the underlying model call. Handlers receive:
-- `callAPI(processChunk?, modelSettingsOverride?, clientOptionsOverride?)`
-- `context: AgentContext`
+Register a handler that can inspect or transform model invocation payloads.
 
-Use this to:
-- Implement retries, circuit breakers, or backoff.
-- Trace raw requests/responses.
-- Modify streaming chunks before they are applied to messages.
-- Override model settings per invocation without changing agent defaults.
+Streamed responses emit `kind === 'chunk'` before each chunk is merged into the partial assistant
+message. Returning a replacement chunk changes what later handlers and `onAiMessage` receive.
 
 **Examples**
 ```ts
-// 1) Add simple logging around the model call
-agent.onModelInvocation(async (callAPI, context) => {
-  const start = Date.now();
-  const aiMessage = await callAPI();
-  console.log('Model took', Date.now() - start, 'ms');
-  return aiMessage;
-});
+// 1) Remove debug markers from streamed content
+agent.onModelInvocation((kind, data) => {
+  if (kind !== 'chunk') return data;
+  const choice = data.choices?.[0];
+  const content = choice?.delta?.content;
+  if (!choice || !content) return data;
 
-// 2) Implement a basic retry on transient errors
-agent.onModelInvocation(async (callAPI, context) => {
-  let lastError: unknown;
-  for (let i = 0; i < 3; i++) {
-    try {
-      return await callAPI();
-    } catch (e) {
-      lastError = e;
-    }
-  }
-  throw lastError;
-});
-
-// 3) Filter streaming chunks before they hit messages
-agent.onModelInvocation(async (callAPI, context) => {
-  const processChunk = (chunk: any, partial: any) => {
-    // Example: drop debug tags from the stream
-    const choice = chunk.choices?.[0];
-    if (choice?.delta?.content) {
-      choice.delta.content = choice.delta.content.replace('[DEBUG]', '');
-    }
-    return chunk;
+  return {
+    ...data,
+    choices: [{
+      ...choice,
+      delta: {
+        ...choice.delta,
+        content: content.replace('[DEBUG]', ''),
+      },
+    }],
   };
-  return await callAPI(processChunk);
+});
+
+// 2) Abort a stream after the first chunk that matches a condition
+agent.onModelInvocation((kind, data, context) => {
+  if (kind !== 'chunk') return data;
+  const content = data.choices?.[0]?.delta?.content;
+  if (content?.includes('[ABORT]')) {
+    return context.stop();
+  }
+  return data;
 });
 ```
 
 ---
 
-# onAfterMessagesUpdate
-Register a handler that runs **after** the messages array is updated for any reason.
-
-Signature:
-- `(reason, context) => maybePromise<void>`
-
-`reason` is a string describing why messages changed, e.g.:
-- `userMessage`
-- `toolCall`
-- `partialAiMessage`
-- `AiMessage`
-- or a removal reason like `remove:userMessage`.
+# onAfterModelInvocation
+Register a handler that runs once the final assistant message has been resolved.
 
 Use this to:
-- Persist transcripts.
-- Emit telemetry or analytics.
-- Trigger downstream systems.
+- inspect the final assistant message after injection or model completion
+- record metrics for completed model turns
+- trigger side-effects that should only run once per invocation
+
+**Example**
+```ts
+agent.onAfterModelInvocation((message, context) => {
+  console.log('assistant turn complete', {
+    hasToolCalls: Boolean(message.tool_calls?.length),
+    status: context.state.status,
+  });
+});
+```
+
+---
+
+# onBeforeToolCall
+Register a handler that runs after tool arguments are parsed and before the tool handler executes.
+
+The callback receives `{ params }` initially and may:
+- return `{ params }` to rewrite validated arguments
+- return `{ injectResult }` to bypass the handler entirely
+- return `skip()` to preserve the current config
+- return `context.stop()` to cancel the current tool call
 
 **Examples**
 ```ts
-// 1) Persist messages whenever they change
-agent.onAfterMessagesUpdate((reason, context) => {
-  const messages = context.state.messages;
-  saveConversationToDB({ reason, messages });
+// 1) Rewrite validated params before the handler runs
+agent.onBeforeToolCall((config, tool) => {
+  if (tool.name !== 'search' || !("params" in config)) return config;
+  return {
+    params: {
+      ...config.params,
+      limit: 5,
+    },
+  };
 });
 
-// 2) Track how many tool calls happened
-agent.onAfterMessagesUpdate((reason, context) => {
-  if (reason !== 'toolCall') return;
-  const stats = context.getStore('stats');
-  stats?.update(v => ({
-    ...v,
-    toolCalls: (v.toolCalls ?? 0) + 1,
+// 2) Provide a result for a dynamic tool
+agent.onBeforeToolCall(async (config, tool) => {
+  if (tool.name !== 'dynamic_action' || !("params" in config)) return config;
+  return {
+    injectResult: await performDynamicAction(config.params),
+  };
+});
+```
+
+---
+
+# onToolCall
+Register a handler that runs once a tool result exists.
+
+This event receives the current result, the effective params, and the tool reference. Each handler
+may transform the result before it is passed to later `toolCall` handlers, `onAfterToolCall`, and
+the `role: 'tool'` message appended to state.
+
+Use this to:
+- normalize handler output
+- attach derived metadata to the final tool result
+- log or audit tool execution without re-running the handler
+
+**Examples**
+```ts
+// 1) Wrap the final tool result with metadata
+agent.onToolCall((result, params, tool) => {
+  if (tool.name !== 'search') return result;
+  return {
+    params,
+    result,
+    source: tool.name,
+  };
+});
+
+// 2) Preserve the current result and let later handlers keep processing
+agent.onToolCall((result, params, tool) => {
+  if (tool.name !== 'audit_only') return result;
+  return skip();
+});
+```
+
+# onAfterToolCall
+Register a handler that runs after the final tool result has been resolved.
+
+Use this to:
+- persist audit trails
+- emit metrics
+- trigger external side-effects based on the final tool result
+
+**Example**
+```ts
+agent.onAfterToolCall((result, params, tool, context) => {
+  const audit = context.getStore('audit');
+  audit?.update(prev => ({
+    ...prev,
+    lastTool: tool.name,
+    lastParams: params,
+    lastResult: result,
   }));
-});
-
-// 3) Log when an AI message is finalized
-agent.onAfterMessagesUpdate((reason, context) => {
-  if (reason !== 'AiMessage') return;
-  const last = context.state.messages.at(-1);
-  console.log('Final AI message:', last);
 });
 ```
 
@@ -291,7 +383,7 @@ agent.onAfterStateUpdate((context) => {
 ---
 
 # Unsubscribing and Composition
-All `on*` helpers return an unsubscribe function. Store and call it when you no longer need the handler (e.g. when disposing an agent instance or test).
+All `on*` helpers return an unsubscribe function. Store and call it when you no longer need the handler (for example when disposing an agent instance or test).
 
 You can also register multiple handlers for the same event; they will run in the order they were added.
 

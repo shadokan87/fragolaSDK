@@ -35,11 +35,12 @@ export function messagesUtils(messages: OpenAI.ChatCompletionMessageParam[]) {
          * @returns The matching tool call object if found, otherwise `undefined`.
          *
          * @example
-         * const utils = createStateUtils(state);
-         * // Assuming the message is the following
-         * // { role: "tool", tool_call_id: "tool_123", content: "Result" };
-         * const toolCall = utils.toolCallOrigin(state.messages.at(-1).tool_calls[0]);
-         * // toolCall will be { id: "tool_123", function: { name: "getWeather", arguments: "{}" } }
+         * const utils = messagesUtils(state.messages);
+         * const lastToolMessage = utils.messageByRole("tool");
+         * if (lastToolMessage?.role === "tool") {
+         *   const toolCall = utils.toolCallOrigin(lastToolMessage);
+         *   // toolCall will be { id: "tool_123", function: { name: "getWeather", arguments: "{}" } }
+         * }
          */
         toolCallOrigin: (message: OpenAI.ChatCompletionToolMessageParam) => {
             return getToolCallOrigin(messages, message);
@@ -54,7 +55,7 @@ export function messagesUtils(messages: OpenAI.ChatCompletionMessageParam[]) {
          * @returns The final assistant message if present, otherwise `undefined`.
          *
          * @example
-         * const utils = createStateUtils(state);
+         * const utils = messagesUtils(state.messages);
          * const finalOutput = utils.finalOutput();
          * if (finalOutput) {
          *   console.log(finalOutput.content);
@@ -74,7 +75,7 @@ export function messagesUtils(messages: OpenAI.ChatCompletionMessageParam[]) {
          * @returns The last message with the specified role, or `undefined` if none found.
          *
          * @example
-         * const utils = createStateUtils(state);
+         * const utils = messagesUtils(state.messages);
          * const lastUser = utils.messageByRole("user");
          */
         messageByRole: (role: "user" | "tool" | "assistant"): OpenAI.ChatCompletionMessageParam | undefined => {

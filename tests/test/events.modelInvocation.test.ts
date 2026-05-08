@@ -4,11 +4,13 @@
  */
 import { describe, it, expect, vi } from "vitest";
 import { nanoid } from "nanoid";
+import type { AgentAny } from "@fragola-ai/agentic-sdk-core/agent";
 import { skip } from "@fragola-ai/agentic-sdk-core/event";
 import { injectReply } from "../injectReply";
 import { createTestClient } from "./createTestClient";
 
 const fragola = createTestClient();
+type ModelInvocationHandler = Parameters<AgentAny["onModelInvocation"]>[0];
 // ─────────────────────────────────────────────────────────────────────────────
 // before:modelInvocation
 // ─────────────────────────────────────────────────────────────────────────────
@@ -181,8 +183,9 @@ describe("modelInvocation — streaming chunk events (real API)", () => {
         });
 
         let chunkCount = 0;
-        agent.onModelInvocation((_kind, data) => {
+        agent.onModelInvocation((invocation) => {
             chunkCount++;
+            expect(invocation.kind).toBe("chunk");
             return skip(); // skip: chunk is used as-is
         });
 
@@ -199,10 +202,10 @@ describe("modelInvocation — streaming chunk events (real API)", () => {
         });
 
         let chunksBeforeStop = 0;
-        agent.onModelInvocation((_kind, data, ctx) => {
+        agent.onModelInvocation((invocation, ctx) => {
             chunksBeforeStop++;
             if (chunksBeforeStop >= 1) return ctx.stop();
-            return data as any;
+            return invocation.data;
         });
 
         await agent.userMessage({ content: "count from 1 to 100" });
@@ -223,23 +226,32 @@ describe("modelInvocation — streaming chunk events (real API)", () => {
 
         // Guard handler: marks when the first content-bearing chunk arrives so the
         // three transform handlers below can all target that same chunk in chain order.
-        agent.onModelInvocation((_kind, data: any) => {
-            if (!firstContentChunkSeen && data?.choices?.[0]?.delta?.content)
+        agent.onModelInvocation((invocation) => {
+            if (invocation.kind !== "chunk")
+                return invocation.data;
+            if (!firstContentChunkSeen && invocation.data.choices[0]?.delta?.content)
                 firstContentChunkSeen = true;
-            return data as any;
+            return invocation.data;
         });
 
-        const makeHandler = (id: string) => (_kind: any, data: any) => {
-            if (firstContentChunkSeen && data?.choices?.[0]?.delta?.content) {
+        const makeHandler = (id: string): ModelInvocationHandler => (invocation) => {
+            if (invocation.kind !== "chunk")
+                return invocation.data;
+
+            const choice = invocation.data.choices[0];
+            const delta = choice?.delta;
+            const content = delta?.content;
+
+            if (firstContentChunkSeen && choice && delta && content) {
                 return {
-                    ...data,
+                    ...invocation.data,
                     choices: [{
-                        ...data.choices[0],
-                        delta: { ...data.choices[0].delta, content: data.choices[0].delta.content + id },
+                        ...choice,
+                        delta: { ...delta, content: content + id },
                     }],
-                } as any;
+                };
             }
-            return data as any;
+            return invocation.data;
         };
 
         agent.onModelInvocation(makeHandler(id1));

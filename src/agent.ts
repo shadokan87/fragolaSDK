@@ -10,7 +10,7 @@ import { z as zod } from "zod";
 import type { maybePromise, Prettify, StoreLike } from "./types"
 import OpenAI from "openai/index.js"
 import { type AgentEventId, type EventDefaultCallback } from "./event"
-import type { EventToolCall, EventUserMessage, EventModelInvocation, EventAiMessage, ModelInvocationKind } from "./eventDefault";
+import type { EventToolCall, EventUserMessage, EventModelInvocation, EventAiMessage, ModelInvocationPayload } from "./eventDefault";
 import { nanoid } from "nanoid"
 import type { EventAfterStateUpdate, EventAfterStep, EventAfterModelInvocation, EventAfterToolCall } from "./eventAfter"
 import type { EventBeforeStep, EventBeforeModelInvocation, EventBeforeToolCall, ModelInvocationConfig, ToolCallConfig } from "./eventBefore"
@@ -40,57 +40,23 @@ import {
 export type AgentState<TMetaData extends DefineMetaData<any> = {}> = {
     messages: ChatCompletionMessageParam<TMetaData>[],
     stepCount: number,
-    status: "idle" | "generating" | "waiting",
+    status: "generating" | "idle" | "waiting"
 }
 
-export type JsonOptions<T extends z.ZodTypeAny = z.ZodTypeAny> = {
-    message: string;
-    /** A Zod schema describing the expected JSON shape returned by the AI/tool */
-    schema: T;
-    /** prefer calling a tool instead of using the AI completion */
-    preferToolCall?: boolean;
-    /** optional model settings passthrough */
-    modelSettings?: AgentOptions["modelSettings"];
-};
-
 /**
- * Options for controlling the agent's step execution behavior.
- *
- * @see {@link defaultStepOptions} for default values.
+ * Options that control how a single execution step runs.
  */
-export type StepOptions = Partial<{
+export type StepOptions = {
     /** The maximum number of steps to execute in one call (default: 10). */
-    maxStep: number,
+    maxStep?: number,
     /** Wether or not to reset agent state `stepCount` after each user messages. `true` is recommanded for conversational agents.*/
-    resetStepCountAfterUserMessage: boolean,
-
-    //TODO: unanswered tool behaviour fields
-    // /** Determines how to handle unanswered tool calls: `answer` to process them, `skip` to ignore (default: "answer"). */
-    // unansweredToolBehaviour: "answer" | "skip",
-    // /** The string to use when skipping a tool call (default: "(generation has been canceled, you may ignore this tool output)"). */
-    skipToolString: string,
+    resetStepCountAfterUserMessage?: boolean,
     /** Will override the agent model settings. `response_format` will always be ovrride when using `json` method*/
-    modelSettings?: ModelSettings,
+    modelSettings?: Omit<ModelSettings, "model"> & Partial<Pick<ModelSettings, "model">>,
     /** Will override Openai SDK client options */
-    clientOptions?: OpenaiClientOptions,
-    //@ts-nocheck
-    /**
-     * Execute the steps on a cloned agent using  so the original state is not changed.
-     * When true the call runs on a {@link Agent.fork} (clone) and returns the clone's output.
-     * Use for speculative execution, testing, or to extract structured output without
-     * mutating the main agent.
-     * @default false
-     */
-    fork: boolean,
-}>;
+    clientOptions?: OpenaiClientOptions
+}
 
-/**
- * @typescript The default values for {@link StepOptions}.
- *
- * @property maxStep - Default: 10. The maximum number of steps to execute in one call.
- * @property unansweredToolBehaviour - Default: "answer". Determines how to handle unanswered tool calls.
- * @property skipToolString - Default: "(generation has been canceled, you may ignore this tool output)". The string to use when skipping a tool call.
- */
 export const defaultStepOptions: StepOptions = {
     maxStep: 10,
     resetStepCountAfterUserMessage: true,
@@ -160,7 +126,7 @@ export type JsonResult<S extends z.ZodTypeAny = z.ZodTypeAny, TMetaData extends 
 
 
 export type applyEventParams<K extends AgentEventId, TMetaData extends DefineMetaData<any>> =
-    K extends "modelInvocation" ? { kind: ModelInvocationKind, data: OpenAI.ChatCompletionChunk | ChatCompletionAssistantMessageParam<TMetaData> } :
+    K extends "modelInvocation" ? ModelInvocationPayload<TMetaData> :
     K extends "aiMessage" ? { message: ChatCompletionAssistantMessageParam<TMetaData>, finish_reason: OpenAI.Chat.Completions.ChatCompletionChunk.Choice['finish_reason'], usage: OpenAI.Chat.Completions.ChatCompletionChunk['usage'] } :
     K extends "userMessage" ? { message: Omit<ChatCompletionUserMessageParam<TMetaData>, "role"> } :
     K extends "step" ? { options: Required<StepOptions>, lastMessageRole: OpenAI.ChatCompletionMessageParam["role"] | undefined, lastMessageIndex: number } :
@@ -654,7 +620,10 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
 
         if (shouldGenerate) {
             const EmodelInvocation = this.registeredEvents.get("modelInvocation");
-            const defaultModelSettings: ModelSettings = stepOptions.modelSettings ?? this.modelSettings();
+            const defaultModelSettings: ModelSettings = {
+                ...this.modelSettings(),
+                ...(stepOptions.modelSettings ?? {})
+            };
             const defaultClientOptions = stepOptions.clientOptions ?? this.#instance.options;
             const callAPI: CallAPI = async (modelSettings, clientOpts) => {
                 const openai = clientOpts ? new OpenAI(clientOpts) : this.openai;
@@ -1027,57 +996,44 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
     }
 
     /**
-     * Register a tool call event handler.
+     * Register a tool result handler.
      *
-     * This handler is invoked when the agent needs to execute a tool. Handlers may return a value
-     * that will be used as the tool result.
+     * This event runs after `before:toolCall` resolves the current config and after the tool
+     * handler (or an injected result) produces a value. Each callback receives the current result
+     * and may transform it before it is exposed to later `toolCall` handlers, `after:toolCall`,
+     * and the tool message appended to state.
+     *
+     * Return `skip()` to keep the current result unchanged, or `context.stop()` to stop the
+     * remaining `toolCall` / `after:toolCall` pipeline for the current tool call.
      *
      * @example
-     * // simple tool handler that returns an object as result
-     * agent.onToolCall(async (params, tool, context) => {
-     *   // dynamic tools do not have a handler function, so we skip them
-     *   if (params.handler == "dynamic") return skip();
-     *   // do something with params and tool
-     *   try {
-     *      const result = await tool.handler(params);
-     *      return { sucess: true, result }
-     * } catch(e) {
-     *      if (e extends Error)
-     *      return { error: e.message }
-     * }
+     * agent.onToolCall((result, params, tool) => {
+     *   if (tool.name !== "getWeather") return result;
+     *   return {
+     *     requestedLocation: params.location,
+     *     data: result,
+     *   };
      * });
      */
     onToolCall<TParams = Record<any, any>>(callback: EventToolCall<TParams, TMetaData, TGlobalStore, TStore>) { return this.on("toolCall", callback) }
 
     /**
-     * Register a handler that runs after the messages is updated.
+     * Register an assistant message handler.
      *
-     * After-event handlers do not return a value. Use these to persist state, emit metrics or side-effects.
+     * This event runs for streamed partial assistant messages and for the final assistant message.
+     * During streaming, `finish_reason` is `null` until the stream completes.
      *
-     * @example
-     * agent.onAfterMessagesUpdate((reason, context) => {
-     *   // persist messages to a DB or telemetry
-     *   console.log('messages updated because of', reason);
-     *   context.getStore()?.value.lastSaved = Date.now();
-     * });
-     */
-
-
-
-
-    /**
-     * Register an AI message event handler.
-     *
-     * Called when an assistant message is generated or streaming. Handlers may return a modified
-     * message which will replace the message in the messages.
+     * Return a new assistant message to replace the current one, `skip()` to leave it unchanged,
+     * or `context.stop()` to stop processing the current assistant message.
      *
      * @example
-     * agent.onAiMessage((message, isPartial, context) => {
-     *   if (!isPartial && message.content.includes('debug')) {
-     *     // modify final assistant message
-     *      message.content += '(edited)';
-     *   }
-     *   return message;
+     * agent.onAiMessage((message, finish_reason) => {
+     *   if (finish_reason === null) return message;
+     *   if (typeof message.content !== "string") return message;
+     *   return {
+     *     ...message,
+     *     content: message.content.trim() + "\n\n(checked)",
+     *   };
      * });
      */
     onAiMessage(callback: EventAiMessage<TMetaData, TGlobalStore, TStore>) { return this.on("aiMessage", callback) }
@@ -1113,22 +1069,27 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      *
      * Called after a step is executed.
      *
-     * @example
-        * agent.onAfterStep((options, newMessages, stepsTaken, context) => {
-        *   console.log('After step', options, newMessages, stepsTaken);
+         * @example
+         * agent.onAfterStep((options, newMessages, stepsTaken, context) => {
+         *   console.log('After step', options, newMessages, stepsTaken);
      * });
      */
     onAfterStep(callback: EventAfterStep<TMetaData, TGlobalStore, TStore>) { return this.on("after:step", callback) }
 
     /**
-     * Register a before model invocation event handler.
+         * Register a handler that can alter model invocation config before the request is made.
      *
-     * Called before the model is invoked.
+         * The callback receives the current invocation config and may:
+         * - return `{ modelSettings, clientOptions }` to override the request settings
+         * - return `{ injectMessage }` to bypass the API call with a final assistant message
+         * - return `{ injectResponse }` to provide a custom SDK response
+         * - return `skip()` to leave the current config unchanged
+         * - return `context.stop()` to cancel the invocation
      *
      * @example
-     * agent.onBeforeModelInvocation((context) => {
-     *   console.log('Before model invocation');
-     * });
+         * agent.onBeforeModelInvocation(() => ({
+         *   injectMessage: { content: "hello from cache" },
+         * }));
      */
     onBeforeModelInvocation(callback: EventBeforeModelInvocation<TMetaData, TGlobalStore, TStore>) { return this.on("before:modelInvocation", callback) }
 
@@ -1144,16 +1105,20 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      */
     onAfterModelInvocation(callback: EventAfterModelInvocation<TMetaData, TGlobalStore, TStore>) { return this.on("after:modelInvocation", callback) }
 
-    /**
-     * Register a before tool call event handler.
-     *
-     * Called before a tool is executed.
-     *
-     * @example
-     * agent.onBeforeToolCall((params, tool, context) => {
-     *   console.log('Before tool call', tool.name, params);
-     * });
-     */
+     /**
+      * Register a handler that can alter a tool call before execution.
+      *
+      * The callback receives `{ params }` before the tool handler runs. It may return a new
+      * `{ params }` object to rewrite validated arguments or `{ injectResult }` to bypass the
+      * handler entirely. `skip()` preserves the current config, and `context.stop()` aborts the
+      * current tool call.
+      *
+      * @example
+      * agent.onBeforeToolCall((config, tool) => {
+      *   if (tool.name !== "search" || !("params" in config)) return config;
+      *   return { params: { ...config.params, limit: 5 } };
+      * });
+      */
     onBeforeToolCall<TParams = Record<any, any>>(callback: EventBeforeToolCall<TParams, TMetaData, TGlobalStore, TStore>) { return this.on("before:toolCall", callback) }
 
     /**
@@ -1168,28 +1133,35 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      */
     onAfterToolCall<TParams = Record<any, any>>(callback: EventAfterToolCall<TParams, TMetaData, TGlobalStore, TStore>) { return this.on("after:toolCall", callback) }
 
-    /**
-     * Register a model invocation event handler.
-     *
-     * This handler wraps the model call. It receives a `callAPI` function to perform the request and
-     * can return a modified assistant message. Handlers can also provide a `processChunk` function to
-     * edit streaming chunks before they are applied to the partial assistant message.
-     *
-     * @example
-     * // modify streaming chunks before they are applied
-     * agent.onModelInvocation(async (callAPI, context) => {
-     *   const processChunk: CallAPIProcessChuck = (chunk, partial) => {
-     *     // e.g. redact sensitive tokens or append extra tokens
-     *     chunk.choices[0].delta.content = '(modified)';
-     *     // perform modifications on `modified` here
-     *     return chunk;
-     *   };
-     *   // pass the processor to callAPI; it returns the final assistant message
-     *   const aiMsg = await callAPI(processChunk);
-     *   // post-process the final assistant message if needed
-     *   return { ...aiMsg, content: aiMsg.content + '\n\n(checked)' };
-     * });
-     */
+        /**
+         * Register a model invocation handler.
+         *
+         * This event lets you inspect or transform the payload associated with a model invocation.
+         * It fires for streamed chunks before each chunk is merged into the partial assistant message.
+         * Each callback receives a `{ kind, data }` payload and may return replacement data,
+         * `skip()` to leave it unchanged, or `context.stop()` to abort the
+         * stream early.
+         *
+         * @example
+         * // This example removes the string "[DEBUG]" from streamed chunk content.
+         * // It only transforms chunks (not completions), and leaves other data unchanged.
+         * agent.onModelInvocation((invocation) => {
+         *   if (invocation.kind !== "chunk") return invocation.data;
+         *   const choice = invocation.data.choices[0];
+         *   const content = choice?.delta?.content;
+         *   if (!choice || !content) return invocation.data;
+         *   return {
+         *     ...invocation.data,
+         *     choices: [{
+         *       ...choice,
+         *       delta: {
+         *         ...choice.delta,
+         *         content: content.replace("[DEBUG]", ""),
+         *       },
+         *     }],
+         *   };
+         * });
+         */
     onModelInvocation(callback: EventModelInvocation<TMetaData, TGlobalStore, TStore>) { return this.on("modelInvocation", callback) }
 
     /**

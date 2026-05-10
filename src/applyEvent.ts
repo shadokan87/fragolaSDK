@@ -252,7 +252,7 @@ export async function applyUserMessage<TMetaData extends DefineMetaData<any>, TG
             await accumulate(res);
         if (isStopEvent(res)) {
             result.signal = res;
-            return res;
+            return result;
         }
         if (isSkipEvent(res)) {
             result.signal = res;
@@ -262,6 +262,8 @@ export async function applyUserMessage<TMetaData extends DefineMetaData<any>, TG
         void role;
         result.value = nextMessage as typeof result.value;
     }
+    if (!result.value["role"])
+        result.value["role"] = "user";
     return result;
 }
 

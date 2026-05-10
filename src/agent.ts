@@ -1232,10 +1232,17 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         return this;
     }
 
+    /**
+     * Returns whether a named hook is registered. Pending hooks count as registered.
+     */
     hasHook(name: string): boolean {
         return this.pendingHookNames.has(name) || this.hookDisposeMap.has(name);
     }
 
+    /**
+     * Removes a named hook, waits for pending setup to finish, and runs its disposer.
+     * Returns `false` if no hook is registered under that name.
+     */
     async removeHook(name: string): Promise<boolean> {
         await this.hooksLoaded;
 

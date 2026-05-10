@@ -729,8 +729,6 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                 }
                 this.setStepCount(this.#state.stepCount + 1);
 
-                const lastMessageIndex = this.#state.messages.length - 1;
-                const lastMessageRole = this.#state.messages.at(-1)?.role;
                 let stepEventOptions: Required<StepOptions> | undefined;
                 if (stepEventOptions)
                     stepEventOptions = stepEventOptions;

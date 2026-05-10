@@ -15,7 +15,7 @@ import { nanoid } from "nanoid"
 import type { EventAfterStateUpdate, EventAfterStep, EventAfterModelInvocation, EventAfterToolCall } from "./eventAfter"
 import type { EventBeforeStep, EventBeforeModelInvocation, EventBeforeToolCall, ModelInvocationConfig, ToolCallConfig } from "./eventBefore"
 import { type registeredEvent, type eventIdToCallback, EventMap } from "./extendedJS/events/EventMap"
-import type { FragolaHook } from "@src/hook/index";
+import type { FragolaHook, FragolaHookDispose } from "@src/hook/index";
 import { zodToJsonSchema } from "openai/_vendor/zod-to-json-schema/zodToJsonSchema.js"
 import type { ChatCompletionChunk, ResponseFormatJSONSchema } from "openai/resources"
 import { AgentContext } from "@src/agentContext";
@@ -99,13 +99,10 @@ export type ResetParams = Prettify<Pick<Required<CreateAgentOptions>, "messages"
 // Use these types for your ContextRaw
 export type ContextRaw<TMetaData extends DefineMetaData<any> = {}> = {
     /**
-     * Appends one or more messages to the current agent state.
-     *
-     * When `replaceLast` is true, the current last message is replaced by the provided messages.
-     */
-    appendMessages(messages: ChatCompletionMessageParam<TMetaData>[], replaceLast: boolean | undefined): Promise<void>,
-    /**
      * Updates the current message list using the previous state as input.
+     *
+     * Use this to append, replace, or remove messages by returning the next
+     * complete message array.
      */
     updateMessages(callback: (prev: AgentState<TMetaData>["messages"]) => AgentState<TMetaData>["messages"]): Promise<void>
 }
@@ -164,6 +161,7 @@ export type appliedEvent<K extends AgentEventId, TMetaData extends DefineMetaDat
     never;
 
 const FORK_FRIEND = Symbol("fork_friend");
+const NOOP_HOOK_DISPOSE: FragolaHookDispose = () => { };
 
 export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> {
     public static defaultAgentState: AgentState = {
@@ -177,7 +175,9 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
     private registeredEvents = new EventMap<AgentEventId, registeredEvent<AgentEventId, TMetaData, TGlobalStore, TStore>[], TMetaData, TGlobalStore, TStore>()
     private abortController: AbortController | undefined = undefined;
     private stopRequested: boolean = false;
-    private hooks: FragolaHook[] = [];
+    private hooks: Array<{ hook: FragolaHook, name?: string }> = [];
+    private hookDisposeMap: Map<string, FragolaHookDispose> = new Map();
+    private pendingHookNames: Set<string> = new Set();
     /** serialized async initialization of hooks (ensures tools are ready before generation) */
     private hooksLoaded: Promise<void> = Promise.resolve();
     #state: AgentState<TMetaData>;
@@ -247,7 +247,6 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
             get options() { return _this.options; }
             get raw() {
                 return {
-                    appendMessages: (...args: Parameters<typeof _this.appendMessages>) => _this.appendMessages(...args),
                     updateMessages: (...args: Parameters<typeof _this.updateMessages>) => _this.updateMessages(...args)
                 };
             }
@@ -342,7 +341,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
             clonedState,
         );
 
-        this.hooks.forEach(hook => forked.use(hook));
+        this.hooks.forEach(({ hook, name }) => forked.use(hook, name));
         const forkedRegisteredEvents = forked[FORK_FRIEND].getRegisteredEvents();
 
         if (this.registeredEvents.size !== 0) {
@@ -1200,19 +1199,56 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      * // agent is returned so additional configuration/calls can be chained
      * ```
      */
-    use(hook: FragolaHook) {
+    use(hook: FragolaHook, name?: string) {
+        if (name && (this.pendingHookNames.has(name) || this.hookDisposeMap.has(name))) {
+            throw new BadUsage(`Hook '${name}' is already registered.`);
+        }
+
+        if (name) {
+            this.pendingHookNames.add(name);
+        }
+
         // Chain initialization so multiple hooks initialize in sequence.
         // Accepts both sync and async hooks.
         this.hooksLoaded = this.hooksLoaded
             .then(() => Promise.resolve(hook(this as AgentAny)))
-            .then(() => {
-                this.hooks.push(hook);
+            .then((dispose) => {
+                this.hooks.push({ hook, name });
+
+                if (!name) {
+                    return;
+                }
+
+                this.pendingHookNames.delete(name);
+                this.hookDisposeMap.set(name, dispose ?? NOOP_HOOK_DISPOSE);
             })
             .catch((err) => {
+                if (name) {
+                    this.pendingHookNames.delete(name);
+                }
                 // don't break chain on error, but surface a warning
                 console.error("Failed to initialize hook:", err);
             });
         return this;
+    }
+
+    hasHook(name: string): boolean {
+        return this.pendingHookNames.has(name) || this.hookDisposeMap.has(name);
+    }
+
+    async removeHook(name: string): Promise<boolean> {
+        await this.hooksLoaded;
+
+        const dispose = this.hookDisposeMap.get(name);
+        if (!dispose)
+            return false;
+
+        this.hookDisposeMap.delete(name);
+        //TODO: maybe use a faster way than an array for the hooks. to avoid using filter
+        this.hooks = this.hooks.filter((entry) => entry.name !== name);
+
+        await dispose();
+        return true;
     }
 }
 

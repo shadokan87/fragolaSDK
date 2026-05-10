@@ -42,7 +42,7 @@ export const guardrail = (guardrails: Guardrail[], rejectionBehaviour: "keepAndA
             // if (lastMessage?.role == "user") {
             //     const meta = lastMessage.meta as GuardRailMeta | undefined;
             //     if (meta?.guardrail.rejected) {
-            //         await context.raw.updateMessages((prev) => (prev.slice(0, -1)), "remove:userMessage")
+            //         await context.raw.updateMessages((prev) => prev.slice(0, -1))
             //     }
             // }
             // // We test the user message against the guardrail array
@@ -66,7 +66,7 @@ export const guardrail = (guardrails: Guardrail[], rejectionBehaviour: "keepAndA
             //                     ...meta
             //                 }
             //             }
-            //         context.raw.appendMessages([message], false, "userMessage");
+            //             await context.raw.updateMessages((prev) => [...prev, message]);
             //         } else if (rejectionBehaviour == "remove")
             //         { /** no-op (message return won't be reached because we throw an error) */ }
             //         throw new GuardrailConstrain(response.message, guard.name);

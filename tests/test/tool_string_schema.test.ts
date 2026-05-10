@@ -5,7 +5,6 @@ import { z } from "zod";
 import Ajv from "ajv";
 import type OpenAI from "openai";
 import type { FragolaHook } from "@fragola-ai/agentic-sdk-core/hook";
-import {fileSystemSave} from "@fragola-ai/agentic-sdk-core/hook/presets"
 
 const fragola = createTestClient();
 // Used to avoid token cost for tests where model response is not relevant
@@ -74,7 +73,7 @@ describe("Tool schema parsing in step()", () => {
                 { role: "user", content: "Weather?" },
                 makeAssistantToolCall("get_weather", { location: "Paris" })
             ]
-        }).use(noCompletion).use(fileSystemSave("./inspect/conv"))
+        }).use(noCompletion)
 
         const state = await agent.step({ by: 1 });
         const last = state.messages.at(-2)!;

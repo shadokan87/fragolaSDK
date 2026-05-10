@@ -26,10 +26,6 @@
     "./hook": {
       "import": "./dist/package/hook.index.js",
       "types": "./dist/src/hook/index.d.ts"
-    },
-    "./hook/presets": {
-      "import": "./dist/package/hook.presets.index.js",
-      "types": "./dist/src/hook/presets/index.d.ts"
     }
   },
   "files": [

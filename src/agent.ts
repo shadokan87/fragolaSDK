@@ -1194,8 +1194,15 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      *
      * @example
      * ```ts
-     * import { fileSystemSave } from "@src/hookPreset";
-     * const agent = fragola.agent({...}).use(fileSystemSave("./testHook"));
+    * import { Hook } from "@fragola-ai/agentic-sdk-core/hook";
+    *
+    * const loggingHook = Hook((agent) => {
+    *   agent.onAfterStateUpdate((context) => {
+    *     console.log(context.state.status);
+    *   });
+    * });
+    *
+    * const agent = fragola.agent({...}).use(loggingHook, "logging");
      * // agent is returned so additional configuration/calls can be chained
      * ```
      */

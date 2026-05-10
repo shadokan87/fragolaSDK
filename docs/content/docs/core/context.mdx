@@ -58,24 +58,25 @@ const maxStep = agent.context.options.stepOptions?.maxStep;
 ---
 
 # raw
-Low-level async helpers to mutate messages directly. Avoid unless you need precise control; prefer high-level APIs.
-- `appendMessages(messages, replaceLast)`
+Low-level async helper to mutate messages directly. Avoid unless you need precise control; prefer high-level APIs.
 - `updateMessages(callback)`
 
-These helpers mutate `context.state.messages` directly through the agent internals. Use them when
-you need low-level control over replacement vs append behavior.
+This helper mutates `context.state.messages` directly through the agent internals. Use it when
+you need low-level control over the next full message array.
 
 **Examples**
 ```ts
 // 1) Append a synthetic assistant summary
-await agent.context.raw.appendMessages([
+await agent.context.raw.updateMessages(prev => [
+  ...prev,
   { role: 'assistant', content: 'Summary: conversation compressed.' }
-], false);
+]);
 
 // 2) Replace last assistant partial with a finalized version
-await agent.context.raw.appendMessages([
+await agent.context.raw.updateMessages(prev => [
+  ...prev.slice(0, -1),
   { role: 'assistant', content: 'Final answer.' }
-], true);
+]);
 
 // 3) Bulk redact messages
 await agent.context.raw.updateMessages(prev => prev.map(m => (

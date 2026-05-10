@@ -10,12 +10,7 @@ Hooks are a way to encapsulate complex logic in a reusable way. Much like hooks 
 
 Use hooks to augment your agent's capabilities and customize Fragola SDK to scale with your project needs.
 
-The following presets are implemented using the Fragola API and hook feature:
-
-- **mcpClient** — connects to a remote or local MCP server and exposes its tools.
-- **orchestration** — enables multiple specialized agents to communicate and work together.
-- **guardrail** — validates user messages against unwanted content and rejects them with a reason.
-- **fileSystemSave** — provides simple conversation persistence on Node.js-like runtimes.
+Fragola core only provides the hook primitive. Reusable hook libraries can live in your application code or in separate packages.
 
 <Callout type="info">
   Hooks are similar to events but are designed for reusable, self-contained behaviors. Prefer hooks when you want to package functionality for reuse across agents.
@@ -58,7 +53,6 @@ Attach hooks to an agent using the `.use()` method. Hooks are initialized in seq
 
 ```typescript
 import { Fragola } from "@fragola-ai/agentic-sdk-core";
-import { fileSystemSave, guardrail } from "@fragola-ai/agentic-sdk-core/hook/presets";
 
 const fragola = new Fragola({
   apiKey: process.env.OPENAI_API_KEY,
@@ -70,8 +64,8 @@ const agent = fragola.agent({
   instructions: "You are a helpful assistant.",
   description: "General purpose assistant"
 })
-  .use(fileSystemSave("./conversations"))
-  .use(guardrail([myGuardrail]));
+  .use(loggingHook, "logging")
+  .use(configHook, "config");
 ```
 
 The `.use()` method returns the agent, so you can chain multiple hooks.

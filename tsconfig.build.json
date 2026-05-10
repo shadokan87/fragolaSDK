@@ -16,7 +16,6 @@
     "agent.index.ts",
     "event.index.ts",
     "hook.index.ts",
-    "hook.presets.index.ts",
     "src/**/*"
   ],
   "exclude": [

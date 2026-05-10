@@ -1,4 +1,4 @@
-import { type AgentAny } from "@src/agent";
+import { type Agent } from "@src/agent";
 import type { FragolaHook } from "..";
 import type { UserMessageQuery } from "@src/agent";
 import type { maybePromise } from "@src/types";
@@ -9,21 +9,21 @@ import { tool } from "@src/fragola";
 import { messagesUtils } from "@src/stateUtils";
 
 export namespace OrchestrationType {
-    export type participants = AgentAny[];
+    export type participants = Agent[];
     export type flowValue = {
         to: participants[0] | "*",
         bidirectional?: boolean
     }
     // Flow keyed by Agent instance; Record<> cannot use objects as keys
-    export type flow = [AgentAny, flowValue][];
+    export type flow = [Agent, flowValue][];
     export type config = {
         participants: participants,
         flow: flow,
-        onMessage?: (source: AgentAny, dest: AgentAny, message: UserMessageQuery, reject: (reason: string) => string) => maybePromise<string | UserMessageQuery>
+        onMessage?: (source: Agent, dest: Agent, message: UserMessageQuery, reject: (reason: string) => string) => maybePromise<string | UserMessageQuery>
     }
 }
 
-export type OrchestrationBuilder = (lead: AgentAny) => OrchestrationType.config;
+export type OrchestrationBuilder = (lead: Agent) => OrchestrationType.config;
 
 export class OrchestrationBadConfig extends FragolaError {
     constructor(message: string, cause: string) {
@@ -39,7 +39,7 @@ export class OrchestrationBadConfig extends FragolaError {
 export const orchestration = (build: OrchestrationBuilder): FragolaHook => {
     return (lead) => {
         // 3) Build the orchestration config from the lead agent
-        const { participants, flow, onMessage } = build(lead as AgentAny);
+        const { participants, flow, onMessage } = build(lead as Agent);
 
         // Basic sanity checks (dev-time guardrails; no heavy logic here)
         // These are optional and can be removed if undesired
@@ -73,7 +73,7 @@ export const orchestration = (build: OrchestrationBuilder): FragolaHook => {
         }
         // system prompt injection
         {
-            const communicationMap: Map<AgentAny, OrchestrationType.flowValue[]> = new Map();
+            const communicationMap: Map<Agent, OrchestrationType.flowValue[]> = new Map();
             // k = agent source, v = flowValue (agent dest or wildcard with options)
             for (const [k, v] of flow) {
                 let arr = communicationMap.get(k) || [];
@@ -144,7 +144,7 @@ Here are the other agents you can communicate with.</instructions>
                         description: "send a message to another agent",
                         schema: messageAgentSchema,
                         handler: async (params) => {
-                            const dest: AgentAny | undefined = v.find(agent => (agent.to as AgentAny).id == params.id)?.to as AgentAny;
+                            const dest: Agent | undefined = v.find(agent => (agent.to as Agent).id == params.id)?.to as Agent;
                             if (!dest)
                                 return `Agent with id ${params.id} does not exist`;
                             const userMessage = onMessage ? await onMessage(k, dest, {
@@ -162,7 +162,7 @@ Here are the other agents you can communicate with.</instructions>
                     })]
                 })
 
-                for (const dest of v as { to: AgentAny }[]) {
+                for (const dest of v as { to: Agent }[]) {
                     const agentDescription = new Prompt(agentDescriptionTemplate, {
                         name: dest.to.options.name,
                         description: dest.to.options.description,

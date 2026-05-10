@@ -98,7 +98,15 @@ export type ResetParams = Prettify<Pick<Required<CreateAgentOptions>, "messages"
 
 // Use these types for your ContextRaw
 export type ContextRaw<TMetaData extends DefineMetaData<any> = {}> = {
-    appendMessages(messages: OpenAI.ChatCompletionMessageParam[], replaceLast: boolean | undefined): Promise<void>,
+    /**
+     * Appends one or more messages to the current agent state.
+     *
+     * When `replaceLast` is true, the current last message is replaced by the provided messages.
+     */
+    appendMessages(messages: ChatCompletionMessageParam<TMetaData>[], replaceLast: boolean | undefined): Promise<void>,
+    /**
+     * Updates the current message list using the previous state as input.
+     */
     updateMessages(callback: (prev: AgentState<TMetaData>["messages"]) => AgentState<TMetaData>["messages"]): Promise<void>
 }
 
@@ -426,7 +434,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         return this.mergedInstructionsCache ?? "";
     }
 
-    private async appendMessages(messages: OpenAI.ChatCompletionMessageParam[], replaceLast: boolean = false) {
+    private async appendMessages(messages: ChatCompletionMessageParam<TMetaData>[], replaceLast: boolean = false) {
         await this.updateMessages((prev) => {
             if (replaceLast)
                 return [...prev.slice(0, -1), ...messages];

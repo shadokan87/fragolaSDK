@@ -101,8 +101,20 @@ type PreferedModel = {
 
 export const FRAGOLA_FRIEND = Symbol("Fragola_friend")
 
+/**
+ * Called after Fragola creates a new agent instance.
+ * Can return a promise to perform async setup work.
+ * @param agent - The newly created agent.
+ */
 export type AgentCreatedCallback = (agent: AgentAny) => maybePromise<void>;
+
+/**
+ * Lifecycle callbacks emitted by a Fragola instance.
+ */
 export interface FragolaEvents {
+    /**
+     * Runs after `fragola.agent(...)` instantiates and returns a new agent.
+     */
     agentCreated?: AgentCreatedCallback
 }
 

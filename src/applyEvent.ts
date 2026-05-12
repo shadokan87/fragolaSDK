@@ -5,7 +5,7 @@ import type { EventBeforeStep, EventBeforeModelInvocation, EventBeforeToolCall, 
 import type { EventAiMessage, EventModelInvocation, EventToolCall, EventUserMessage } from "./eventDefault"
 import type { registeredEvent } from "./extendedJS/events/EventMap"
 import type { ChatCompletionAssistantMessageParam, ChatCompletionUserMessageParam, DefineMetaData, ToolHandlerReturnTypeNonAsync } from "./fragola"
-import type { maybePromise, StoreLike } from "./types"
+import type { maybePromise, ContextLike } from "./types"
 import type { AgentContext, STOP } from "./agentContext"
 import { type applyEventParams } from "./agent"
 import { isSkipEvent, isStopEvent } from "./utils";
@@ -27,17 +27,17 @@ export type ApplyEventResult<T extends (...args: any[]) => any> = {
     value: EventStripSignal<T>
 }
 
-export async function applyAfterStateUpdate<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>>(
-    events: registeredEvent<"after:stateUpdate", TMetaData, TGlobalStore, TStore>[],
-    context: AgentContext<TMetaData, TGlobalStore, TStore>,
-    accumulate?: AccumulateCallback<ReturnType<EventAfterStateUpdate<TMetaData, TGlobalStore, TStore>>>
+export async function applyAfterStateUpdate<TMetaData extends DefineMetaData<any>, TGlobalContext extends ContextLike<any>, TContext extends ContextLike<any>>(
+    events: registeredEvent<"after:stateUpdate", TMetaData, TGlobalContext, TContext>[],
+    context: AgentContext<TMetaData, TGlobalContext, TContext>,
+    accumulate?: AccumulateCallback<ReturnType<EventAfterStateUpdate<TMetaData, TGlobalContext, TContext>>>
 ) {
-    let result: ApplyEventResult<EventAfterStateUpdate<TMetaData, TGlobalStore, TStore>> = {
+    let result: ApplyEventResult<EventAfterStateUpdate<TMetaData, TGlobalContext, TContext>> = {
         signal: undefined,
         value: undefined
     }
     for (let i = 0; i < events.length; i++) {
-        const callback = events[i].callback as EventAfterStateUpdate<TMetaData, TGlobalStore, TStore>;
+        const callback = events[i].callback as EventAfterStateUpdate<TMetaData, TGlobalContext, TContext>;
         const params: Parameters<typeof callback> = [context];
 
         const res = await callback(...params) as any;
@@ -56,18 +56,18 @@ export async function applyAfterStateUpdate<TMetaData extends DefineMetaData<any
     return result;
 }
 
-export async function applyBeforeStep<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>>(
-    events: registeredEvent<"before:step", TMetaData, TGlobalStore, TStore>[],
-    context: AgentContext<TMetaData, TGlobalStore, TStore>,
+export async function applyBeforeStep<TMetaData extends DefineMetaData<any>, TGlobalContext extends ContextLike<any>, TContext extends ContextLike<any>>(
+    events: registeredEvent<"before:step", TMetaData, TGlobalContext, TContext>[],
+    context: AgentContext<TMetaData, TGlobalContext, TContext>,
     _params: applyEventParams<"before:step", TMetaData>,
-    accumulate?: AccumulateCallback<ReturnType<EventBeforeStep<TMetaData, TGlobalStore, TStore>>>
+    accumulate?: AccumulateCallback<ReturnType<EventBeforeStep<TMetaData, TGlobalContext, TContext>>>
 ) {
-    let result: ApplyEventResult<EventBeforeStep<TMetaData, TGlobalStore, TStore>> = {
+    let result: ApplyEventResult<EventBeforeStep<TMetaData, TGlobalContext, TContext>> = {
         signal: undefined,
         value: _params.options
     }
     for (let i = 0; i < events.length; i++) {
-        const callback = events[i].callback as EventBeforeStep<TMetaData, TGlobalStore, TStore>;
+        const callback = events[i].callback as EventBeforeStep<TMetaData, TGlobalContext, TContext>;
         const params: Parameters<typeof callback> = [_params.options, context];
         const res = await callback(...params) as any;
         if (accumulate)
@@ -85,18 +85,18 @@ export async function applyBeforeStep<TMetaData extends DefineMetaData<any>, TGl
     return result;
 }
 
-export async function applyAfterStep<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>>(
-    events: registeredEvent<"after:step", TMetaData, TGlobalStore, TStore>[],
-    context: AgentContext<TMetaData, TGlobalStore, TStore>,
+export async function applyAfterStep<TMetaData extends DefineMetaData<any>, TGlobalContext extends ContextLike<any>, TContext extends ContextLike<any>>(
+    events: registeredEvent<"after:step", TMetaData, TGlobalContext, TContext>[],
+    context: AgentContext<TMetaData, TGlobalContext, TContext>,
     _params: applyEventParams<"after:step", TMetaData>,
-    accumulate?: AccumulateCallback<ReturnType<EventAfterStep<TMetaData, TGlobalStore, TStore>>>
+    accumulate?: AccumulateCallback<ReturnType<EventAfterStep<TMetaData, TGlobalContext, TContext>>>
 ) {
-    let result: ApplyEventResult<EventAfterStep<TMetaData, TGlobalStore, TStore>> = {
+    let result: ApplyEventResult<EventAfterStep<TMetaData, TGlobalContext, TContext>> = {
         signal: undefined,
         value: undefined
     }
     for (let i = 0; i < events.length; i++) {
-        const callback = events[i].callback as EventAfterStep<TMetaData, TGlobalStore, TStore>;
+        const callback = events[i].callback as EventAfterStep<TMetaData, TGlobalContext, TContext>;
         const params: Parameters<typeof callback> = [_params.options, _params.newMessages, _params.stepsTaken, context];
         const res = await callback(...params) as any;
         if (accumulate)
@@ -114,19 +114,19 @@ export async function applyAfterStep<TMetaData extends DefineMetaData<any>, TGlo
     return result;
 }
 
-export async function applyBeforeModelInvocation<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>>(
-    events: registeredEvent<"before:modelInvocation", TMetaData, TGlobalStore, TStore>[],
-    context: AgentContext<TMetaData, TGlobalStore, TStore>,
+export async function applyBeforeModelInvocation<TMetaData extends DefineMetaData<any>, TGlobalContext extends ContextLike<any>, TContext extends ContextLike<any>>(
+    events: registeredEvent<"before:modelInvocation", TMetaData, TGlobalContext, TContext>[],
+    context: AgentContext<TMetaData, TGlobalContext, TContext>,
     _params: applyEventParams<"before:modelInvocation", TMetaData>,
-    accumulate?: AccumulateCallback<ReturnType<EventBeforeModelInvocation<TMetaData, TGlobalStore, TStore>>>
+    accumulate?: AccumulateCallback<ReturnType<EventBeforeModelInvocation<TMetaData, TGlobalContext, TContext>>>
 ) {
-    let result: ApplyEventResult<EventBeforeModelInvocation<TMetaData, TGlobalStore, TStore>> = {
+    let result: ApplyEventResult<EventBeforeModelInvocation<TMetaData, TGlobalContext, TContext>> = {
         signal: undefined,
         value: _params.config
     }
     let configTmp: ModelInvocationConfig<TMetaData>;
     for (let i = 0; i < events.length; i++) {
-        const callback = events[i].callback as EventBeforeModelInvocation<TMetaData, TGlobalStore, TStore>;
+        const callback = events[i].callback as EventBeforeModelInvocation<TMetaData, TGlobalContext, TContext>;
         const params: Parameters<typeof callback> = [result.value, context];
         configTmp = await callback(...params) as any;
         if (accumulate)
@@ -144,13 +144,13 @@ export async function applyBeforeModelInvocation<TMetaData extends DefineMetaDat
     return result;
 }
 
-export async function applyModelInvocation<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>>(
-    events: registeredEvent<"modelInvocation", TMetaData, TGlobalStore, TStore>[],
-    context: AgentContext<TMetaData, TGlobalStore, TStore>,
+export async function applyModelInvocation<TMetaData extends DefineMetaData<any>, TGlobalContext extends ContextLike<any>, TContext extends ContextLike<any>>(
+    events: registeredEvent<"modelInvocation", TMetaData, TGlobalContext, TContext>[],
+    context: AgentContext<TMetaData, TGlobalContext, TContext>,
     _params: applyEventParams<"modelInvocation", TMetaData>,
-    accumulate?: AccumulateCallback<ReturnType<EventModelInvocation<TMetaData, TGlobalStore, TStore>>>
+    accumulate?: AccumulateCallback<ReturnType<EventModelInvocation<TMetaData, TGlobalContext, TContext>>>
 ) {
-    let result: ApplyEventResult<EventModelInvocation<TMetaData, TGlobalStore, TStore>> = {
+    let result: ApplyEventResult<EventModelInvocation<TMetaData, TGlobalContext, TContext>> = {
         signal: undefined,
         value: _params.data as any
     }
@@ -175,18 +175,18 @@ export async function applyModelInvocation<TMetaData extends DefineMetaData<any>
     return result;
 }
 
-export async function applyAfterModelInvocation<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>>(
-    events: registeredEvent<"after:modelInvocation", TMetaData, TGlobalStore, TStore>[],
-    context: AgentContext<TMetaData, TGlobalStore, TStore>,
+export async function applyAfterModelInvocation<TMetaData extends DefineMetaData<any>, TGlobalContext extends ContextLike<any>, TContext extends ContextLike<any>>(
+    events: registeredEvent<"after:modelInvocation", TMetaData, TGlobalContext, TContext>[],
+    context: AgentContext<TMetaData, TGlobalContext, TContext>,
     _params: applyEventParams<"after:modelInvocation", TMetaData>,
-    accumulate?: AccumulateCallback<ReturnType<EventAfterModelInvocation<TMetaData, TGlobalStore, TStore>>>
+    accumulate?: AccumulateCallback<ReturnType<EventAfterModelInvocation<TMetaData, TGlobalContext, TContext>>>
 ) {
-    let result: ApplyEventResult<EventAfterModelInvocation<TMetaData, TGlobalStore, TStore>> = {
+    let result: ApplyEventResult<EventAfterModelInvocation<TMetaData, TGlobalContext, TContext>> = {
         signal: undefined,
         value: undefined
     }
     for (let i = 0; i < events.length; i++) {
-        const callback = events[i].callback as EventAfterModelInvocation<TMetaData, TGlobalStore, TStore>;
+        const callback = events[i].callback as EventAfterModelInvocation<TMetaData, TGlobalContext, TContext>;
         const params: Parameters<typeof callback> = [_params.message, context];
         const res = await callback(...params) as any;
         if (accumulate)
@@ -204,18 +204,18 @@ export async function applyAfterModelInvocation<TMetaData extends DefineMetaData
     return result;
 }
 
-export async function applyAiMessage<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>>(
-    events: registeredEvent<"aiMessage", TMetaData, TGlobalStore, TStore>[],
-    context: AgentContext<TMetaData, TGlobalStore, TStore>,
+export async function applyAiMessage<TMetaData extends DefineMetaData<any>, TGlobalContext extends ContextLike<any>, TContext extends ContextLike<any>>(
+    events: registeredEvent<"aiMessage", TMetaData, TGlobalContext, TContext>[],
+    context: AgentContext<TMetaData, TGlobalContext, TContext>,
     _params: applyEventParams<"aiMessage", TMetaData>,
-    accumulate?: AccumulateCallback<ReturnType<EventAiMessage<TMetaData, TGlobalStore, TStore>>>
+    accumulate?: AccumulateCallback<ReturnType<EventAiMessage<TMetaData, TGlobalContext, TContext>>>
 ) {
-    let result: ApplyEventResult<EventAiMessage<TMetaData, TGlobalStore, TStore>> = {
+    let result: ApplyEventResult<EventAiMessage<TMetaData, TGlobalContext, TContext>> = {
         signal: undefined,
         value: _params.message
     }
     for (let i = 0; i < events.length; i++) {
-        const callback = events[i].callback as EventAiMessage<TMetaData, TGlobalStore, TStore>;
+        const callback = events[i].callback as EventAiMessage<TMetaData, TGlobalContext, TContext>;
         const params: Parameters<typeof callback> = [result.value as ChatCompletionAssistantMessageParam<TMetaData>, _params.finish_reason, _params.usage, context];
         const res = await callback(...params) as any;
         if (accumulate)
@@ -233,19 +233,19 @@ export async function applyAiMessage<TMetaData extends DefineMetaData<any>, TGlo
     return result;
 }
 
-export async function applyUserMessage<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>>(
-    events: registeredEvent<"userMessage", TMetaData, TGlobalStore, TStore>[],
-    context: AgentContext<TMetaData, TGlobalStore, TStore>,
+export async function applyUserMessage<TMetaData extends DefineMetaData<any>, TGlobalContext extends ContextLike<any>, TContext extends ContextLike<any>>(
+    events: registeredEvent<"userMessage", TMetaData, TGlobalContext, TContext>[],
+    context: AgentContext<TMetaData, TGlobalContext, TContext>,
     _params: applyEventParams<"userMessage", TMetaData>,
-    accumulate?: AccumulateCallback<ReturnType<EventUserMessage<TMetaData, TGlobalStore, TStore>>>
+    accumulate?: AccumulateCallback<ReturnType<EventUserMessage<TMetaData, TGlobalContext, TContext>>>
 ) {
-    let result: ApplyEventResult<EventUserMessage<TMetaData, TGlobalStore, TStore>> = {
+    let result: ApplyEventResult<EventUserMessage<TMetaData, TGlobalContext, TContext>> = {
         value: {role: "user", ..._params.message},
         signal: undefined
     }
     // let message = _params.message;
     for (let i = 0; i < events.length; i++) {
-        const callback = events[i].callback as EventUserMessage<TMetaData, TGlobalStore, TStore>;
+        const callback = events[i].callback as EventUserMessage<TMetaData, TGlobalContext, TContext>;
         const params: Parameters<typeof callback> = [result.value as ChatCompletionUserMessageParam<TMetaData>, context];
         const res = await callback(...params) as any;
         if (accumulate)
@@ -267,19 +267,19 @@ export async function applyUserMessage<TMetaData extends DefineMetaData<any>, TG
     return result;
 }
 
-export async function applyBeforeToolCall<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>>(
-    events: registeredEvent<"before:toolCall", TMetaData, TGlobalStore, TStore>[],
-    context: AgentContext<TMetaData, TGlobalStore, TStore>,
+export async function applyBeforeToolCall<TMetaData extends DefineMetaData<any>, TGlobalContext extends ContextLike<any>, TContext extends ContextLike<any>>(
+    events: registeredEvent<"before:toolCall", TMetaData, TGlobalContext, TContext>[],
+    context: AgentContext<TMetaData, TGlobalContext, TContext>,
     _params: applyEventParams<"before:toolCall", TMetaData>,
-    accumulate?: AccumulateCallback<ReturnType<EventBeforeToolCall<any, TMetaData, TGlobalStore, TStore>>>
+    accumulate?: AccumulateCallback<ReturnType<EventBeforeToolCall<any, TMetaData, TGlobalContext, TContext>>>
 ) {
-    let result: ApplyEventResult<EventBeforeToolCall<any, TMetaData, TGlobalStore, TStore>> = {
+    let result: ApplyEventResult<EventBeforeToolCall<any, TMetaData, TGlobalContext, TContext>> = {
         signal: undefined,
         value: _params.config
     }
     let configTmp: ToolCallConfig<any>;
     for (let i = 0; i < events.length; i++) {
-        const callback = events[i].callback as EventBeforeToolCall<any, TMetaData, TGlobalStore, TStore>;
+        const callback = events[i].callback as EventBeforeToolCall<any, TMetaData, TGlobalContext, TContext>;
         configTmp = await callback(result.value, _params.tool, context) as any;
         if (accumulate)
             await accumulate(configTmp);
@@ -296,18 +296,18 @@ export async function applyBeforeToolCall<TMetaData extends DefineMetaData<any>,
     return result;
 }
 
-export async function applyToolCall<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>>(
-    events: registeredEvent<"toolCall", TMetaData, TGlobalStore, TStore>[],
-    context: AgentContext<TMetaData, TGlobalStore, TStore>,
+export async function applyToolCall<TMetaData extends DefineMetaData<any>, TGlobalContext extends ContextLike<any>, TContext extends ContextLike<any>>(
+    events: registeredEvent<"toolCall", TMetaData, TGlobalContext, TContext>[],
+    context: AgentContext<TMetaData, TGlobalContext, TContext>,
     _params: applyEventParams<"toolCall", TMetaData>,
-    accumulate?: AccumulateCallback<ReturnType<EventToolCall<any, TMetaData, TGlobalStore, TStore>>>
+    accumulate?: AccumulateCallback<ReturnType<EventToolCall<any, TMetaData, TGlobalContext, TContext>>>
 ) {
-    let result: ApplyEventResult<EventToolCall<any, TMetaData, TGlobalStore, TStore>> = {
+    let result: ApplyEventResult<EventToolCall<any, TMetaData, TGlobalContext, TContext>> = {
         signal: undefined,
         value: _params.result as any
     }
     for (let i = 0; i < events.length; i++) {
-        const callback = events[i].callback as EventToolCall<any, TMetaData, TGlobalStore, TStore>;
+        const callback = events[i].callback as EventToolCall<any, TMetaData, TGlobalContext, TContext>;
         const res = await callback(result.value, _params.params, _params.tool, context) as any;
         if (accumulate)
             await accumulate(res);
@@ -324,18 +324,18 @@ export async function applyToolCall<TMetaData extends DefineMetaData<any>, TGlob
     return result;
 }
 
-export async function applyAfterToolCall<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>>(
-    events: registeredEvent<"after:toolCall", TMetaData, TGlobalStore, TStore>[],
-    context: AgentContext<TMetaData, TGlobalStore, TStore>,
+export async function applyAfterToolCall<TMetaData extends DefineMetaData<any>, TGlobalContext extends ContextLike<any>, TContext extends ContextLike<any>>(
+    events: registeredEvent<"after:toolCall", TMetaData, TGlobalContext, TContext>[],
+    context: AgentContext<TMetaData, TGlobalContext, TContext>,
     _params: applyEventParams<"after:toolCall", TMetaData>,
-    accumulate?: AccumulateCallback<ReturnType<EventAfterToolCall<any, TMetaData, TGlobalStore, TStore>>>
+    accumulate?: AccumulateCallback<ReturnType<EventAfterToolCall<any, TMetaData, TGlobalContext, TContext>>>
 ) {
-    let result: ApplyEventResult<EventAfterToolCall<any, TMetaData, TGlobalStore, TStore>> = {
+    let result: ApplyEventResult<EventAfterToolCall<any, TMetaData, TGlobalContext, TContext>> = {
         signal: undefined,
         value: undefined
     }
     for (let i = 0; i < events.length; i++) {
-        const callback = events[i].callback as EventAfterToolCall<any, TMetaData, TGlobalStore, TStore>;
+        const callback = events[i].callback as EventAfterToolCall<any, TMetaData, TGlobalContext, TContext>;
         const params: Parameters<typeof callback> = [_params.result, _params.params, _params.tool, context];
         const res = await callback(...params) as any;
         if (accumulate)

@@ -41,9 +41,9 @@ import type {
 	Agent as AgentType,
 } from '@fragola-ai/agentic-sdk-core/agent';
 
-// exports from `store.index.ts`
-import { Store } from '@fragola-ai/agentic-sdk-core/store';
-import type { StoreChangeCallback } from '@fragola-ai/agentic-sdk-core/store';
+// exports from `context.index.ts`
+import { Context } from '@fragola-ai/agentic-sdk-core/context';
+import type { ContextChangeCallback } from '@fragola-ai/agentic-sdk-core/context';
 
 // exports from `event.index.ts`
 import { SKIP_EVENT, skip as skipFromEvent } from '@fragola-ai/agentic-sdk-core/event';
@@ -60,7 +60,7 @@ describe('package import surface', () => {
 		// runtime exports (types are erased at runtime)
 		expect(Fragola).toBeDefined();
 		expect(typeof tool === 'function').toBeTruthy();
-		expect(typeof Store === 'function').toBeTruthy();
+		expect(typeof Context === 'function').toBeTruthy();
 		// expect(typeof AgentContext === 'function').toBeTruthy();
 		expect(SKIP_EVENT).toBeDefined();
 		// skip functions

@@ -1,15 +1,14 @@
 // TODO: dispose method
 // TODO: logger method
-import { createStore, Store } from "@src/store"
+import { createContext, Context } from "@src/context"
 import { Fragola, stripUserMessageMeta, type ChatCompletionAssistantMessageParam, type ChatCompletionMessageParam, type ChatCompletionUserMessageParam, type DefineMetaData, type MessageMeta, type OpenaiClientOptions, type Tool } from "./fragola"
 import type { ChatCompletionCreateParamsBase } from "openai/resources/chat/completions.js"
 import { streamChunkToMessage, isAsyncFunction, isSkipEvent, isStopEvent, isChunkPartial } from "./utils"
 import { BadUsage, FragolaError, JsonModeError, MaxStepHitError } from "./exceptions"
 import type z from "zod";
-import { z as zod } from "zod";
-import type { maybePromise, Prettify, StoreLike } from "./types"
+import type { Prettify, ContextLike } from "./types"
 import OpenAI from "openai/index.js"
-import { type AgentEventId, type EventDefaultCallback } from "./event"
+import { type AgentEventId } from "./event"
 import type { EventToolCall, EventUserMessage, EventModelInvocation, EventAiMessage, ModelInvocationPayload } from "./eventDefault";
 import { nanoid } from "nanoid"
 import type { EventAfterStateUpdate, EventAfterStep, EventAfterModelInvocation, EventAfterToolCall } from "./eventAfter"
@@ -88,8 +87,8 @@ export interface AgentOptions {
 
 export type SetOptionsParams = Omit<AgentOptions, "name" | "messages" | "fork">;
 
-export type CreateAgentOptions<TStore extends StoreLike<any> = {}> = {
-    store?: Store<TStore>,
+export type CreateAgentOptions<TContext extends ContextLike<any> = {}> = {
+    context?: Context<TContext>,
     /** Optional initial messages history for the agent. */
     messages?: OpenAI.ChatCompletionMessageParam[],
 } & Prettify<AgentOptions>;
@@ -145,25 +144,33 @@ export type applyEventParams<K extends AgentEventId, TMetaData extends DefineMet
     K extends "after:stateUpdate" ? null :
     never;
 
-export type appliedEvent<K extends AgentEventId, TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> =
-    K extends "modelInvocation" ? ApplyEventResult<EventModelInvocation<TMetaData, TGlobalStore, TStore>> :
-    K extends "aiMessage" ? ApplyEventResult<EventAiMessage<TMetaData, TGlobalStore, TStore>> :
-    K extends "userMessage" ? ApplyEventResult<EventUserMessage<TMetaData, TGlobalStore, TStore>> :
+export type appliedEvent<K extends AgentEventId, TMetaData extends DefineMetaData<any>, TGlobalContext extends ContextLike<any>, TContext extends ContextLike<any>> =
+    K extends "modelInvocation" ? ApplyEventResult<EventModelInvocation<TMetaData, TGlobalContext, TContext>> :
+    K extends "aiMessage" ? ApplyEventResult<EventAiMessage<TMetaData, TGlobalContext, TContext>> :
+    K extends "userMessage" ? ApplyEventResult<EventUserMessage<TMetaData, TGlobalContext, TContext>> :
     K extends "step" ? never :
-    K extends "before:step" ? ApplyEventResult<EventBeforeStep<TMetaData, TGlobalStore, TStore>> :
-    K extends "after:step" ? ApplyEventResult<EventAfterStep<TMetaData, TGlobalStore, TStore>> :
-    K extends "before:modelInvocation" ? ApplyEventResult<EventBeforeModelInvocation<TMetaData, TGlobalStore, TStore>> :
-    K extends "after:modelInvocation" ? ApplyEventResult<EventAfterModelInvocation<TMetaData, TGlobalStore, TStore>> :
-    K extends "toolCall" ? ApplyEventResult<EventToolCall<any, TMetaData, TGlobalStore, TStore>> :
-    K extends "before:toolCall" ? ApplyEventResult<EventBeforeToolCall<any, TMetaData, TGlobalStore, TStore>> :
-    K extends "after:toolCall" ? ApplyEventResult<EventAfterToolCall<any, TMetaData, TGlobalStore, TStore>> :
-    K extends "after:stateUpdate" ? ApplyEventResult<EventAfterStateUpdate<TMetaData, TGlobalStore, TStore>> :
+    K extends "before:step" ? ApplyEventResult<EventBeforeStep<TMetaData, TGlobalContext, TContext>> :
+    K extends "after:step" ? ApplyEventResult<EventAfterStep<TMetaData, TGlobalContext, TContext>> :
+    K extends "before:modelInvocation" ? ApplyEventResult<EventBeforeModelInvocation<TMetaData, TGlobalContext, TContext>> :
+    K extends "after:modelInvocation" ? ApplyEventResult<EventAfterModelInvocation<TMetaData, TGlobalContext, TContext>> :
+    K extends "toolCall" ? ApplyEventResult<EventToolCall<any, TMetaData, TGlobalContext, TContext>> :
+    K extends "before:toolCall" ? ApplyEventResult<EventBeforeToolCall<any, TMetaData, TGlobalContext, TContext>> :
+    K extends "after:toolCall" ? ApplyEventResult<EventAfterToolCall<any, TMetaData, TGlobalContext, TContext>> :
+    K extends "after:stateUpdate" ? ApplyEventResult<EventAfterStateUpdate<TMetaData, TGlobalContext, TContext>> :
     never;
 
 const FORK_FRIEND = Symbol("fork_friend");
 const NOOP_HOOK_DISPOSE: FragolaHookDispose = () => { };
 
-export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> {
+const formatIssuePath = (path: Array<string | number>) => path.length ? path.map(String).join(".") : "<root>";
+
+const formatZodIssues = (issues: z.ZodIssue[]) => issues
+    .map((issue) => `${formatIssuePath(issue.path)}: ${issue.message}`)
+    .join("; ");
+
+const formatUnknownError = (error: unknown) => error instanceof Error ? error.message : String(error);
+
+export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalContext extends ContextLike<any> = {}, TContext extends ContextLike<any> = {}> {
     public static defaultAgentState: AgentState = {
         messages: [],
         stepCount: 0,
@@ -172,27 +179,28 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
 
     private openai: OpenAI;
     private paramsTools: ChatCompletionCreateParamsBase["tools"] = [];
-    private registeredEvents = new EventMap<AgentEventId, registeredEvent<AgentEventId, TMetaData, TGlobalStore, TStore>[], TMetaData, TGlobalStore, TStore>()
+    private registeredEvents = new EventMap<AgentEventId, registeredEvent<AgentEventId, TMetaData, TGlobalContext, TContext>[], TMetaData, TGlobalContext, TContext>()
     private abortController: AbortController | undefined = undefined;
     private stopRequested: boolean = false;
-    private hooks: Array<{ hook: FragolaHook, name?: string }> = [];
+    private hooks: Array<{ hook: FragolaHook, name?: string, sourceHookId: string }> = [];
     private hookDisposeMap: Map<string, FragolaHookDispose> = new Map();
     private pendingHookNames: Set<string> = new Set();
+    private activeHookSourceId: string | undefined = undefined;
     /** serialized async initialization of hooks (ensures tools are ready before generation) */
     private hooksLoaded: Promise<void> = Promise.resolve();
     #state: AgentState<TMetaData>;
     #id: string;
     #forkOf: string | undefined = undefined;
-    #instance: Fragola<TGlobalStore>;
-    #namespaceStore: Map<string, Store<any>> = new Map();
+    #instance: Fragola<TGlobalContext>;
+    #namespaceContext: Map<string, Context<any>> = new Map();
     /** Scoped instructions map (scope -> instructions) */
     private instructionScopes: Map<string, string> = new Map();
     /** Cached merged instructions (default + scoped). Updated when scopes change. */
     private mergedInstructionsCache: string | undefined = undefined;
 
     constructor(
-        private opts: CreateAgentOptions<TStore>,
-        private globalStore: Store<TGlobalStore> | undefined = undefined,
+        private opts: CreateAgentOptions<TContext>,
+        private globalContext: Context<TGlobalContext> | undefined = undefined,
         openai: OpenAI,
         forkOf: string | undefined = undefined,
         instance: Fragola,
@@ -202,7 +210,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         this.#id = nanoid();
         this.#state = state;
         this.#forkOf = forkOf;
-        this.#instance = instance as unknown as Fragola<TGlobalStore>;
+        this.#instance = instance as unknown as Fragola<TGlobalContext>;
         // this.context = this.createAgentContext();
         this.openai = openai;
 
@@ -224,25 +232,25 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         return this.#forkOf;
     }
 
-    private addStore(store: Store<any>): void {
-        if (!store.namespace)
-            throw new FragolaError(`Namespace must be defined in your store to use addStore.`);
-        if (this.#namespaceStore.has(store.namespace))
-            throw new FragolaError(`Store with namespace ${store.namespace} already added.`);
-        this.#namespaceStore.set(store.namespace, store);
+    private addContext(context: Context<any>): void {
+        if (!context.namespace)
+            throw new FragolaError(`Cannot add context because the provided context has no namespace. This agent stores extra contexts by namespace, so unnamed contexts cannot be retrieved later. Create it with createContext(value, "your-namespace").`);
+        if (this.#namespaceContext.has(context.namespace))
+            throw new FragolaError(`Cannot add context with namespace '${context.namespace}' because this agent already has a context registered under that namespace. Namespaces must be unique per agent. Remove the existing context first or register the new context under a different namespace.`);
+        this.#namespaceContext.set(context.namespace, context);
     }
 
-    private removeStore(namespace: string): void {
-        if (!this.#namespaceStore.has(namespace)) {
-            console.warn(`Tried to remove store with namespace '${namespace}' that doesn't exist.`)
+    private removeContext(namespace: string): void {
+        if (!this.#namespaceContext.has(namespace)) {
+            console.warn(`Tried to remove context with namespace '${namespace}' that doesn't exist.`)
             return;
         }
-        this.#namespaceStore.delete(namespace);
+        this.#namespaceContext.delete(namespace);
     }
 
     public context = (() => {
         const _this = this;
-        return new class extends AgentContext<TMetaData, TGlobalStore, TStore> {
+        return new class extends AgentContext<TMetaData, TGlobalContext, TContext> {
             get state() { return _this.state; }
             get options() { return _this.options; }
             get raw() {
@@ -250,22 +258,22 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                     updateMessages: (...args: Parameters<typeof _this.updateMessages>) => _this.updateMessages(...args)
                 };
             }
-            get store() { return _this.opts.store as Store<TStore>; }
+            get context() { return _this.opts.context as Context<TContext>; }
             get instance() { return _this.#instance }
-            getStore<T extends StoreLike<any>>(namespace?: string): Store<T> | undefined {
-                let store = namespace ? _this.#namespaceStore.get(namespace) : _this.options.store;
-                if (store)
-                    return store as unknown as Store<T>;
+            getContext<T extends ContextLike<any>>(namespace?: string): Context<T> | undefined {
+                let context = namespace ? _this.#namespaceContext.get(namespace) : _this.options.context;
+                if (context)
+                    return context as unknown as Context<T>;
                 return undefined;
             }
-            addStore(store: Store<any>): void {
-                _this.addStore(store);
+            addContext(context: Context<any>): void {
+                _this.addContext(context);
             }
-            removeStore(namespace: string): void {
-                _this.removeStore(namespace);
+            removeContext(namespace: string): void {
+                _this.removeContext(namespace);
             }
             setInstructions(instructions: string, scope?: string): void {
-                // If a scope is provided, store scoped instructions, otherwise update the default instructions
+                // If a scope is provided, context scoped instructions, otherwise update the default instructions
                 if (scope) {
                     _this.instructionScopes.set(scope, instructions);
                 } else {
@@ -318,35 +326,80 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         getRegisteredEvents: () => this.registeredEvents
     }
 
+    /*
+    * Returns the agent id
+    */
     get id() {
         return this.#id
     }
 
+    /*
+    * Returns the agent state.
+    */
     get state() { return this.#state };
 
+    private cloneContextValue<T extends ContextLike<any>>(context: Context<T>): Context<T> {
+        return createContext(structuredClone(context.value), context.namespace);
+    }
+
+    private cloneOptionsForFork(): CreateAgentOptions<TContext> {
+        const clonedOpts = { ...this.opts } as CreateAgentOptions<TContext>;
+
+        if (this.opts.stepOptions)
+            clonedOpts.stepOptions = structuredClone(this.opts.stepOptions);
+        if (this.opts.modelSettings)
+            clonedOpts.modelSettings = structuredClone(this.opts.modelSettings);
+        if (this.opts.messages)
+            clonedOpts.messages = structuredClone(this.opts.messages);
+        if (this.opts.context)
+            clonedOpts.context = this.cloneContextValue(this.opts.context);
+        if (this.opts.tools)
+            clonedOpts.tools = this.opts.tools.map((tool) => ({ ...tool }));
+
+        return clonedOpts;
+    }
+
+    /**
+     * Creates a new agent from the current one.
+     *
+     * The fork gets a new id, copies the current options, state, hooks, and registered
+     * events, and sets `forkOf` to this agent's id. The OpenAI client and global context
+     * are shared. If this agent has a local context, the fork receives a new context
+     * instance seeded with the same value.
+     *
+     * @returns A new agent initialized from the current agent.
+     */
     fork() {
-        const clonedOpts = structuredClone(this.opts);
-        if (this.opts.store) {
-            delete clonedOpts.store;
-            clonedOpts["store"] = createStore(this.opts.store.value);
-        }
+        const clonedOpts = this.cloneOptionsForFork();
+        const clonedInitialMessages = clonedOpts.messages;
+        delete clonedOpts.messages;
 
         const clonedState = structuredClone(this.#state);
-        const forked = new Agent<TMetaData, TGlobalStore, TStore>(
+        const forked = new Agent<TMetaData, TGlobalContext, TContext>(
             clonedOpts,
-            this.globalStore,
+            this.globalContext,
             this.openai,
             this.#id, // Id for fork
             this.#instance as Fragola<any>,
             clonedState,
         );
 
+        if (clonedInitialMessages)
+            forked.opts.messages = clonedInitialMessages;
+
+        forked.instructionScopes = new Map(this.instructionScopes);
+        forked.updateMergedInstructionsCache();
+
+        for (const [namespace, context] of this.#namespaceContext.entries()) {
+            forked.#namespaceContext.set(namespace, this.cloneContextValue(context));
+        }
+
         this.hooks.forEach(({ hook, name }) => forked.use(hook, name));
         const forkedRegisteredEvents = forked[FORK_FRIEND].getRegisteredEvents();
 
         if (this.registeredEvents.size !== 0) {
             // Build merged entries starting from any events already present on the forked agent
-            const mergedEntries: [AgentEventId, registeredEvent<AgentEventId, TMetaData, TGlobalStore, TStore>[]][] = [];
+            const mergedEntries: [AgentEventId, registeredEvent<AgentEventId, TMetaData, TGlobalContext, TContext>[]][] = [];
 
             // Copy existing fork events (if any) to mergedEntries
             for (const [k, v] of forkedRegisteredEvents.entries()) {
@@ -359,15 +412,16 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                 if (existing) {
                     const existingIds = new Set(existing[1].map(e => e.id));
                     const toAdd = v
+                        .filter(ev => !ev.sourceHookId)
                         .filter(ev => !existingIds.has(ev.id))
                         .map(ev => ({ ...ev }));
                     existing[1].push(...toAdd);
                 } else {
-                    mergedEntries.push([k, v.map(ev => ({ ...ev }))]);
+                    mergedEntries.push([k, v.filter(ev => !ev.sourceHookId).map(ev => ({ ...ev }))]);
                 }
             }
 
-            const cloneRegisteredEvents = new EventMap<AgentEventId, registeredEvent<AgentEventId, TMetaData, TGlobalStore, TStore>[], TMetaData, TGlobalStore, TStore>(mergedEntries as [AgentEventId, registeredEvent<AgentEventId, TMetaData, TGlobalStore, TStore>[]][]);
+            const cloneRegisteredEvents = new EventMap<AgentEventId, registeredEvent<AgentEventId, TMetaData, TGlobalContext, TContext>[], TMetaData, TGlobalContext, TContext>(mergedEntries as [AgentEventId, registeredEvent<AgentEventId, TMetaData, TGlobalContext, TContext>[]][]);
             forked[FORK_FRIEND].setRegisteredEvents(cloneRegisteredEvents);
         }
         return forked;
@@ -384,8 +438,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                     try {
                         parameters = JSON.parse(tool.schema);
                     } catch {
-                        // If parsing fails, assume it's already a valid JSON schema string format
-                        throw new BadUsage(`Tool '${tool.name}' has an invalid JSON schema string. Must be valid JSON.`); //TODO: better error message
+                        throw new BadUsage(`Cannot register tool '${tool.name}' because its schema string is not valid JSON. String schemas are parsed before they are sent to the model, and JSON.parse failed. Pass a valid JSON Schema string or use a Zod schema instead.`);
                     }
                 } else {
                     // If schema is a Zod schema, convert to JSON schema
@@ -405,7 +458,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         this.paramsTools = result;
     }
 
-    /** Recompute merged instructions and store in cache. */
+    /** Recompute merged instructions and context in cache. */
     private updateMergedInstructionsCache() {
         this.mergedInstructionsCache = this.computeMergedInstructions();
     }
@@ -466,8 +519,9 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
     setOptions(options: SetOptionsParams) {
         if (this.#state.status !== "idle") {
             throw new BadUsage(
-                `Cannot change options while agent is '${this.#state.status}'. ` +
-                `Options can only be changed when agent status is 'idle'.`
+                `Cannot change agent options while the agent is '${this.#state.status}'. ` +
+                `Options are only safe to mutate when the agent is idle because a generation or tool run may already be using the current configuration. ` +
+                `Wait for the current run to finish, or call stop() and retry once the status is 'idle'.`
             );
         }
         this.opts = { ...this.opts, ...options };
@@ -486,7 +540,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         const { maxStep } = stepOptions;
         if (maxStep != undefined) {
             if (maxStep <= 0)
-                throw new BadUsage(`field 'maxStep' of 'StepOptions' cannot be less than or equal to 0. Received '${maxStep}'`)
+                throw new BadUsage(`Invalid StepOptions.maxStep value '${maxStep}'. maxStep controls how many steps the agent may execute, so it must be greater than 0. Provide a positive integer such as 1 or 10.`)
         }
     }
 
@@ -500,7 +554,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         if (stepParams) {
             const { by, ...rest } = stepParams;
             if (by != undefined && by <= 0)
-                throw new BadUsage(`field 'by' of 'stepParams' cannot be less than or equal to 0. Received '${by}'`);
+                throw new BadUsage(`Invalid stepParams.by value '${by}'. The 'by' option limits how many steps this call may execute, so it must be greater than 0. Pass a positive integer or omit 'by' to use maxStep instead.`);
             if (!rest || Object.keys(rest).length != 0)
                 overrideStepOptions = rest;
         }
@@ -535,8 +589,9 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
     reset(params: ResetParams = { messages: [] }) {
         if (this.#state.status != "idle") {
             throw new BadUsage(
-                `Cannot reset while agent is '${this.#state.status}'. ` +
-                `Agent can only be reset when agent status is 'idle'.`
+                `Cannot reset the agent while it is '${this.#state.status}'. ` +
+                `Resetting during generation or tool execution would discard in-flight work and leave callers with an inconsistent result. ` +
+                `Wait for the agent to become idle, or call stop() and retry after the current run ends.`
             );
         }
         this.updateState(() => ({
@@ -596,7 +651,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                 this.setStepCount(0);
         }
         if (this.#state.stepCount == stepOptions.maxStep)
-            throw new MaxStepHitError(``); //TODO: error message
+            throw new MaxStepHitError(`Stopped execution because the agent reached stepOptions.maxStep (${stepOptions.maxStep}). This usually means the conversation kept looping through model responses or tool calls without reaching a stopping condition. Increase maxStep, limit the turn with step({ by: ... }), or adjust your prompt/tools so the model can finish in fewer steps.`);
 
         this.abortController = new AbortController();
 
@@ -611,9 +666,9 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
             if (lastMessage?.role == "tool") {
                 lastAiMessage = this.lastAiMessage(this.#state.messages);
                 if (!lastAiMessage)
-                    throw new FragolaError("Invalid messages, found 'tool' role without previous 'assistant' role.");
+                    throw new FragolaError("Cannot continue agent execution because the message history is invalid: a 'tool' message was found without a preceding 'assistant' message that requested it. Tool messages must directly answer an assistant tool call. Rebuild the message history so each tool message follows an assistant message with tool_calls, or reset the agent state.");
                 if (!lastAiMessage.tool_calls)
-                    throw new FragolaError("Invalid messages, found 'tool' role but 'tool_calls' is empty in previous 'assistant' role.");
+                    throw new FragolaError("Cannot continue agent execution because the message history is invalid: a 'tool' message was found, but the preceding assistant message has no tool_calls. Tool messages are only valid as replies to assistant-requested tool calls. Ensure assistant messages include tool_calls before appending tool results.");
 
                 // Some tool calls may be already answered, we filter them out
                 toolCalls = lastAiMessage.tool_calls.filter(toolCall => {
@@ -758,7 +813,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                 // Find tool in options that matches the tool requested by last ai message
                 const tool = this.opts.tools?.find(tool => tool.name == toolCall.function.name);
                 if (!tool)
-                    throw new FragolaError(`Tool ${toolCall.function.name} missing`);
+                    throw new FragolaError(`Cannot execute tool call '${toolCall.function.name}' because no tool with that name is registered on this agent. The model asked for a tool that is unavailable in opts.tools. Register the tool, rename it to match the exposed tool name, or remove the stale tool call from the message history.`);
 
                 let paramsParsed: z.SafeParseReturnType<any, any> | undefined;
                 let rawParams: any;
@@ -769,14 +824,13 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                         try {
                             rawParams = JSON.parse(toolCall.function.arguments);
                         } catch {
-                            throw new FragolaError(`Tool '${tool.name}' arguments parsing failed`);
+                            throw new FragolaError(`Cannot execute tool '${tool.name}' because the model produced arguments that are not valid JSON. Tool arguments are expected to be a JSON string, and JSON.parse failed for the generated payload. Tighten the tool schema or description, inspect toolCall.function.arguments, or rewrite the params in 'before:toolCall'.`);
                         }
                     } else {
                         // If schema is a Zod schema, validate
                         paramsParsed = (tool.schema as z.Schema).safeParse(JSON.parse(toolCall.function.arguments));
                         if (!paramsParsed.success) {
-                            //TODO: implement retry system for bad arguments
-                            throw new FragolaError("Tool arguments parsing fail");
+                            throw new FragolaError(`Cannot execute tool '${tool.name}' because the model produced arguments that do not match the tool schema. Validation failed for ${formatZodIssues(paramsParsed.error.issues)}. Update the tool schema or description so the model can produce the expected shape, or rewrite the params in 'before:toolCall'.`);
                         }
                     }
                 }
@@ -794,7 +848,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                     if (injectedResult !== undefined)
                         return injectedResult;
                     if (tool.handler == "dynamic")
-                        throw new BadUsage(`Tools with dynamic handlers must have a result injected via 'before:toolCall'.`);
+                        throw new BadUsage(`Cannot execute tool '${tool.name}' because it uses handler: 'dynamic' but no result was injected. Dynamic tools do not run a local handler and must receive { injectResult } from a 'before:toolCall' event. Register that event or replace the dynamic handler with a concrete function.`);
                     return isAsyncFunction(tool.handler) ? await tool.handler(effectiveParams, this.context as any) : tool.handler(effectiveParams, this.context as any);
                 })();
 
@@ -854,7 +908,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         else {
             const userMessageProcessed = await this.applyEvents("userMessage", { message: message as Omit<ChatCompletionUserMessageParam<TMetaData>, "role"> });
             if (isStopEvent(userMessageProcessed.signal))
-                throw new JsonModeError(`JSON generation stopped during 'userMessage' event processing.`);
+                throw new JsonModeError(`JSON generation stopped before the model was called because a 'userMessage' event handler returned stop(). The json() pipeline requires the user message to reach the model. Remove that stop condition for this path, or set ignoreUserMessageEvents: true to bypass userMessage handlers for this call.`);
             _message = userMessageProcessed.value as typeof _message;
         }
         await this.updateMessages((prev) => [...prev, stripUserMessageMeta({ role: "user", ..._message })]);
@@ -872,18 +926,17 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         const state = await this.step(_step);
         const lastAiMessage = this.lastAiMessage(state.messages);
         if (!lastAiMessage)
-            throw new JsonModeError(`Expected last index of messages to be of role 'assistant'`);
+            throw new JsonModeError(`JSON generation failed because no assistant message was produced after step() completed. The json() helper expects the final message to be an assistant response containing the JSON payload. Check whether an event stopped execution early, a tool loop consumed the turn, or the message history was modified unexpectedly.`);
         if (typeof lastAiMessage.content != 'string') {
-            throw new JsonModeError(`Expected content of model response to be of type 'string', received '${typeof lastAiMessage.content}'`);
+            throw new JsonModeError(`JSON generation failed because the assistant response content is '${typeof lastAiMessage.content}', not a string. The json() helper can only parse plain text JSON. Ensure the model returns raw JSON text and that no event replaces the assistant content with structured parts or tool calls.`);
         }
-        let jsonParsed: Object | undefined;
         try {
-            jsonParsed = JSON.parse(lastAiMessage.content);
+            const jsonParsed = JSON.parse(lastAiMessage.content);
             const parsed = schema.safeParse(jsonParsed);
             return { ...parsed, state };
-        } catch (e) {
-            console.error(e);
-            throw new JsonModeError(`JSON.parse() of model response failed: `); //TODO: error message not clear
+        } catch (error) {
+            const preview = lastAiMessage.content.replace(/\s+/g, " ").slice(0, 200);
+            throw new JsonModeError(`JSON generation failed because the assistant response was not valid JSON. JSON.parse raised: ${formatUnknownError(error)}. Response preview: ${JSON.stringify(preview)}. Ensure your instructions and schema require raw JSON with no extra prose, or normalize the response in an event handler before calling json().`);
         }
     }
 
@@ -921,7 +974,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
     async userMessage(query: UserMessageQuery<TMetaData>): Promise<AgentState> {
         const { step, ...message } = query;
         void step;
-        const userMessageFinal = await this.applyEvents("userMessage", { message: message as Omit<ChatCompletionUserMessageParam<TMetaData>, "role"> }) as ApplyEventResult<EventUserMessage<TMetaData, TGlobalStore, TStore>>;
+        const userMessageFinal = await this.applyEvents("userMessage", { message: message as Omit<ChatCompletionUserMessageParam<TMetaData>, "role"> }) as ApplyEventResult<EventUserMessage<TMetaData, TGlobalContext, TContext>>;
         if (isStopEvent(userMessageFinal.signal))
             return this.#state;
         await this.updateMessages((prev) => [...prev, stripUserMessageMeta(userMessageFinal.value)]);
@@ -934,7 +987,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      * @param _params  - the parameters to pass to the callback
      * @returns 
      */
-    private async applyEvents<TEventId extends AgentEventId>(eventId: TEventId, _params: applyEventParams<TEventId, TMetaData>, _events?: registeredEvent<NoInfer<TEventId>, TMetaData, TGlobalStore, TStore>[], accumulate?: AccumulateCallback<any>): Promise<appliedEvent<TEventId, TMetaData, TGlobalStore, TStore>> {
+    private async applyEvents<TEventId extends AgentEventId>(eventId: TEventId, _params: applyEventParams<TEventId, TMetaData>, _events?: registeredEvent<NoInfer<TEventId>, TMetaData, TGlobalContext, TContext>[], accumulate?: AccumulateCallback<any>): Promise<appliedEvent<TEventId, TMetaData, TGlobalContext, TContext>> {
         const events = _events ?? this.registeredEvents.get(eventId) ?? [];
         const params = _params as any;
         switch (eventId) {
@@ -961,7 +1014,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
             case "after:step":
                 return await applyAfterStep(events as any, this.context, params, accumulate) as any;
             default:
-                throw new FragolaError(`Internal error: event with name '${eventId}' is unknown`)
+                throw new FragolaError(`Internal error: applyEvents received unknown event '${eventId}'. This means the agent dispatched an event id that is not handled in Agent.applyEvents(). Add a matching case for '${eventId}' or verify that only valid AgentEventId values are being registered and dispatched.`)
         }
     }
 
@@ -978,13 +1031,14 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      * // later
      * off();
      */
-    on<TEventId extends AgentEventId>(eventId: TEventId, callback: eventIdToCallback<TEventId, TMetaData, TGlobalStore, TStore>) {
-        type EventTargetType = registeredEvent<TEventId, TMetaData, TGlobalStore, TStore>;
+    on<TEventId extends AgentEventId>(eventId: TEventId, callback: eventIdToCallback<TEventId, TMetaData, TGlobalContext, TContext>) {
+        type EventTargetType = registeredEvent<TEventId, TMetaData, TGlobalContext, TContext>;
         const events = this.registeredEvents.get(eventId) || [] as EventTargetType[];
         const id = nanoid();
         events.push({
             id,
-            callback: callback
+            callback: callback,
+            sourceHookId: this.activeHookSourceId
         });
         this.registeredEvents.set(eventId, events);
 
@@ -1020,7 +1074,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      *   };
      * });
      */
-    onToolCall<TParams = Record<any, any>>(callback: EventToolCall<TParams, TMetaData, TGlobalStore, TStore>) { return this.on("toolCall", callback) }
+    onToolCall<TParams = Record<any, any>>(callback: EventToolCall<TParams, TMetaData, TGlobalContext, TContext>) { return this.on("toolCall", callback) }
 
     /**
      * Register an assistant message handler.
@@ -1041,7 +1095,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      *   };
      * });
      */
-    onAiMessage(callback: EventAiMessage<TMetaData, TGlobalStore, TStore>) { return this.on("aiMessage", callback) }
+    onAiMessage(callback: EventAiMessage<TMetaData, TGlobalContext, TContext>) { return this.on("aiMessage", callback) }
 
     /**
      * Register a user message event handler.
@@ -1055,7 +1109,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      *   return { ...message, content: message.content.trim() };
      * });
      */
-    onUserMessage(callback: EventUserMessage<TMetaData, TGlobalStore, TStore>) { return this.on("userMessage", callback) }
+    onUserMessage(callback: EventUserMessage<TMetaData, TGlobalContext, TContext>) { return this.on("userMessage", callback) }
 
     /**
      * Register a before step event handler.
@@ -1067,7 +1121,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      *   console.log('Before step', options);
      * });
      */
-    onBeforeStep(callback: EventBeforeStep<TMetaData, TGlobalStore, TStore>) { return this.on("before:step", callback) }
+    onBeforeStep(callback: EventBeforeStep<TMetaData, TGlobalContext, TContext>) { return this.on("before:step", callback) }
 
     /**
      * Register an after step event handler.
@@ -1079,7 +1133,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
          *   console.log('After step', options, newMessages, stepsTaken);
      * });
      */
-    onAfterStep(callback: EventAfterStep<TMetaData, TGlobalStore, TStore>) { return this.on("after:step", callback) }
+    onAfterStep(callback: EventAfterStep<TMetaData, TGlobalContext, TContext>) { return this.on("after:step", callback) }
 
     /**
          * Register a handler that can alter model invocation config before the request is made.
@@ -1096,7 +1150,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
          *   injectMessage: { content: "hello from cache" },
          * }));
      */
-    onBeforeModelInvocation(callback: EventBeforeModelInvocation<TMetaData, TGlobalStore, TStore>) { return this.on("before:modelInvocation", callback) }
+    onBeforeModelInvocation(callback: EventBeforeModelInvocation<TMetaData, TGlobalContext, TContext>) { return this.on("before:modelInvocation", callback) }
 
     /**
      * Register an after model invocation event handler.
@@ -1108,7 +1162,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      *   console.log('After model invocation', message);
      * });
      */
-    onAfterModelInvocation(callback: EventAfterModelInvocation<TMetaData, TGlobalStore, TStore>) { return this.on("after:modelInvocation", callback) }
+    onAfterModelInvocation(callback: EventAfterModelInvocation<TMetaData, TGlobalContext, TContext>) { return this.on("after:modelInvocation", callback) }
 
      /**
       * Register a handler that can alter a tool call before execution.
@@ -1124,7 +1178,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
       *   return { params: { ...config.params, limit: 5 } };
       * });
       */
-    onBeforeToolCall<TParams = Record<any, any>>(callback: EventBeforeToolCall<TParams, TMetaData, TGlobalStore, TStore>) { return this.on("before:toolCall", callback) }
+    onBeforeToolCall<TParams = Record<any, any>>(callback: EventBeforeToolCall<TParams, TMetaData, TGlobalContext, TContext>) { return this.on("before:toolCall", callback) }
 
     /**
      * Register an after tool call event handler.
@@ -1136,7 +1190,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      *   console.log('After tool call', tool.name, result);
      * });
      */
-    onAfterToolCall<TParams = Record<any, any>>(callback: EventAfterToolCall<TParams, TMetaData, TGlobalStore, TStore>) { return this.on("after:toolCall", callback) }
+    onAfterToolCall<TParams = Record<any, any>>(callback: EventAfterToolCall<TParams, TMetaData, TGlobalContext, TContext>) { return this.on("after:toolCall", callback) }
 
         /**
          * Register a model invocation handler.
@@ -1167,7 +1221,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
          *   };
          * });
          */
-    onModelInvocation(callback: EventModelInvocation<TMetaData, TGlobalStore, TStore>) { return this.on("modelInvocation", callback) }
+    onModelInvocation(callback: EventModelInvocation<TMetaData, TGlobalContext, TContext>) { return this.on("modelInvocation", callback) }
 
     /**
      * Register a handler that runs after the agent state is updated.
@@ -1181,7 +1235,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      *   console.log('stepCount', context.state.stepCount);
      * });
      */
-    onAfterStateUpdate(callback: EventAfterStateUpdate<TMetaData, TGlobalStore, TStore>) { return this.on("after:stateUpdate", callback) };
+    onAfterStateUpdate(callback: EventAfterStateUpdate<TMetaData, TGlobalContext, TContext>) { return this.on("after:stateUpdate", callback) };
 
     /**
      * Attach a hook to this agent.
@@ -1208,8 +1262,10 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      */
     use(hook: FragolaHook, name?: string) {
         if (name && (this.pendingHookNames.has(name) || this.hookDisposeMap.has(name))) {
-            throw new BadUsage(`Hook '${name}' is already registered.`);
+            throw new BadUsage(`Cannot register hook '${name}' because a hook with that name is already registered or still initializing. Hook names must be unique so hooks can be removed deterministically. Use a different name, wait for the pending hook to finish, or call removeHook('${name}') before registering it again.`);
         }
+
+        const sourceHookId = nanoid();
 
         if (name) {
             this.pendingHookNames.add(name);
@@ -1218,9 +1274,16 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         // Chain initialization so multiple hooks initialize in sequence.
         // Accepts both sync and async hooks.
         this.hooksLoaded = this.hooksLoaded
-            .then(() => Promise.resolve(hook(this as AgentAny)))
+            .then(async () => {
+                this.activeHookSourceId = sourceHookId;
+                try {
+                    return await Promise.resolve(hook(this as AgentAny));
+                } finally {
+                    this.activeHookSourceId = undefined;
+                }
+            })
             .then((dispose) => {
-                this.hooks.push({ hook, name });
+                this.hooks.push({ hook, name, sourceHookId });
 
                 if (!name) {
                     return;

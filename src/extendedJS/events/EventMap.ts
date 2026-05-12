@@ -5,7 +5,7 @@ import { type callbackMap as eventDefaultCallbackMap } from "../../eventDefault"
 import { type callbackMap as eventAfterCallbackMap } from "../../eventAfter";
 import { type callbackMap as eventBeforeCallbackMap } from "../../eventBefore";
 import type { DefineMetaData } from "../../fragola";
-import type { StoreLike } from "../../types";
+import type { ContextLike } from "../../types";
 
 /**
  * Maps an event ID to its corresponding callback type based on the event category.
@@ -14,32 +14,33 @@ import type { StoreLike } from "../../types";
  * - For other event IDs, resolves to `never`.
  *
  * @template TEventId - The type of the event ID.
- * @template TGlobalStore - The type of the global store.
- * @template TStore - The type of the local store.
+ * @template TGlobalContext - The type of the global context.
+ * @template TContext - The type of the local context.
  */
-export type eventIdToCallback<TEventId extends AgentEventId, TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> =
-    TEventId extends AgentDefaultEventId ? eventDefaultCallbackMap<TMetaData, TGlobalStore, TStore>[TEventId] :
-    TEventId extends AgentAfterEventId ? eventAfterCallbackMap<TMetaData, TGlobalStore, TStore>[TEventId] :
-    TEventId extends AgentBeforeEventId ? eventBeforeCallbackMap<TMetaData, TGlobalStore, TStore>[TEventId] :
+export type eventIdToCallback<TEventId extends AgentEventId, TMetaData extends DefineMetaData<any>, TGlobalContext extends ContextLike<any>, TContext extends ContextLike<any>> =
+    TEventId extends AgentDefaultEventId ? eventDefaultCallbackMap<TMetaData, TGlobalContext, TContext>[TEventId] :
+    TEventId extends AgentAfterEventId ? eventAfterCallbackMap<TMetaData, TGlobalContext, TContext>[TEventId] :
+    TEventId extends AgentBeforeEventId ? eventBeforeCallbackMap<TMetaData, TGlobalContext, TContext>[TEventId] :
     never;
 
-export type registeredEvent<TEventId extends AgentEventId, TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = {
+export type registeredEvent<TEventId extends AgentEventId, TMetaData extends DefineMetaData<any>, TGlobalContext extends ContextLike<any>, TContext extends ContextLike<any>> = {
     id: string,
-    callback: eventIdToCallback<TEventId, TMetaData, TGlobalStore, TStore>
+    callback: eventIdToCallback<TEventId, TMetaData, TGlobalContext, TContext>,
+    sourceHookId?: string
 }
 
 export class EventMap<
-    K extends AgentEventId, V extends registeredEvent<K, TMetaData, TGlobalStore, TStore>[],
+    K extends AgentEventId, V extends registeredEvent<K, TMetaData, TGlobalContext, TContext>[],
     TMetaData extends DefineMetaData<any>,
-    TGlobalStore extends StoreLike<any> = {},
-    TStore extends StoreLike<any> = {}>
+    TGlobalContext extends ContextLike<any> = {},
+    TContext extends ContextLike<any> = {}>
     extends globalThis.Map<K, V> {
         // @ts-ignore - intentionally overrides with a different return type than Map<K, V>.get
-        get<TKey extends K>(key: TKey): registeredEvent<TKey, TMetaData, TGlobalStore, TStore>[] | undefined {
-            return super.get(key) as unknown as registeredEvent<TKey, TMetaData, TGlobalStore, TStore>[] | undefined;
+        get<TKey extends K>(key: TKey): registeredEvent<TKey, TMetaData, TGlobalContext, TContext>[] | undefined {
+            return super.get(key) as unknown as registeredEvent<TKey, TMetaData, TGlobalContext, TContext>[] | undefined;
         }
-        // get<TEventId extends AgentEventId>(key: TEventId): registeredEvent<TEventId, TMetaData, TGlobalStore, TStore> | undefined {
+        // get<TEventId extends AgentEventId>(key: TEventId): registeredEvent<TEventId, TMetaData, TGlobalContext, TContext> | undefined {
         //     const v  = super.get(key as any);
-        //     return v as unknown as registeredEvent<TEventId, TMetaData, TGlobalStore, TStore> | undefined ;
+        //     return v as unknown as registeredEvent<TEventId, TMetaData, TGlobalContext, TContext> | undefined ;
         // }
     }

@@ -1,14 +1,14 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { z } from "zod";
 import type { Tool } from "@fragola-ai/agentic-sdk-core";
-import { createStore } from "@fragola-ai/agentic-sdk-core/store";
+import { createContext } from "@fragola-ai/agentic-sdk-core/context";
 import { createTestClient } from "./createTestClient";
 
 process.env["OPENAI_API_KEY"] = process.env["OPENAI_API_KEY"] ?? "xxx";
 
-// Helper to create a simple store
-const getTestStore = (namespace = "test") =>
-  createStore({ value: 42 }, namespace);
+// Helper to create a simple context
+const getTestContext = (namespace = "test") =>
+  createContext({ value: 42 }, namespace);
 
 // Helper to create test tools
 const createTestTool = (name: string, description = "Test tool"): Tool<any> => ({
@@ -33,7 +33,7 @@ describe("Agent Context - updateTools", () => {
       name: "testAgent",
       instructions: "Test instructions",
       description: "Test description",
-      store: getTestStore("main"),
+      context: getTestContext("main"),
       tools: [tool1, tool2],
     });
 
@@ -52,7 +52,7 @@ describe("Agent Context - updateTools", () => {
       name: "testAgent",
       instructions: "Test instructions",
       description: "Test description",
-      store: getTestStore("main"),
+      context: getTestContext("main"),
       tools: [tool1],
     });
 
@@ -73,7 +73,7 @@ describe("Agent Context - updateTools", () => {
       name: "testAgent",
       instructions: "Test instructions",
       description: "Test description",
-      store: getTestStore("main"),
+      context: getTestContext("main"),
       tools: [tool1, tool2, tool3],
     });
 
@@ -94,7 +94,7 @@ describe("Agent Context - updateTools", () => {
       name: "testAgent",
       instructions: "Test instructions",
       description: "Test description",
-      store: getTestStore("main"),
+      context: getTestContext("main"),
       tools: [tool1],
     });
 
@@ -113,7 +113,7 @@ describe("Agent Context - updateTools", () => {
       name: "testAgent",
       instructions: "Test instructions",
       description: "Test description",
-      store: getTestStore("main"),
+      context: getTestContext("main"),
       tools: [tool1],
     });
 
@@ -128,7 +128,7 @@ describe("Agent Context - updateTools", () => {
       name: "testAgent",
       instructions: "Test instructions",
       description: "Test description",
-      store: getTestStore("main"),
+      context: getTestContext("main"),
     });
 
     const tool1 = createTestTool("tool1");
@@ -147,7 +147,7 @@ describe("Agent Context - updateTools", () => {
       name: "testAgent",
       instructions: "Test instructions",
       description: "Test description",
-      store: getTestStore("main"),
+      context: getTestContext("main"),
       tools: [tool1],
     });
 
@@ -169,7 +169,7 @@ describe("Agent Context - updateTools", () => {
       name: "testAgent",
       instructions: "Test instructions",
       description: "Test description",
-      store: getTestStore("main"),
+      context: getTestContext("main"),
       tools: [tool1, tool2],
     });
 
@@ -194,7 +194,7 @@ describe("Agent Context - updateTools", () => {
       name: "testAgent",
       instructions: "Test instructions",
       description: "Test description",
-      store: getTestStore("main"),
+      context: getTestContext("main"),
       tools: [tool1, tool2],
     });
 

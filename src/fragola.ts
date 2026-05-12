@@ -1,9 +1,9 @@
 import z from "zod";
 import { Agent, type AgentOptions, type CreateAgentOptions, type JsonQuery } from "./agent";
-import type { maybePromise, StoreLike } from "./types";
+import type { maybePromise, ContextLike } from "./types";
 import type { ClientOptions as OpenaiClientOptions } from "openai/index.js";
 import OpenAI from "openai/index.js";
-import type { Store } from "@src/store";
+import type { Context } from "@src/context";
 import { BadUsage } from "./exceptions";
 import type { AgentContext } from "@src/agentContext";
 import { type AgentAny } from "./agent";
@@ -80,7 +80,7 @@ export const stripUserMessageMeta = (userMessage: ChatCompletionUserMessageParam
 
 export const stripToolMessageMeta = (toolMessage: ChatCompletionToolMessageParam): OpenAI.ChatCompletionToolMessageParam => stripMeta(toolMessage) as OpenAI.ChatCompletionToolMessageParam;
 
-const presetBadUsageMessage = `Nor 'preferedModel' or 'modelSettings.model' provided, 1 of both values are required for presets.`;
+const presetBadUsageMessage = `Cannot create a preset agent because no model was configured. Presets need either 'model' on the Fragola client options or 'modelSettings.model' on the preset call so the endpoint request knows which model to use. Set one of those values and retry.`;
 
 export type JsonOptions<T extends z.ZodTypeAny = z.ZodTypeAny> = {
     message: string;
@@ -120,11 +120,11 @@ export interface FragolaEvents {
 
 export type ClientOptions = OpenaiClientOptions & PreferedModel & {events?: FragolaEvents};
 
-export class Fragola<TGlobalStore extends StoreLike<any> = {}> {
+export class Fragola<TGlobalContext extends ContextLike<any> = {}> {
     #sdk: typeof OpenAI;
     #sdkInstance: OpenAI;
-    #namespaceStore: Map<string, Store<any>> = new Map();
-    constructor(private clientOptions: ClientOptions, private globalStore: Store<TGlobalStore> | undefined = undefined, sdk: typeof OpenAI = OpenAI) {
+    #namespaceContext: Map<string, Context<any>> = new Map();
+    constructor(private clientOptions: ClientOptions, private globalContext: Context<TGlobalContext> | undefined = undefined, sdk: typeof OpenAI = OpenAI) {
         const opts = clientOptions ? (() => {
             const copy = { ...clientOptions };
             const { model, ...rest } = copy;
@@ -144,8 +144,30 @@ export class Fragola<TGlobalStore extends StoreLike<any> = {}> {
         return this.#sdkInstance;
     }
 
-    agent<TMetaData extends DefineMetaData<any> = {}, TStore = {}>(opts: CreateAgentOptions<TStore>): Agent<TMetaData, TGlobalStore, TStore> {
-        const created = new Agent<TMetaData, TGlobalStore, TStore>(opts, this.globalStore, this.#sdkInstance, undefined, this as Fragola<any>);
+    /**
+     * Create a new agent attached to this Fragola instance.
+     *
+     * The returned agent uses this instance's client configuration and can
+     * access its global context.
+     *
+     * @param opts - Agent configuration.
+     * @returns A new agent instance.
+     *
+     * @example
+     * ```ts
+     * const fragola = new Fragola({
+     *   model: "gpt-5.4"
+     * });
+     *
+     * const agent = fragola.agent({
+     *   name: "assistant",
+     *   description: "Minimal assistant",
+     *   instructions: "You are a helpful assistant."
+     * });
+     * ```
+     */
+    agent<TMetaData extends DefineMetaData<any> = {}, TContext = {}>(opts: CreateAgentOptions<TContext>): Agent<TMetaData, TGlobalContext, TContext> {
+        const created = new Agent<TMetaData, TGlobalContext, TContext>(opts, this.globalContext, this.#sdkInstance, undefined, this as Fragola<any>);
         (async () => {
             if (this.clientOptions.events?.agentCreated) {
                 void await this.clientOptions.events.agentCreated(created)
@@ -158,90 +180,43 @@ export class Fragola<TGlobalStore extends StoreLike<any> = {}> {
         return this.clientOptions;
     }
 
-    async boolean(evaluate: string): Promise<boolean> {
-        const booleanSchema = z.object({
-            bool: z.boolean(),
-        });
-
-        const query: JsonQuery = {
-            name: "evaluate_statement",
-            content: evaluate,
-            description: "provide your answer for the 'bool' value",
-            schema: booleanSchema
-        };
-        const response = await this.json(query, {
-            name: "BooleanEvaluator",
-            description: "Preset agent that outputs a single JSON field {bool: boolean} indicating truthiness of the 'evaluate' statement.",
-            instructions: [
-                "You evaluate structured checks of the form '<Claim>: <user_input>'.",
-                "Return ONLY a JSON object with the following shape: {\"bool\": boolean}.",
-                "No extra text, no markdown, no explanations.",
-                "Interpretation rule: 'bool' is true when the claim accurately describes <user_input>; otherwise false.",
-                "Ambiguous/unknown -> false.",
-                "Examples:",
-                "- Input: 'This topic is about mathematics: what is 2 + 2?' -> {\"bool\": true}",
-                "- Input: 'This topic is about mathematics: write a love poem' -> {\"bool\": false}",
-                "- Input: 'This input contains slurs: [slur], get out of here! You are not welcome' -> {\"bool\": true}",
-                "- Input: 'This input contains slurs: have a great day' -> {\"bool\": false}",
-                "- Input: 'The topic is non professional: let's talk about weekend plans' -> {\"bool\": true}",
-                "- Input: 'The topic is non professional: how to deploy a Kubernetes cluster' -> {\"bool\": false}",
-                "- Input: 'This input contains profanity: what the hell is this?' -> {\"bool\": true}",
-                "- Input: 'This input contains profanity: good morning team' -> {\"bool\": false}",
-                "- Input: 'This input contains PII: My SSN is 123-45-6789' -> {\"bool\": true}",
-                "- Input: 'This input contains PII: The sky is blue' -> {\"bool\": false}",
-                "- Input: 'This input is spam: CLICK HERE for FREE $$$ now!!!' -> {\"bool\": true}",
-                "- Input: 'This input is spam: Could you review my PR?' -> {\"bool\": false}",
-                "- Input: 'This input is NSFW: explicit sexual content' -> {\"bool\": true}",
-                "- Input: 'This input is NSFW: how to write unit tests' -> {\"bool\": false}",
-                "- Input: 'This topic is about politics: Presidential election polling analysis' -> {\"bool\": true}",
-                "- Input: 'This topic is about politics: calculate the derivative of x^2' -> {\"bool\": false}",
-                "- Input: 'This topic is about health: best practices for sleep hygiene' -> {\"bool\": true}",
-                "- Input: 'This topic is about health: sorting algorithms' -> {\"bool\": false}",
-                "- Input: 'This input promotes self-harm: I want to hurt myself' -> {\"bool\": true}",
-                "- Input: 'This input promotes self-harm: I enjoy hiking' -> {\"bool\": false}",
-                "- Input: 'This input contains threats: I will hurt you' -> {\"bool\": true}",
-                "- Input: 'This input contains threats: Please take care' -> {\"bool\": false}",
-            ].join("\n"),
-        });
-        return response.success ? response.data.bool : false;
-    }
-    /** Acess the instance default global store. */
-    get store(): Store<TGlobalStore> | undefined {
-        return this.globalStore;
+    /** Acess the instance default global context. */
+    get context(): Context<TGlobalContext> | undefined {
+        return this.globalContext;
     }
 
     /**
-     * Returns the instance (global) store or a namespaced store casted as T.
-     * Recommended when accessing the store from outside an agent context.
-     * @param namespace - The namespace of the store to access (optional).
+     * Returns the instance (global) context or a namespaced context casted as T.
+     * Recommended when accessing the context from outside an agent context.
+     * @param namespace - The namespace of the context to access (optional).
      */
-    getStore<T extends StoreLike<any> = {}>(namespace?: string): Store<T> | undefined {
-        const store = namespace ? this.#namespaceStore.get(namespace) : this.globalStore;
-        return store as unknown as Store<T> | undefined;
+    getContext<T extends ContextLike<any> = {}>(namespace?: string): Context<T> | undefined {
+        const context = namespace ? this.#namespaceContext.get(namespace) : this.globalContext;
+        return context as unknown as Context<T> | undefined;
     }
 
     /**
-     * Add a namespaced store to the Fragola instance so agents can access it via getStore(namespace).
-     * @param store - The store to add (must have a namespace defined).
+     * Add a namespaced context to the Fragola instance so agents can access it via getContext(namespace).
+     * @param context - The context to add (must have a namespace defined).
      */
-    addStore(store: Store<any>): void {
-        if (!store.namespace)
-            throw new BadUsage("Cannot add a store without a namespace. Use createStore(value, namespace) to create a namespaced store.");
-        if (this.#namespaceStore.has(store.namespace))
-            throw new BadUsage(`A store with namespace '${store.namespace}' already exists.`);
-        this.#namespaceStore.set(store.namespace, store);
+    addContext(context: Context<any>): void {
+        if (!context.namespace)
+            throw new BadUsage("Cannot add context because the provided context has no namespace. Fragola stores extra contexts by namespace so they can be retrieved later with getContext(namespace). Create it with createContext(value, 'your-namespace') before calling addContext().");
+        if (this.#namespaceContext.has(context.namespace))
+            throw new BadUsage(`Cannot add context with namespace '${context.namespace}' because Fragola already has a context registered under that namespace. Namespaces must be unique within one Fragola instance. Remove the existing context first or use a different namespace.`);
+        this.#namespaceContext.set(context.namespace, context);
     }
 
     /**
-     * Remove a namespaced store from the Fragola instance.
-     * @param namespace - The namespace of the store to remove
+     * Remove a namespaced context from the Fragola instance.
+     * @param namespace - The namespace of the context to remove
      */
-    removeStore(namespace: string): void {
-        if (!this.#namespaceStore.has(namespace)) {
-            console.warn(`Tried to remove store with namespace '${namespace}' that doesn't exist.`);
+    removeContext(namespace: string): void {
+        if (!this.#namespaceContext.has(namespace)) {
+            console.warn(`Tried to remove context with namespace '${namespace}' that doesn't exist.`);
             return;
         }
-        this.#namespaceStore.delete(namespace);
+        this.#namespaceContext.delete(namespace);
     }
 
     async json<S extends z.ZodTypeAny = z.ZodTypeAny>(query: JsonQuery<S>, options: CreateAgentOptions | undefined = undefined): Promise<z.SafeParseReturnType<unknown, z.infer<S>>> {

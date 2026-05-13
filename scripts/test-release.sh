@@ -11,7 +11,7 @@ bun run build
 
 echo -e "\n📦 \033[1;35mPublishing to local registry...\033[0m"
 # Publish to local registry
-bun run pub:local
+bun run publish:local
 
 echo -e "\n⏳ \033[1;34mWaiting for package to be available in registry...\033[0m"
 # Wait for package to be available in registry

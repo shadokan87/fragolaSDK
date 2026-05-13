@@ -1,6 +1,6 @@
 import z from "zod";
 import { Agent, type AgentOptions, type CreateAgentOptions, type JsonQuery } from "./agent";
-import type { maybePromise, ContextLike } from "./types";
+import type { maybePromise, StoreLike } from "./types";
 import type { ClientOptions as OpenaiClientOptions } from "openai/index.js";
 import OpenAI from "openai/index.js";
 import type { Context } from "@src/context";
@@ -120,11 +120,11 @@ export interface FragolaEvents {
 
 export type ClientOptions = OpenaiClientOptions & PreferedModel & {events?: FragolaEvents};
 
-export class Fragola<TGlobalContext extends ContextLike<any> = {}> {
+export class Fragola<TGlobalStore extends StoreLike<any> = {}> {
     #sdk: typeof OpenAI;
     #sdkInstance: OpenAI;
     #namespaceContext: Map<string, Context<any>> = new Map();
-    constructor(private clientOptions: ClientOptions, private globalContext: Context<TGlobalContext> | undefined = undefined, sdk: typeof OpenAI = OpenAI) {
+    constructor(private clientOptions: ClientOptions, private globalContext: Context<TGlobalStore> | undefined = undefined, sdk: typeof OpenAI = OpenAI) {
         const opts = clientOptions ? (() => {
             const copy = { ...clientOptions };
             const { model, ...rest } = copy;
@@ -166,8 +166,8 @@ export class Fragola<TGlobalContext extends ContextLike<any> = {}> {
      * });
      * ```
      */
-    agent<TMetaData extends DefineMetaData<any> = {}, TContext = {}>(opts: CreateAgentOptions<TContext>): Agent<TMetaData, TGlobalContext, TContext> {
-        const created = new Agent<TMetaData, TGlobalContext, TContext>(opts, this.globalContext, this.#sdkInstance, undefined, this as Fragola<any>);
+    agent<TMetaData extends DefineMetaData<any> = {}, TStore = {}>(opts: CreateAgentOptions<TStore>): Agent<TMetaData, TGlobalStore, TStore> {
+        const created = new Agent<TMetaData, TGlobalStore, TStore>(opts, this.globalContext, this.#sdkInstance, undefined, this as Fragola<any>);
         (async () => {
             if (this.clientOptions.events?.agentCreated) {
                 void await this.clientOptions.events.agentCreated(created)
@@ -181,7 +181,7 @@ export class Fragola<TGlobalContext extends ContextLike<any> = {}> {
     }
 
     /** Acess the instance default global context. */
-    get context(): Context<TGlobalContext> | undefined {
+    get context(): Context<TGlobalStore> | undefined {
         return this.globalContext;
     }
 
@@ -190,7 +190,7 @@ export class Fragola<TGlobalContext extends ContextLike<any> = {}> {
      * Recommended when accessing the context from outside an agent context.
      * @param namespace - The namespace of the context to access (optional).
      */
-    getContext<T extends ContextLike<any> = {}>(namespace?: string): Context<T> | undefined {
+    getContext<T extends StoreLike<any> = {}>(namespace?: string): Context<T> | undefined {
         const context = namespace ? this.#namespaceContext.get(namespace) : this.globalContext;
         return context as unknown as Context<T> | undefined;
     }

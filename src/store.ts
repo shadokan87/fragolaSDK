@@ -13,7 +13,7 @@ export type StoreChangeCallback<TStore = {}> = (
 /**
  * A simple container for storing and updating any value.
  * Use this to keep track of information that your agent or tools need to remember or share.
- * You can get the current value, replace it, or update it based on the previous value.
+ * You can get the current store value, replace it, or update it based on the previous value.
  */
 export class Store<TStore extends StoreLike<any> = {}> {
     #value: StoreLike<TStore>;
@@ -40,7 +40,7 @@ export class Store<TStore extends StoreLike<any> = {}> {
     /**
      * Registers a callback function to be invoked whenever the store changes.
      *
-     * @param callback - The function to call when the store changes. Receives the updated store as an argument.
+     * @param callback - The function to call when the store changes. Receives the updated store value as an argument.
      * @returns The current instance for method chaining.
      */
     onChange(callback: StoreChangeCallback<TStore>) {
@@ -54,7 +54,7 @@ export class Store<TStore extends StoreLike<any> = {}> {
      */
     update(callback: (prev: StoreLike<TStore>) => StoreLike<TStore>) {
         this.#value = callback(this.#value);
-        this.#storeChangeCallbacks.map(_callback => _callback(this.#value))
+        this.#storeChangeCallbacks.map((_callback) => _callback(this.#value));
         return this;
     }
 
@@ -63,7 +63,7 @@ export class Store<TStore extends StoreLike<any> = {}> {
      */
     set(data: StoreLike<TStore>) {
         this.#value = data;
-        this.#storeChangeCallbacks.map(_callback => _callback(this.#value))
+        this.#storeChangeCallbacks.map((_callback) => _callback(this.#value));
         return this;
     }
 }

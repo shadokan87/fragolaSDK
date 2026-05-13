@@ -1,6 +1,6 @@
 import type { AgentContext } from "@src/agentContext";
 import { STOP } from "./agentContext";
-import type { ContextLike, maybePromise } from "./types";
+import type { StoreLike, maybePromise } from "./types";
 import type { DefineMetaData } from "./fragola";
 import type { AgentAfterEventId } from "./eventAfter";
 import type { AgentBeforeEventId } from "./eventBefore";
@@ -21,6 +21,6 @@ export type eventResult<T> = T | ReturnType<typeof skip> | ReturnType<typeof sto
 
 export type AgentEventId = AgentDefaultEventId | AgentAfterEventId | AgentBeforeEventId;
 
-export type EventDefaultCallback<TMetaData extends DefineMetaData<any>, TGlobalContext extends ContextLike<any>, TContext extends ContextLike<any>> = (
-  context: AgentContext<TMetaData, TGlobalContext, TContext>
+export type EventDefaultCallback<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = (
+  context: AgentContext<TMetaData, TGlobalStore, TStore>
 ) => maybePromise<void>;

@@ -6,7 +6,7 @@ import type { ChatCompletionCreateParamsBase } from "openai/resources/chat/compl
 import { streamChunkToMessage, isAsyncFunction, isSkipEvent, isStopEvent, isChunkPartial } from "./utils"
 import { BadUsage, FragolaError, JsonModeError, MaxStepHitError } from "./exceptions"
 import type z from "zod";
-import type { Prettify, ContextLike } from "./types"
+import type { Prettify, StoreLike } from "./types"
 import OpenAI from "openai/index.js"
 import { type AgentEventId } from "./event"
 import type { EventToolCall, EventUserMessage, EventModelInvocation, EventAiMessage, ModelInvocationPayload } from "./eventDefault";
@@ -87,8 +87,8 @@ export interface AgentOptions {
 
 export type SetOptionsParams = Omit<AgentOptions, "name" | "messages" | "fork">;
 
-export type CreateAgentOptions<TContext extends ContextLike<any> = {}> = {
-    context?: Context<TContext>,
+export type CreateAgentOptions<TStore extends StoreLike<any> = {}> = {
+    context?: Context<TStore>,
     /** Optional initial messages history for the agent. */
     messages?: OpenAI.ChatCompletionMessageParam[],
 } & Prettify<AgentOptions>;
@@ -144,19 +144,19 @@ export type applyEventParams<K extends AgentEventId, TMetaData extends DefineMet
     K extends "after:stateUpdate" ? null :
     never;
 
-export type appliedEvent<K extends AgentEventId, TMetaData extends DefineMetaData<any>, TGlobalContext extends ContextLike<any>, TContext extends ContextLike<any>> =
-    K extends "modelInvocation" ? ApplyEventResult<EventModelInvocation<TMetaData, TGlobalContext, TContext>> :
-    K extends "aiMessage" ? ApplyEventResult<EventAiMessage<TMetaData, TGlobalContext, TContext>> :
-    K extends "userMessage" ? ApplyEventResult<EventUserMessage<TMetaData, TGlobalContext, TContext>> :
+export type appliedEvent<K extends AgentEventId, TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> =
+    K extends "modelInvocation" ? ApplyEventResult<EventModelInvocation<TMetaData, TGlobalStore, TStore>> :
+    K extends "aiMessage" ? ApplyEventResult<EventAiMessage<TMetaData, TGlobalStore, TStore>> :
+    K extends "userMessage" ? ApplyEventResult<EventUserMessage<TMetaData, TGlobalStore, TStore>> :
     K extends "step" ? never :
-    K extends "before:step" ? ApplyEventResult<EventBeforeStep<TMetaData, TGlobalContext, TContext>> :
-    K extends "after:step" ? ApplyEventResult<EventAfterStep<TMetaData, TGlobalContext, TContext>> :
-    K extends "before:modelInvocation" ? ApplyEventResult<EventBeforeModelInvocation<TMetaData, TGlobalContext, TContext>> :
-    K extends "after:modelInvocation" ? ApplyEventResult<EventAfterModelInvocation<TMetaData, TGlobalContext, TContext>> :
-    K extends "toolCall" ? ApplyEventResult<EventToolCall<any, TMetaData, TGlobalContext, TContext>> :
-    K extends "before:toolCall" ? ApplyEventResult<EventBeforeToolCall<any, TMetaData, TGlobalContext, TContext>> :
-    K extends "after:toolCall" ? ApplyEventResult<EventAfterToolCall<any, TMetaData, TGlobalContext, TContext>> :
-    K extends "after:stateUpdate" ? ApplyEventResult<EventAfterStateUpdate<TMetaData, TGlobalContext, TContext>> :
+    K extends "before:step" ? ApplyEventResult<EventBeforeStep<TMetaData, TGlobalStore, TStore>> :
+    K extends "after:step" ? ApplyEventResult<EventAfterStep<TMetaData, TGlobalStore, TStore>> :
+    K extends "before:modelInvocation" ? ApplyEventResult<EventBeforeModelInvocation<TMetaData, TGlobalStore, TStore>> :
+    K extends "after:modelInvocation" ? ApplyEventResult<EventAfterModelInvocation<TMetaData, TGlobalStore, TStore>> :
+    K extends "toolCall" ? ApplyEventResult<EventToolCall<any, TMetaData, TGlobalStore, TStore>> :
+    K extends "before:toolCall" ? ApplyEventResult<EventBeforeToolCall<any, TMetaData, TGlobalStore, TStore>> :
+    K extends "after:toolCall" ? ApplyEventResult<EventAfterToolCall<any, TMetaData, TGlobalStore, TStore>> :
+    K extends "after:stateUpdate" ? ApplyEventResult<EventAfterStateUpdate<TMetaData, TGlobalStore, TStore>> :
     never;
 
 const FORK_FRIEND = Symbol("fork_friend");
@@ -170,7 +170,7 @@ const formatZodIssues = (issues: z.ZodIssue[]) => issues
 
 const formatUnknownError = (error: unknown) => error instanceof Error ? error.message : String(error);
 
-export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalContext extends ContextLike<any> = {}, TContext extends ContextLike<any> = {}> {
+export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> {
     public static defaultAgentState: AgentState = {
         messages: [],
         stepCount: 0,
@@ -179,7 +179,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalContext ex
 
     private openai: OpenAI;
     private paramsTools: ChatCompletionCreateParamsBase["tools"] = [];
-    private registeredEvents = new EventMap<AgentEventId, registeredEvent<AgentEventId, TMetaData, TGlobalContext, TContext>[], TMetaData, TGlobalContext, TContext>()
+    private registeredEvents = new EventMap<AgentEventId, registeredEvent<AgentEventId, TMetaData, TGlobalStore, TStore>[], TMetaData, TGlobalStore, TStore>()
     private abortController: AbortController | undefined = undefined;
     private stopRequested: boolean = false;
     private hooks: Array<{ hook: FragolaHook, name?: string, sourceHookId: string }> = [];
@@ -191,7 +191,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalContext ex
     #state: AgentState<TMetaData>;
     #id: string;
     #forkOf: string | undefined = undefined;
-    #instance: Fragola<TGlobalContext>;
+    #instance: Fragola<TGlobalStore>;
     #namespaceContext: Map<string, Context<any>> = new Map();
     /** Scoped instructions map (scope -> instructions) */
     private instructionScopes: Map<string, string> = new Map();
@@ -199,8 +199,8 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalContext ex
     private mergedInstructionsCache: string | undefined = undefined;
 
     constructor(
-        private opts: CreateAgentOptions<TContext>,
-        private globalContext: Context<TGlobalContext> | undefined = undefined,
+        private opts: CreateAgentOptions<TStore>,
+        private globalContext: Context<TGlobalStore> | undefined = undefined,
         openai: OpenAI,
         forkOf: string | undefined = undefined,
         instance: Fragola,
@@ -210,7 +210,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalContext ex
         this.#id = nanoid();
         this.#state = state;
         this.#forkOf = forkOf;
-        this.#instance = instance as unknown as Fragola<TGlobalContext>;
+        this.#instance = instance as unknown as Fragola<TGlobalStore>;
         // this.context = this.createAgentContext();
         this.openai = openai;
 
@@ -250,7 +250,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalContext ex
 
     public context = (() => {
         const _this = this;
-        return new class extends AgentContext<TMetaData, TGlobalContext, TContext> {
+        return new class extends AgentContext<TMetaData, TGlobalStore, TStore> {
             get state() { return _this.state; }
             get options() { return _this.options; }
             get raw() {
@@ -258,9 +258,9 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalContext ex
                     updateMessages: (...args: Parameters<typeof _this.updateMessages>) => _this.updateMessages(...args)
                 };
             }
-            get context() { return _this.opts.context as Context<TContext>; }
+            get context() { return _this.opts.context as Context<TStore>; }
             get instance() { return _this.#instance }
-            getContext<T extends ContextLike<any>>(namespace?: string): Context<T> | undefined {
+            getContext<T extends StoreLike<any>>(namespace?: string): Context<T> | undefined {
                 let context = namespace ? _this.#namespaceContext.get(namespace) : _this.options.context;
                 if (context)
                     return context as unknown as Context<T>;
@@ -338,12 +338,12 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalContext ex
     */
     get state() { return this.#state };
 
-    private cloneContextValue<T extends ContextLike<any>>(context: Context<T>): Context<T> {
+    private cloneContextValue<T extends StoreLike<any>>(context: Context<T>): Context<T> {
         return createContext(structuredClone(context.value), context.namespace);
     }
 
-    private cloneOptionsForFork(): CreateAgentOptions<TContext> {
-        const clonedOpts = { ...this.opts } as CreateAgentOptions<TContext>;
+    private cloneOptionsForFork(): CreateAgentOptions<TStore> {
+        const clonedOpts = { ...this.opts } as CreateAgentOptions<TStore>;
 
         if (this.opts.stepOptions)
             clonedOpts.stepOptions = structuredClone(this.opts.stepOptions);
@@ -375,7 +375,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalContext ex
         delete clonedOpts.messages;
 
         const clonedState = structuredClone(this.#state);
-        const forked = new Agent<TMetaData, TGlobalContext, TContext>(
+        const forked = new Agent<TMetaData, TGlobalStore, TStore>(
             clonedOpts,
             this.globalContext,
             this.openai,
@@ -399,7 +399,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalContext ex
 
         if (this.registeredEvents.size !== 0) {
             // Build merged entries starting from any events already present on the forked agent
-            const mergedEntries: [AgentEventId, registeredEvent<AgentEventId, TMetaData, TGlobalContext, TContext>[]][] = [];
+            const mergedEntries: [AgentEventId, registeredEvent<AgentEventId, TMetaData, TGlobalStore, TStore>[]][] = [];
 
             // Copy existing fork events (if any) to mergedEntries
             for (const [k, v] of forkedRegisteredEvents.entries()) {
@@ -421,7 +421,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalContext ex
                 }
             }
 
-            const cloneRegisteredEvents = new EventMap<AgentEventId, registeredEvent<AgentEventId, TMetaData, TGlobalContext, TContext>[], TMetaData, TGlobalContext, TContext>(mergedEntries as [AgentEventId, registeredEvent<AgentEventId, TMetaData, TGlobalContext, TContext>[]][]);
+            const cloneRegisteredEvents = new EventMap<AgentEventId, registeredEvent<AgentEventId, TMetaData, TGlobalStore, TStore>[], TMetaData, TGlobalStore, TStore>(mergedEntries as [AgentEventId, registeredEvent<AgentEventId, TMetaData, TGlobalStore, TStore>[]][]);
             forked[FORK_FRIEND].setRegisteredEvents(cloneRegisteredEvents);
         }
         return forked;
@@ -974,7 +974,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalContext ex
     async userMessage(query: UserMessageQuery<TMetaData>): Promise<AgentState> {
         const { step, ...message } = query;
         void step;
-        const userMessageFinal = await this.applyEvents("userMessage", { message: message as Omit<ChatCompletionUserMessageParam<TMetaData>, "role"> }) as ApplyEventResult<EventUserMessage<TMetaData, TGlobalContext, TContext>>;
+        const userMessageFinal = await this.applyEvents("userMessage", { message: message as Omit<ChatCompletionUserMessageParam<TMetaData>, "role"> }) as ApplyEventResult<EventUserMessage<TMetaData, TGlobalStore, TStore>>;
         if (isStopEvent(userMessageFinal.signal))
             return this.#state;
         await this.updateMessages((prev) => [...prev, stripUserMessageMeta(userMessageFinal.value)]);
@@ -987,7 +987,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalContext ex
      * @param _params  - the parameters to pass to the callback
      * @returns 
      */
-    private async applyEvents<TEventId extends AgentEventId>(eventId: TEventId, _params: applyEventParams<TEventId, TMetaData>, _events?: registeredEvent<NoInfer<TEventId>, TMetaData, TGlobalContext, TContext>[], accumulate?: AccumulateCallback<any>): Promise<appliedEvent<TEventId, TMetaData, TGlobalContext, TContext>> {
+    private async applyEvents<TEventId extends AgentEventId>(eventId: TEventId, _params: applyEventParams<TEventId, TMetaData>, _events?: registeredEvent<NoInfer<TEventId>, TMetaData, TGlobalStore, TStore>[], accumulate?: AccumulateCallback<any>): Promise<appliedEvent<TEventId, TMetaData, TGlobalStore, TStore>> {
         const events = _events ?? this.registeredEvents.get(eventId) ?? [];
         const params = _params as any;
         switch (eventId) {
@@ -1031,8 +1031,8 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalContext ex
      * // later
      * off();
      */
-    on<TEventId extends AgentEventId>(eventId: TEventId, callback: eventIdToCallback<TEventId, TMetaData, TGlobalContext, TContext>) {
-        type EventTargetType = registeredEvent<TEventId, TMetaData, TGlobalContext, TContext>;
+    on<TEventId extends AgentEventId>(eventId: TEventId, callback: eventIdToCallback<TEventId, TMetaData, TGlobalStore, TStore>) {
+        type EventTargetType = registeredEvent<TEventId, TMetaData, TGlobalStore, TStore>;
         const events = this.registeredEvents.get(eventId) || [] as EventTargetType[];
         const id = nanoid();
         events.push({
@@ -1074,7 +1074,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalContext ex
      *   };
      * });
      */
-    onToolCall<TParams = Record<any, any>>(callback: EventToolCall<TParams, TMetaData, TGlobalContext, TContext>) { return this.on("toolCall", callback) }
+    onToolCall<TParams = Record<any, any>>(callback: EventToolCall<TParams, TMetaData, TGlobalStore, TStore>) { return this.on("toolCall", callback) }
 
     /**
      * Register an assistant message handler.
@@ -1095,7 +1095,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalContext ex
      *   };
      * });
      */
-    onAiMessage(callback: EventAiMessage<TMetaData, TGlobalContext, TContext>) { return this.on("aiMessage", callback) }
+    onAiMessage(callback: EventAiMessage<TMetaData, TGlobalStore, TStore>) { return this.on("aiMessage", callback) }
 
     /**
      * Register a user message event handler.
@@ -1109,7 +1109,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalContext ex
      *   return { ...message, content: message.content.trim() };
      * });
      */
-    onUserMessage(callback: EventUserMessage<TMetaData, TGlobalContext, TContext>) { return this.on("userMessage", callback) }
+    onUserMessage(callback: EventUserMessage<TMetaData, TGlobalStore, TStore>) { return this.on("userMessage", callback) }
 
     /**
      * Register a before step event handler.
@@ -1121,7 +1121,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalContext ex
      *   console.log('Before step', options);
      * });
      */
-    onBeforeStep(callback: EventBeforeStep<TMetaData, TGlobalContext, TContext>) { return this.on("before:step", callback) }
+    onBeforeStep(callback: EventBeforeStep<TMetaData, TGlobalStore, TStore>) { return this.on("before:step", callback) }
 
     /**
      * Register an after step event handler.
@@ -1133,7 +1133,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalContext ex
          *   console.log('After step', options, newMessages, stepsTaken);
      * });
      */
-    onAfterStep(callback: EventAfterStep<TMetaData, TGlobalContext, TContext>) { return this.on("after:step", callback) }
+    onAfterStep(callback: EventAfterStep<TMetaData, TGlobalStore, TStore>) { return this.on("after:step", callback) }
 
     /**
          * Register a handler that can alter model invocation config before the request is made.
@@ -1150,7 +1150,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalContext ex
          *   injectMessage: { content: "hello from cache" },
          * }));
      */
-    onBeforeModelInvocation(callback: EventBeforeModelInvocation<TMetaData, TGlobalContext, TContext>) { return this.on("before:modelInvocation", callback) }
+    onBeforeModelInvocation(callback: EventBeforeModelInvocation<TMetaData, TGlobalStore, TStore>) { return this.on("before:modelInvocation", callback) }
 
     /**
      * Register an after model invocation event handler.
@@ -1162,7 +1162,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalContext ex
      *   console.log('After model invocation', message);
      * });
      */
-    onAfterModelInvocation(callback: EventAfterModelInvocation<TMetaData, TGlobalContext, TContext>) { return this.on("after:modelInvocation", callback) }
+    onAfterModelInvocation(callback: EventAfterModelInvocation<TMetaData, TGlobalStore, TStore>) { return this.on("after:modelInvocation", callback) }
 
      /**
       * Register a handler that can alter a tool call before execution.
@@ -1178,7 +1178,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalContext ex
       *   return { params: { ...config.params, limit: 5 } };
       * });
       */
-    onBeforeToolCall<TParams = Record<any, any>>(callback: EventBeforeToolCall<TParams, TMetaData, TGlobalContext, TContext>) { return this.on("before:toolCall", callback) }
+    onBeforeToolCall<TParams = Record<any, any>>(callback: EventBeforeToolCall<TParams, TMetaData, TGlobalStore, TStore>) { return this.on("before:toolCall", callback) }
 
     /**
      * Register an after tool call event handler.
@@ -1190,7 +1190,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalContext ex
      *   console.log('After tool call', tool.name, result);
      * });
      */
-    onAfterToolCall<TParams = Record<any, any>>(callback: EventAfterToolCall<TParams, TMetaData, TGlobalContext, TContext>) { return this.on("after:toolCall", callback) }
+    onAfterToolCall<TParams = Record<any, any>>(callback: EventAfterToolCall<TParams, TMetaData, TGlobalStore, TStore>) { return this.on("after:toolCall", callback) }
 
         /**
          * Register a model invocation handler.
@@ -1221,7 +1221,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalContext ex
          *   };
          * });
          */
-    onModelInvocation(callback: EventModelInvocation<TMetaData, TGlobalContext, TContext>) { return this.on("modelInvocation", callback) }
+    onModelInvocation(callback: EventModelInvocation<TMetaData, TGlobalStore, TStore>) { return this.on("modelInvocation", callback) }
 
     /**
      * Register a handler that runs after the agent state is updated.
@@ -1235,7 +1235,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalContext ex
      *   console.log('stepCount', context.state.stepCount);
      * });
      */
-    onAfterStateUpdate(callback: EventAfterStateUpdate<TMetaData, TGlobalContext, TContext>) { return this.on("after:stateUpdate", callback) };
+    onAfterStateUpdate(callback: EventAfterStateUpdate<TMetaData, TGlobalStore, TStore>) { return this.on("after:stateUpdate", callback) };
 
     /**
      * Attach a hook to this agent.

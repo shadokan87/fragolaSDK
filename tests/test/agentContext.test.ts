@@ -1,14 +1,14 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { z } from "zod";
 import type { Tool } from "@fragola-ai/agentic-sdk-core";
-import { createContext } from "@fragola-ai/agentic-sdk-core/context";
+import { createStore } from "@fragola-ai/agentic-sdk-core/context";
 import { createTestClient } from "./createTestClient";
 
 process.env["OPENAI_API_KEY"] = process.env["OPENAI_API_KEY"] ?? "xxx";
 
 // Helper to create a simple context
 const getTestContext = (namespace = "test") =>
-  createContext({ value: 42 }, namespace);
+  createStore({ value: 42 }, namespace);
 
 // Helper to create test tools
 const createTestTool = (name: string, description = "Test tool"): Tool<any> => ({
@@ -18,7 +18,7 @@ const createTestTool = (name: string, description = "Test tool"): Tool<any> => (
   handler: async (params) => `${name} result`,
 });
 
-describe("Agent Context - updateTools", () => {
+describe("Agent Store - updateTools", () => {
   let fragola: ReturnType<typeof createTestClient>;
 
   beforeEach(() => {

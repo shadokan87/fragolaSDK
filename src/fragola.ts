@@ -3,7 +3,7 @@ import { Agent, type AgentOptions, type CreateAgentOptions, type JsonQuery } fro
 import type { maybePromise, StoreLike } from "./types";
 import type { ClientOptions as OpenaiClientOptions } from "openai/index.js";
 import OpenAI from "openai/index.js";
-import type { Context } from "@src/context";
+import type { Store } from "@src/context";
 import { BadUsage } from "./exceptions";
 import type { AgentContext } from "@src/agentContext";
 import { type AgentAny } from "./agent";
@@ -123,8 +123,8 @@ export type ClientOptions = OpenaiClientOptions & PreferedModel & {events?: Frag
 export class Fragola<TGlobalStore extends StoreLike<any> = {}> {
     #sdk: typeof OpenAI;
     #sdkInstance: OpenAI;
-    #namespaceContext: Map<string, Context<any>> = new Map();
-    constructor(private clientOptions: ClientOptions, private globalContext: Context<TGlobalStore> | undefined = undefined, sdk: typeof OpenAI = OpenAI) {
+    #namespaceContext: Map<string, Store<any>> = new Map();
+    constructor(private clientOptions: ClientOptions, private globalContext: Store<TGlobalStore> | undefined = undefined, sdk: typeof OpenAI = OpenAI) {
         const opts = clientOptions ? (() => {
             const copy = { ...clientOptions };
             const { model, ...rest } = copy;
@@ -181,7 +181,7 @@ export class Fragola<TGlobalStore extends StoreLike<any> = {}> {
     }
 
     /** Acess the instance default global context. */
-    get context(): Context<TGlobalStore> | undefined {
+    get context(): Store<TGlobalStore> | undefined {
         return this.globalContext;
     }
 
@@ -190,18 +190,18 @@ export class Fragola<TGlobalStore extends StoreLike<any> = {}> {
      * Recommended when accessing the context from outside an agent context.
      * @param namespace - The namespace of the context to access (optional).
      */
-    getContext<T extends StoreLike<any> = {}>(namespace?: string): Context<T> | undefined {
+    getContext<T extends StoreLike<any> = {}>(namespace?: string): Store<T> | undefined {
         const context = namespace ? this.#namespaceContext.get(namespace) : this.globalContext;
-        return context as unknown as Context<T> | undefined;
+        return context as unknown as Store<T> | undefined;
     }
 
     /**
      * Add a namespaced context to the Fragola instance so agents can access it via getContext(namespace).
      * @param context - The context to add (must have a namespace defined).
      */
-    addContext(context: Context<any>): void {
+    addContext(context: Store<any>): void {
         if (!context.namespace)
-            throw new BadUsage("Cannot add context because the provided context has no namespace. Fragola stores extra contexts by namespace so they can be retrieved later with getContext(namespace). Create it with createContext(value, 'your-namespace') before calling addContext().");
+            throw new BadUsage("Cannot add context because the provided context has no namespace. Fragola stores extra contexts by namespace so they can be retrieved later with getContext(namespace). Create it with createStore(value, 'your-namespace') before calling addContext().");
         if (this.#namespaceContext.has(context.namespace))
             throw new BadUsage(`Cannot add context with namespace '${context.namespace}' because Fragola already has a context registered under that namespace. Namespaces must be unique within one Fragola instance. Remove the existing context first or use a different namespace.`);
         this.#namespaceContext.set(context.namespace, context);

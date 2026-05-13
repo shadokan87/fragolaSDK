@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { tool } from "@fragola-ai/agentic-sdk-core";
 import type { AgentAny } from "@fragola-ai/agentic-sdk-core/agent";
-import { createContext } from "@fragola-ai/agentic-sdk-core/context";
+import { createStore } from "@fragola-ai/agentic-sdk-core/context";
 import { Hook } from "@fragola-ai/agentic-sdk-core/hook";
 import { createTestClient } from "./createTestClient";
 import { injectReply } from "../injectReply";
@@ -67,9 +67,9 @@ describe("fork", () => {
     it("clones local contexts, namespaced contexts, and scoped instructions without sharing mutable state", () => {
         const agent = fragola.agent({
             ...baseAgentOptions,
-            context: createContext({ nested: { count: 1 } }, "local"),
+            context: createStore({ nested: { count: 1 } }, "local"),
         });
-        agent.context.addContext(createContext({ nested: { count: 2 } }, "extra"));
+        agent.context.addContext(createStore({ nested: { count: 2 } }, "extra"));
         agent.context.setInstructions("scoped instruction", "scope:a");
 
         const fork = agent.fork();

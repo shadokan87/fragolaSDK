@@ -1,6 +1,6 @@
 // TODO: dispose method
 // TODO: logger method
-import { createContext, Context } from "@src/context"
+import { createStore, Store } from "@src/context"
 import { Fragola, stripUserMessageMeta, type ChatCompletionAssistantMessageParam, type ChatCompletionMessageParam, type ChatCompletionUserMessageParam, type DefineMetaData, type MessageMeta, type OpenaiClientOptions, type Tool } from "./fragola"
 import type { ChatCompletionCreateParamsBase } from "openai/resources/chat/completions.js"
 import { streamChunkToMessage, isAsyncFunction, isSkipEvent, isStopEvent, isChunkPartial } from "./utils"
@@ -88,14 +88,13 @@ export interface AgentOptions {
 export type SetOptionsParams = Omit<AgentOptions, "name" | "messages" | "fork">;
 
 export type CreateAgentOptions<TStore extends StoreLike<any> = {}> = {
-    context?: Context<TStore>,
+    context?: Store<TStore>,
     /** Optional initial messages history for the agent. */
     messages?: OpenAI.ChatCompletionMessageParam[],
 } & Prettify<AgentOptions>;
 
 export type ResetParams = Prettify<Pick<Required<CreateAgentOptions>, "messages">>;
 
-// Use these types for your ContextRaw
 export type ContextRaw<TMetaData extends DefineMetaData<any> = {}> = {
     /**
      * Updates the current message list using the previous state as input.
@@ -192,7 +191,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
     #id: string;
     #forkOf: string | undefined = undefined;
     #instance: Fragola<TGlobalStore>;
-    #namespaceContext: Map<string, Context<any>> = new Map();
+    #namespaceStore: Map<string, Store<any>> = new Map();
     /** Scoped instructions map (scope -> instructions) */
     private instructionScopes: Map<string, string> = new Map();
     /** Cached merged instructions (default + scoped). Updated when scopes change. */
@@ -200,7 +199,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
 
     constructor(
         private opts: CreateAgentOptions<TStore>,
-        private globalContext: Context<TGlobalStore> | undefined = undefined,
+        private globalStore: Store<TGlobalStore> | undefined = undefined,
         openai: OpenAI,
         forkOf: string | undefined = undefined,
         instance: Fragola,
@@ -211,7 +210,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         this.#state = state;
         this.#forkOf = forkOf;
         this.#instance = instance as unknown as Fragola<TGlobalStore>;
-        // this.context = this.createAgentContext();
+        // this.context = this.createAgentStore();
         this.openai = openai;
 
         this.toolsToModelSettingsTools();
@@ -232,25 +231,25 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         return this.#forkOf;
     }
 
-    private addContext(context: Context<any>): void {
+    private addStore(context: Store<any>): void {
         if (!context.namespace)
-            throw new FragolaError(`Cannot add context because the provided context has no namespace. This agent stores extra contexts by namespace, so unnamed contexts cannot be retrieved later. Create it with createContext(value, "your-namespace").`);
-        if (this.#namespaceContext.has(context.namespace))
+            throw new FragolaError(`Cannot add context because the provided context has no namespace. This agent stores extra contexts by namespace, so unnamed contexts cannot be retrieved later. Create it with createStore(value, "your-namespace").`);
+        if (this.#namespaceStore.has(context.namespace))
             throw new FragolaError(`Cannot add context with namespace '${context.namespace}' because this agent already has a context registered under that namespace. Namespaces must be unique per agent. Remove the existing context first or register the new context under a different namespace.`);
-        this.#namespaceContext.set(context.namespace, context);
+        this.#namespaceStore.set(context.namespace, context);
     }
 
-    private removeContext(namespace: string): void {
-        if (!this.#namespaceContext.has(namespace)) {
+    private removeStore(namespace: string): void {
+        if (!this.#namespaceStore.has(namespace)) {
             console.warn(`Tried to remove context with namespace '${namespace}' that doesn't exist.`)
             return;
         }
-        this.#namespaceContext.delete(namespace);
+        this.#namespaceStore.delete(namespace);
     }
 
     public context = (() => {
         const _this = this;
-        return new class extends AgentContext<TMetaData, TGlobalStore, TStore> {
+        return new class extends AgentStore<TMetaData, TGlobalStore, TStore> {
             get state() { return _this.state; }
             get options() { return _this.options; }
             get raw() {
@@ -258,19 +257,19 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                     updateMessages: (...args: Parameters<typeof _this.updateMessages>) => _this.updateMessages(...args)
                 };
             }
-            get context() { return _this.opts.context as Context<TStore>; }
+            get context() { return _this.opts.context as Store<TStore>; }
             get instance() { return _this.#instance }
-            getContext<T extends StoreLike<any>>(namespace?: string): Context<T> | undefined {
-                let context = namespace ? _this.#namespaceContext.get(namespace) : _this.options.context;
+            getStore<T extends StoreLike<any>>(namespace?: string): Store<T> | undefined {
+                let context = namespace ? _this.#namespaceStore.get(namespace) : _this.options.context;
                 if (context)
-                    return context as unknown as Context<T>;
+                    return context as unknown as Store<T>;
                 return undefined;
             }
-            addContext(context: Context<any>): void {
-                _this.addContext(context);
+            addStore(context: Store<any>): void {
+                _this.addStore(context);
             }
-            removeContext(namespace: string): void {
-                _this.removeContext(namespace);
+            removeStore(namespace: string): void {
+                _this.removeStore(namespace);
             }
             setInstructions(instructions: string, scope?: string): void {
                 // If a scope is provided, context scoped instructions, otherwise update the default instructions
@@ -338,8 +337,8 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
     */
     get state() { return this.#state };
 
-    private cloneContextValue<T extends StoreLike<any>>(context: Context<T>): Context<T> {
-        return createContext(structuredClone(context.value), context.namespace);
+    private cloneStoreValue<T extends StoreLike<any>>(context: Store<T>): Store<T> {
+        return createStore(structuredClone(context.value), context.namespace);
     }
 
     private cloneOptionsForFork(): CreateAgentOptions<TStore> {
@@ -352,7 +351,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         if (this.opts.messages)
             clonedOpts.messages = structuredClone(this.opts.messages);
         if (this.opts.context)
-            clonedOpts.context = this.cloneContextValue(this.opts.context);
+            clonedOpts.context = this.cloneStoreValue(this.opts.context);
         if (this.opts.tools)
             clonedOpts.tools = this.opts.tools.map((tool) => ({ ...tool }));
 
@@ -377,7 +376,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         const clonedState = structuredClone(this.#state);
         const forked = new Agent<TMetaData, TGlobalStore, TStore>(
             clonedOpts,
-            this.globalContext,
+            this.globalStore,
             this.openai,
             this.#id, // Id for fork
             this.#instance as Fragola<any>,
@@ -390,8 +389,8 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         forked.instructionScopes = new Map(this.instructionScopes);
         forked.updateMergedInstructionsCache();
 
-        for (const [namespace, context] of this.#namespaceContext.entries()) {
-            forked.#namespaceContext.set(namespace, this.cloneContextValue(context));
+        for (const [namespace, context] of this.#namespaceStore.entries()) {
+            forked.#namespaceStore.set(namespace, this.cloneStoreValue(context));
         }
 
         this.hooks.forEach(({ hook, name }) => forked.use(hook, name));

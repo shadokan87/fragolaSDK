@@ -1,23 +1,23 @@
 import type { AgentOptions, AgentState, ContextRaw, SetOptionsParams } from "./agent";
 import type { DefineMetaData, Fragola, Tool } from "./fragola";
 import type { StoreLike } from "./types";
-import type { Context } from "./context";
+import type { Store } from "./store";
 
 export const STOP = Symbol('stop');
 export abstract class AgentContext<TMetaData extends DefineMetaData<any> = {}, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> {
     /** The current state of the agent. */
     abstract get state(): AgentState<TMetaData>;
-    /** The configuration options for the agent context. */
+    /** The configuration options for the agent. */
     abstract get options(): AgentOptions;
     /** Raw methods for advanced context manipulation */
     abstract get raw(): ContextRaw<TMetaData>;
-    /** Acess the agent's default local context. */
-    abstract get context(): Context<TStore>;
+    /** Acess the agent's default local store. */
+    abstract get store(): Store<TStore>;
     /**
-     * Add a context that has a namespace. Can be accessed with `getContext` method.
-     * @param context - The context to add
+     * Add a store that has a namespace. Can be accessed with `getContext` method.
+     * @param store - The store to add
      */
-    abstract addContext(context: Context<any>): void;
+    abstract addStore(store: Store<any>): void;
 
     /**
      * Updates the agent's tool list using a callback.
@@ -30,17 +30,17 @@ export abstract class AgentContext<TMetaData extends DefineMetaData<any> = {}, T
      */
     abstract updateTools(callback: (prev: Tool[]) => Tool[]): void;
     /**
-     * Remove a context by its namespace.
-     * @param namespace - The namespace of the context to remove
+     * Remove a store by its namespace.
+     * @param namespace - The namespace of the store to remove
      */
-    abstract removeContext(namespace: string): void;
+    abstract removeStore(namespace: string): void;
     /** Return the Fragola instance which created this agent */
     abstract get instance(): Fragola<TGlobalStore>;
     /**
-     * Returns the agent's local context or namespace context casted as T. Recommended when accessing the context from a hook.
-     * @param namespace - The namespace of the context to access (optional).
+     * Returns the agent's local store or namespace store casted as T. Recommended when accessing the store from a hook.
+     * @param namespace - The namespace of the store to access (optional).
      */
-    abstract getContext<T extends StoreLike<any> = {}>(namespace?: string): Context<T> | undefined;
+    abstract getStore<T extends StoreLike<any> = {}>(namespace?: string): Store<T> | undefined;
 
     /**
      * Sets the current instructions for the agent.

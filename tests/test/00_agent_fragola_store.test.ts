@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { createContext } from "@fragola-ai/agentic-sdk-core/context";
+import { createStore } from "@fragola-ai/agentic-sdk-core/context";
 import { createTestClient } from "./createTestClient";
-const getTestContext = (namespace = "test") => createContext({ value: 42 }, namespace);
+const getTestContext = (namespace = "test") => createStore({ value: 42 }, namespace);
 
 describe("Agent context methods", () => {
     it("addContext should add a context to namespaceContext", () => {
@@ -25,7 +25,7 @@ describe("Agent context methods", () => {
             description: "",
             context: getTestContext("main")
         });
-        const context = createContext({ value: 1 });
+        const context = createStore({ value: 1 });
         expect(() => agent.context.addContext(context)).toThrow();
     });
 
@@ -88,7 +88,7 @@ describe("Fragola context methods", () => {
 
     it("addContext should throw if namespace is missing", () => {
            const fragola = createTestClient();
-        const context = createContext({ value: 1 });
+        const context = createStore({ value: 1 });
         expect(() => fragola.addContext(context)).toThrow();
     });
 

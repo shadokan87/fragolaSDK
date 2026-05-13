@@ -21,7 +21,7 @@ type CheckTarget = {
 
 const documentationChecks: CheckTarget[] = [
     { filePath: "src/fragola.ts", className: "Fragola" },
-    { filePath: "src/context.ts", className: "Context" },
+    { filePath: "src/context.ts", className: "Store" },
     { filePath: "src/agent.ts", className: "Agent" },
     { filePath: "src/agentContext.ts", className: "AgentContext" },
 ];

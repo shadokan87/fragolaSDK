@@ -42,8 +42,8 @@ import type {
 } from '@fragola-ai/agentic-sdk-core/agent';
 
 // exports from `context.index.ts`
-import { Store } from '@fragola-ai/agentic-sdk-core/context';
-import type { ContextChangeCallback } from '@fragola-ai/agentic-sdk-core/context';
+import { Store } from '@fragola-ai/agentic-sdk-core/store';
+import type { ContextChangeCallback } from '@fragola-ai/agentic-sdk-core/store';
 
 // exports from `event.index.ts`
 import { SKIP_EVENT, skip as skipFromEvent } from '@fragola-ai/agentic-sdk-core/event';

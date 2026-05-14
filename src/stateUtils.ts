@@ -1,8 +1,23 @@
-import OpenAI from "openai";
+import type OpenAI from "openai";
+import type { ChatCompletionMessageParam, DefineMetaData } from "./fragola";
 
-export const getToolCallOrigin = (
-    messages: OpenAI.ChatCompletionMessageParam[],
-    message: OpenAI.ChatCompletionToolMessageParam
+type MessageRole<TMetaData extends DefineMetaData<any>> = ChatCompletionMessageParam<TMetaData>["role"];
+type MessageByRole<TMetaData extends DefineMetaData<any>, TRole extends MessageRole<TMetaData>> = Extract<ChatCompletionMessageParam<TMetaData>, { role: TRole }>;
+
+type MessagesSource<TMetaData extends DefineMetaData<any>> =
+    | ChatCompletionMessageParam<TMetaData>[]
+    | (() => ChatCompletionMessageParam<TMetaData>[]);
+
+export type MessagesParser<TMetaData extends DefineMetaData<any> = {}> = {
+    readonly messages: ChatCompletionMessageParam<TMetaData>[];
+    toolCallOrigin(message: MessageByRole<TMetaData, "tool">): OpenAI.ChatCompletionMessageToolCall | undefined;
+    finalOutput(): MessageByRole<TMetaData, "assistant"> | undefined;
+    messageByRole<TRole extends MessageRole<TMetaData>>(role: TRole): MessageByRole<TMetaData, TRole> | undefined;
+};
+
+export const getToolCallOrigin = <TMetaData extends DefineMetaData<any> = {}>(
+    messages: ChatCompletionMessageParam<TMetaData>[],
+    message: MessageByRole<TMetaData, "tool">
 ): OpenAI.ChatCompletionMessageToolCall | undefined => {
     let found: OpenAI.ChatCompletionMessageToolCall | undefined = undefined;
     messages.find(msg => {
@@ -24,8 +39,15 @@ export const getToolCallOrigin = (
     return found;
 };
 
-export function messagesUtils(messages: OpenAI.ChatCompletionMessageParam[]) {
+export function messagesUtils<TMetaData extends DefineMetaData<any> = {}>(messagesSource: MessagesSource<TMetaData>): MessagesParser<TMetaData> {
+    const getMessages = typeof messagesSource === "function"
+        ? messagesSource
+        : () => messagesSource;
+
     return {
+        get messages() {
+            return getMessages();
+        },
         /**
          * From a role 'tool' message, return its origin where requested by the model in the messages
          * 
@@ -40,8 +62,8 @@ export function messagesUtils(messages: OpenAI.ChatCompletionMessageParam[]) {
          *   // toolCall will be { id: "tool_123", function: { name: "getWeather", arguments: "{}" } }
          * }
          */
-        toolCallOrigin: (message: OpenAI.ChatCompletionToolMessageParam) => {
-            return getToolCallOrigin(messages, message);
+        toolCallOrigin: (message: MessageByRole<TMetaData, "tool">) => {
+            return getToolCallOrigin(getMessages(), message);
         },
 
         /**
@@ -60,10 +82,11 @@ export function messagesUtils(messages: OpenAI.ChatCompletionMessageParam[]) {
          * }
          */
         finalOutput: () => {
+            const messages = getMessages();
             const lastMessage = messages.at(-1);
             if (!lastMessage || !(lastMessage.role == "assistant" && !lastMessage.tool_calls))
                 return undefined;
-            return lastMessage;
+            return lastMessage as MessageByRole<TMetaData, "assistant">;
         },
 
         /**
@@ -76,10 +99,11 @@ export function messagesUtils(messages: OpenAI.ChatCompletionMessageParam[]) {
          * const utils = messagesUtils(state.messages);
          * const lastUser = utils.messageByRole("user");
          */
-        messageByRole: (role: "user" | "tool" | "assistant"): OpenAI.ChatCompletionMessageParam | undefined => {
+        messageByRole: <TRole extends MessageRole<TMetaData>>(role: TRole): MessageByRole<TMetaData, TRole> | undefined => {
+            const messages = getMessages();
             for (let i = messages.length - 1; i >= 0; i--) {
                 const msg = messages[i];
-                if (msg.role === role) return msg;
+                if (msg.role === role) return msg as MessageByRole<TMetaData, TRole>;
             }
             return undefined;
         }

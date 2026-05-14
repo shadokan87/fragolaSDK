@@ -26,6 +26,7 @@ export class Store<TStore extends StoreLike<any> = {}> {
             this.#namespace = namespace;
     }
 
+    /** Returns the store namespace, if one was assigned. */
     get namespace() {
         return this.#namespace;
     }

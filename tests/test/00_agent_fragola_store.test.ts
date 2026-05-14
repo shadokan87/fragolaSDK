@@ -1,70 +1,70 @@
 import { describe, it, expect } from "vitest";
-import { createStore } from "@fragola-ai/agentic-sdk-core/context";
+import { createStore } from "@fragola-ai/agentic-sdk-core/store";
 import { createTestClient } from "./createTestClient";
 const getTestContext = (namespace = "test") => createStore({ value: 42 }, namespace);
 
 describe("Agent context methods", () => {
-    it("addContext should add a context to namespaceContext", () => {
+    it("addStore should add a context to namespaceContext", () => {
             const fragola = createTestClient();
         const agent = fragola.agent({
             name: "testAgent",
             instructions: "",
             description: "",
-            context: getTestContext("main")
+            store: getTestContext("main")
         });
-        const context = getTestContext("foo");
-        agent.context.addContext(context);
-        expect(agent.context.getContext("foo")).toBe(context);
+        const store = getTestContext("foo");
+        agent.context.addStore(store);
+        expect(agent.context.getStore("foo")).toBe(store);
     });
 
-    it("addContext should throw if namespace is missing", () => {
+    it("addStore should throw if namespace is missing", () => {
             const fragola = createTestClient();
         const agent = fragola.agent({
             name: "testAgent",
             instructions: "",
             description: "",
-            context: getTestContext("main")
+            store: getTestContext("main")
         });
-        const context = createStore({ value: 1 });
-        expect(() => agent.context.addContext(context)).toThrow();
+        const store = createStore({ value: 1 });
+        expect(() => agent.context.addStore(store)).toThrow();
     });
 
-    it("addContext should throw if namespace already exists", () => {
+    it("addStore should throw if namespace already exists", () => {
             const fragola = createTestClient();
         const agent = fragola.agent({
             name: "testAgent",
             instructions: "",
             description: "",
-            context: getTestContext("main")
+            store: getTestContext("main")
         });
-        const context = getTestContext("foo");
-        agent.context.addContext(context);
-        expect(() => agent.context.addContext(context)).toThrow();
+        const store = getTestContext("foo");
+        agent.context.addStore(store);
+        expect(() => agent.context.addStore(store)).toThrow();
     });
 
-    it("removeContext should remove a context from namespaceContext", () => {
+    it("removeStore should remove a context from namespaceContext", () => {
             const fragola = createTestClient();
         const agent = fragola.agent({
             name: "testAgent",
             instructions: "",
             description: "",
-            context: getTestContext("main")
+            store: getTestContext("main")
         });
-        const context = getTestContext("foo");
-        agent.context.addContext(context);
-        agent.context.removeContext("foo");
-        expect(agent.context.getContext("foo")).toBeUndefined();
+        const store = getTestContext("foo");
+        agent.context.addStore(store);
+        agent.context.removeStore("foo");
+        expect(agent.context.getStore("foo")).toBeUndefined();
     });
 
-    it("removeContext should not throw if namespace does not exist", () => {
+    it("removeStore should not throw if namespace does not exist", () => {
             const fragola = createTestClient();
         const agent = fragola.agent({
             name: "testAgent",
             instructions: "",
             description: "",
-            context: getTestContext("main")
+            store: getTestContext("main")
         });
-        expect(() => agent.context.removeContext("doesnotexist")).not.toThrow();
+        expect(() => agent.context.removeStore("doesnotexist")).not.toThrow();
     });
 });
 
@@ -72,43 +72,43 @@ describe("Fragola context methods", () => {
     it("should expose all public methods", () => {
            const fragola = createTestClient();
         expect(typeof fragola.agent).toBe("function");
-        expect(typeof fragola.getContext).toBe("function");
-        expect(typeof fragola.addContext).toBe("function");
-        expect(typeof fragola.removeContext).toBe("function");
+        expect(typeof fragola.getStore).toBe("function");
+        expect(typeof fragola.addStore).toBe("function");
+        expect(typeof fragola.removeStore).toBe("function");
         expect(typeof fragola.json).toBe("function");
         expect(fragola.options).toBeDefined();
-        expect("context" in fragola).toBe(true);
+        expect("store" in fragola).toBe(true);
     });
-    it("addContext should add a context to namespaceContext", () => {
+    it("addStore should add a context to namespaceContext", () => {
            const fragola = createTestClient();
-        const context = getTestContext("foo");
-        fragola.addContext(context);
-        expect(fragola.getContext("foo")).toBe(context);
-    });
-
-    it("addContext should throw if namespace is missing", () => {
-           const fragola = createTestClient();
-        const context = createStore({ value: 1 });
-        expect(() => fragola.addContext(context)).toThrow();
+        const store = getTestContext("foo");
+        fragola.addStore(store);
+        expect(fragola.getStore("foo")).toBe(store);
     });
 
-    it("addContext should throw if namespace already exists", () => {
+    it("addStore should throw if namespace is missing", () => {
            const fragola = createTestClient();
-        const context = getTestContext("foo");
-        fragola.addContext(context);
-        expect(() => fragola.addContext(context)).toThrow();
+        const store = createStore({ value: 1 });
+        expect(() => fragola.addStore(store)).toThrow();
     });
 
-    it("removeContext should remove a context from namespaceContext", () => {
+    it("addStore should throw if namespace already exists", () => {
            const fragola = createTestClient();
-        const context = getTestContext("foo");
-        fragola.addContext(context);
-        fragola.removeContext("foo");
-        expect(fragola.getContext("foo")).toBeUndefined();
+        const store = getTestContext("foo");
+        fragola.addStore(store);
+        expect(() => fragola.addStore(store)).toThrow();
     });
 
-    it("removeContext should not throw if namespace does not exist", () => {
+    it("removeStore should remove a context from namespaceContext", () => {
            const fragola = createTestClient();
-        expect(() => fragola.removeContext("doesnotexist")).not.toThrow();
+        const store = getTestContext("foo");
+        fragola.addStore(store);
+        fragola.removeStore("foo");
+        expect(fragola.getStore("foo")).toBeUndefined();
+    });
+
+    it("removeStore should not throw if namespace does not exist", () => {
+           const fragola = createTestClient();
+        expect(() => fragola.removeStore("doesnotexist")).not.toThrow();
     });
 });

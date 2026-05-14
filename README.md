@@ -32,7 +32,7 @@ Fragola ships with ready‑made “hook presets” for common patterns:
 
 The SDK is not yet publicly released. We’re finalizing APIs and examples and will publish:
 
-- An installable package: `@fragola-ai/agentic-sdk-core`
+- An installable package: `@fragola-ai/agent`
 - Full quickstart guides and recipes
 - Integration examples for popular runtimes and frameworks
 
@@ -42,13 +42,13 @@ The SDK is not yet publicly released. We’re finalizing APIs and examples and w
 Install the SDK:
 
 ```bash
-npm install @fragola-ai/agentic-sdk-core
+npm install @fragola-ai/agent
 ```
 
 Create a simple agent that responds to user messages:
 
 ```typescript
-import { Fragola } from "@fragola-ai/agentic-sdk-core";
+import { Fragola } from "@fragola-ai/agent";
 
 const fragola = new Fragola({
 	apiKey: process.env.OPENAI_API_KEY, // Can also be set in your environment

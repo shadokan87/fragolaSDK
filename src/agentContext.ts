@@ -2,6 +2,7 @@ import type { AgentOptions, AgentState, ContextRaw, SetOptionsParams } from "./a
 import type { DefineMetaData, Fragola, Tool } from "./fragola";
 import type { StoreLike } from "./types";
 import type { Store } from "./store";
+import type { MessagesParser } from "./stateUtils";
 
 export const STOP = Symbol('stop');
 export abstract class AgentContext<TMetaData extends DefineMetaData<any> = {}, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> {
@@ -13,8 +14,10 @@ export abstract class AgentContext<TMetaData extends DefineMetaData<any> = {}, T
     abstract get raw(): ContextRaw<TMetaData>;
     /** Acess the agent's default local store. */
     abstract get store(): Store<TStore>;
+    /** Live parser helpers bound to the current `state.messages`. */
+    abstract get messagesParser(): MessagesParser<TMetaData>;
     /**
-     * Add a store that has a namespace. Can be accessed with `getContext` method.
+     * Add a store that has a namespace. Can be accessed with `getStore` method.
      * @param store - The store to add
      */
     abstract addStore(store: Store<any>): void;

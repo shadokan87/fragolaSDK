@@ -3,12 +3,10 @@ import { Agent, type AgentOptions, type CreateAgentOptions, type JsonQuery } fro
 import type { maybePromise, StoreLike } from "./types";
 import type { ClientOptions as OpenaiClientOptions } from "openai/index.js";
 import OpenAI from "openai/index.js";
-import type { Store } from "@src/context";
+import type { Store } from "@src/store";
 import { BadUsage } from "./exceptions";
 import type { AgentContext } from "@src/agentContext";
 import { type AgentAny } from "./agent";
-import type { Stream } from "openai/streaming";
-import type { APIPromise } from "openai";
 
 export type ToolHandlerReturnTypeNonAsync = any[] | Record<any, any> | Function | number | bigint | boolean | string;
 export type ToolHandlerReturnType = maybePromise<ToolHandlerReturnTypeNonAsync>;
@@ -124,7 +122,7 @@ export class Fragola<TGlobalStore extends StoreLike<any> = {}> {
     #sdk: typeof OpenAI;
     #sdkInstance: OpenAI;
     #namespaceContext: Map<string, Store<any>> = new Map();
-    constructor(private clientOptions: ClientOptions, private globalContext: Store<TGlobalStore> | undefined = undefined, sdk: typeof OpenAI = OpenAI) {
+    constructor(private clientOptions: ClientOptions, private globalStore: Store<TGlobalStore> | undefined = undefined, sdk: typeof OpenAI = OpenAI) {
         const opts = clientOptions ? (() => {
             const copy = { ...clientOptions };
             const { model, ...rest } = copy;
@@ -134,12 +132,12 @@ export class Fragola<TGlobalStore extends StoreLike<any> = {}> {
         this.#sdkInstance = opts ? new this.sdk(opts) : new this.sdk();
     }
 
-    // get createSDK(): typeof this
-
+    /** Returns the OpenAI SDK constructor used by this Fragola instance. */
     get sdk() {
         return this.#sdk;
     }
 
+    /** Returns the OpenAI client instance created from this Fragola configuration. */
     get SdkInstance() {
         return this.#sdkInstance;
     }
@@ -148,7 +146,7 @@ export class Fragola<TGlobalStore extends StoreLike<any> = {}> {
      * Create a new agent attached to this Fragola instance.
      *
      * The returned agent uses this instance's client configuration and can
-     * access its global context.
+     * access its global store.
      *
      * @param opts - Agent configuration.
      * @returns A new agent instance.
@@ -167,7 +165,7 @@ export class Fragola<TGlobalStore extends StoreLike<any> = {}> {
      * ```
      */
     agent<TMetaData extends DefineMetaData<any> = {}, TStore = {}>(opts: CreateAgentOptions<TStore>): Agent<TMetaData, TGlobalStore, TStore> {
-        const created = new Agent<TMetaData, TGlobalStore, TStore>(opts, this.globalContext, this.#sdkInstance, undefined, this as Fragola<any>);
+        const created = new Agent<TMetaData, TGlobalStore, TStore>(opts, this.globalStore, this.#sdkInstance, undefined, this as Fragola<any>);
         (async () => {
             if (this.clientOptions.events?.agentCreated) {
                 void await this.clientOptions.events.agentCreated(created)
@@ -176,49 +174,73 @@ export class Fragola<TGlobalStore extends StoreLike<any> = {}> {
         return created;
     }
 
+    /** Returns the client options configured on this Fragola instance. */
     get options() {
         return this.clientOptions;
     }
 
-    /** Acess the instance default global context. */
-    get context(): Store<TGlobalStore> | undefined {
-        return this.globalContext;
+    /** Acess the instance default global store. */
+    get store(): Store<TGlobalStore> | undefined {
+        return this.globalStore;
     }
 
     /**
-     * Returns the instance (global) context or a namespaced context casted as T.
-     * Recommended when accessing the context from outside an agent context.
-     * @param namespace - The namespace of the context to access (optional).
+     * Returns the instance (global) store or a namespaced store casted as T.
+     * Recommended when accessing the store from outside an agent store.
+     * @param namespace - The namespace of the store to access (optional).
      */
-    getContext<T extends StoreLike<any> = {}>(namespace?: string): Store<T> | undefined {
-        const context = namespace ? this.#namespaceContext.get(namespace) : this.globalContext;
-        return context as unknown as Store<T> | undefined;
+    getStore<T extends StoreLike<any> = {}>(namespace?: string): Store<T> | undefined {
+        const store = namespace ? this.#namespaceContext.get(namespace) : this.globalStore;
+        return store as unknown as Store<T> | undefined;
     }
 
     /**
-     * Add a namespaced context to the Fragola instance so agents can access it via getContext(namespace).
-     * @param context - The context to add (must have a namespace defined).
+     * Add a namespaced store to the Fragola instance so agents can access it via getStore(namespace).
+     * @param store - The store to add (must have a namespace defined).
      */
-    addContext(context: Store<any>): void {
-        if (!context.namespace)
-            throw new BadUsage("Cannot add context because the provided context has no namespace. Fragola stores extra contexts by namespace so they can be retrieved later with getContext(namespace). Create it with createStore(value, 'your-namespace') before calling addContext().");
-        if (this.#namespaceContext.has(context.namespace))
-            throw new BadUsage(`Cannot add context with namespace '${context.namespace}' because Fragola already has a context registered under that namespace. Namespaces must be unique within one Fragola instance. Remove the existing context first or use a different namespace.`);
-        this.#namespaceContext.set(context.namespace, context);
+    addStore(store: Store<any>): void {
+        if (!store.namespace)
+            throw new BadUsage("Cannot add store because the provided store has no namespace. Fragola stores extra stores by namespace so they can be retrieved later with getStore(namespace). Create it with createStore(value, 'your-namespace') before calling addStore().");
+        if (this.#namespaceContext.has(store.namespace))
+            throw new BadUsage(`Cannot add store with namespace '${store.namespace}' because Fragola already has a store registered under that namespace. Namespaces must be unique within one Fragola instance. Remove the existing store first or use a different namespace.`);
+        this.#namespaceContext.set(store.namespace, store);
     }
 
     /**
-     * Remove a namespaced context from the Fragola instance.
-     * @param namespace - The namespace of the context to remove
+     * Remove a namespaced store from the Fragola instance.
+     * @param namespace - The namespace of the store to remove
      */
-    removeContext(namespace: string): void {
+    removeStore(namespace: string): void {
         if (!this.#namespaceContext.has(namespace)) {
-            console.warn(`Tried to remove context with namespace '${namespace}' that doesn't exist.`);
+            console.warn(`Tried to remove store with namespace '${namespace}' that doesn't exist.`);
             return;
         }
         this.#namespaceContext.delete(namespace);
     }
 
+    /**
+     * Runs a one-off JSON extraction with a temporary agent.
+     *
+     * If `options` is omitted, Fragola creates a minimal extraction agent for
+     * this call and returns only the schema parse result.
+     *
+     * @param query - The extraction prompt and Zod schema.
+     * @param options - Optional agent options to use instead of the default extraction agent.
+     * @returns The Zod safe-parse result for the assistant response.
+     *
+     * @example
+     * ```ts
+     * const result = await fragola.json({
+     *   content: "my name is Ada",
+     *   name: "extract_person",
+     *   schema,
+     * });
+     *
+     * if (result.success) {
+     *   console.log(result.data);
+     * }
+     * ```
+     */
     async json<S extends z.ZodTypeAny = z.ZodTypeAny>(query: JsonQuery<S>, options: CreateAgentOptions | undefined = undefined): Promise<z.SafeParseReturnType<unknown, z.infer<S>>> {
         if (!this.clientOptions?.model) {
             throw new BadUsage(presetBadUsageMessage);

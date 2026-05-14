@@ -303,7 +303,7 @@ const userStore = createStore({ userId: "123", preferences: {} });
 agent.addStore("user", userStore);
 
 // Access in tools or events
-const context = agent.context();
+const store = agent.context();
 const userData = context.store.user.get();
 ```
 

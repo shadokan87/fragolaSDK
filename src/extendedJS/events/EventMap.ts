@@ -14,8 +14,8 @@ import type { StoreLike } from "../../types";
  * - For other event IDs, resolves to `never`.
  *
  * @template TEventId - The type of the event ID.
- * @template TGlobalStore - The type of the global context.
- * @template TStore - The type of the local context.
+ * @template TGlobalStore - The type of the global store.
+ * @template TStore - The type of the local store.
  */
 export type eventIdToCallback<TEventId extends AgentEventId, TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> =
     TEventId extends AgentDefaultEventId ? eventDefaultCallbackMap<TMetaData, TGlobalStore, TStore>[TEventId] :

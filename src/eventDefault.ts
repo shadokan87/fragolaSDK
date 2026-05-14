@@ -9,11 +9,34 @@ import type { StepOptions } from "./agent";
 
 export type ModelInvocationKind = "chunk" | "completion";
 
+export type MergePatch<T> =
+  T extends readonly any[] ? T :
+  T extends object ? { [K in keyof T]?: MergePatch<T[K]> } :
+  T;
+
+export type ModelInvocationChunk = OpenAI.ChatCompletionChunk;
+export type ModelInvocationPrimaryChoice = OpenAI.Chat.Completions.ChatCompletionChunk.Choice;
+export type ModelInvocationDelta = NonNullable<ModelInvocationPrimaryChoice["delta"]>;
+
+export type ModelInvocationChunkPayload = {
+  kind: "chunk";
+  chunk: ModelInvocationChunk;
+  primaryChoice: ModelInvocationPrimaryChoice | undefined;
+  delta: ModelInvocationDelta | undefined;
+};
+
+export type ModelInvocationChunkInjection =
+  | { injectChunk: MergePatch<ModelInvocationChunk>; merge?: true }
+  | { injectChunk: ModelInvocationChunk; merge: false }
+  | { injectPrimary: MergePatch<ModelInvocationPrimaryChoice>; merge?: true }
+  | { injectPrimary: ModelInvocationPrimaryChoice; merge: false }
+  | { injectDelta: MergePatch<ModelInvocationDelta>; merge?: true }
+  | { injectDelta: ModelInvocationDelta; merge: false };
+
+export type ModelInvocationChunkResult = ModelInvocationChunk | ModelInvocationChunkInjection;
+
 export type ModelInvocationPayload<TMetaData extends DefineMetaData<any>> =
-  | {
-      kind: "chunk";
-      data: OpenAI.ChatCompletionChunk;
-    }
+  | ModelInvocationChunkPayload
   | {
       kind: "completion";
       data: ChatCompletionAssistantMessageParam<TMetaData>;
@@ -22,7 +45,7 @@ export type ModelInvocationPayload<TMetaData extends DefineMetaData<any>> =
 export type EventModelInvocation<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = (
   payload: ModelInvocationPayload<TMetaData>,
   context: AgentContext<TMetaData, TGlobalStore, TStore>
-) => maybePromise<eventResult<ModelInvocationPayload<TMetaData>["data"]>>;
+) => maybePromise<eventResult<ModelInvocationChunkResult | ChatCompletionAssistantMessageParam<TMetaData>>>;
 
 export type EventToolCall<TParams = Record<any, any>, TMetaData extends DefineMetaData<any> = {}, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}>
   = (result: ToolHandlerReturnTypeNonAsync, params: TParams, tool: Tool<any>, context: AgentContext<TMetaData, TGlobalStore, TStore>)

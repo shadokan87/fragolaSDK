@@ -1,7 +1,7 @@
 // TODO: dispose method
 // TODO: logger method
-import { createStore, Store } from "@src/context"
-import { Fragola, stripUserMessageMeta, type ChatCompletionAssistantMessageParam, type ChatCompletionMessageParam, type ChatCompletionUserMessageParam, type DefineMetaData, type MessageMeta, type OpenaiClientOptions, type Tool } from "./fragola"
+import { createStore, Store } from "./store"
+import { Fragola, stripMessagesMeta, type ChatCompletionAssistantMessageParam, type ChatCompletionMessageParam, type ChatCompletionUserMessageParam, type DefineMetaData, type MessageMeta, type OpenaiClientOptions, type Tool } from "./fragola"
 import type { ChatCompletionCreateParamsBase } from "openai/resources/chat/completions.js"
 import { streamChunkToMessage, isAsyncFunction, isSkipEvent, isStopEvent, isChunkPartial } from "./utils"
 import { BadUsage, FragolaError, JsonModeError, MaxStepHitError } from "./exceptions"
@@ -19,6 +19,7 @@ import { zodToJsonSchema } from "openai/_vendor/zod-to-json-schema/zodToJsonSche
 import type { ChatCompletionChunk, ResponseFormatJSONSchema } from "openai/resources"
 import { AgentContext } from "@src/agentContext";
 import { STOP } from "@src/agentContext"
+import { messagesUtils } from "./stateUtils";
 import {
     applyAiMessage,
     applyAfterStateUpdate,
@@ -88,7 +89,7 @@ export interface AgentOptions {
 export type SetOptionsParams = Omit<AgentOptions, "name" | "messages" | "fork">;
 
 export type CreateAgentOptions<TStore extends StoreLike<any> = {}> = {
-    context?: Store<TStore>,
+    store?: Store<TStore>,
     /** Optional initial messages history for the agent. */
     messages?: OpenAI.ChatCompletionMessageParam[],
 } & Prettify<AgentOptions>;
@@ -227,16 +228,17 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         }
     }
 
+    /** Returns the parent agent id when this agent was created with fork(). */
     get forkOf() {
         return this.#forkOf;
     }
 
-    private addStore(context: Store<any>): void {
-        if (!context.namespace)
-            throw new FragolaError(`Cannot add context because the provided context has no namespace. This agent stores extra contexts by namespace, so unnamed contexts cannot be retrieved later. Create it with createStore(value, "your-namespace").`);
-        if (this.#namespaceStore.has(context.namespace))
-            throw new FragolaError(`Cannot add context with namespace '${context.namespace}' because this agent already has a context registered under that namespace. Namespaces must be unique per agent. Remove the existing context first or register the new context under a different namespace.`);
-        this.#namespaceStore.set(context.namespace, context);
+    private addStore(store: Store<any>): void {
+        if (!store.namespace)
+            throw new FragolaError(`Cannot add store because the provided store has no namespace. This agent stores extra stores by namespace, so unnamed stores cannot be retrieved later. Create it with createStore(value, "your-namespace").`);
+        if (this.#namespaceStore.has(store.namespace))
+            throw new FragolaError(`Cannot add store with namespace '${store.namespace}' because this agent already has a store registered under that namespace. Namespaces must be unique per agent. Remove the existing store first or register the new store under a different namespace.`);
+        this.#namespaceStore.set(store.namespace, store);
     }
 
     private removeStore(namespace: string): void {
@@ -249,7 +251,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
 
     public context = (() => {
         const _this = this;
-        return new class extends AgentStore<TMetaData, TGlobalStore, TStore> {
+        return new class extends AgentContext<TMetaData, TGlobalStore, TStore> {
             get state() { return _this.state; }
             get options() { return _this.options; }
             get raw() {
@@ -257,16 +259,17 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                     updateMessages: (...args: Parameters<typeof _this.updateMessages>) => _this.updateMessages(...args)
                 };
             }
-            get context() { return _this.opts.context as Store<TStore>; }
+            get store() { return _this.opts.store as Store<TStore>; }
+            get messagesParser() { return messagesUtils<TMetaData>(() => _this.state.messages); }
             get instance() { return _this.#instance }
             getStore<T extends StoreLike<any>>(namespace?: string): Store<T> | undefined {
-                let context = namespace ? _this.#namespaceStore.get(namespace) : _this.options.context;
+                let context = namespace ? _this.#namespaceStore.get(namespace) : _this.options.store;
                 if (context)
                     return context as unknown as Store<T>;
                 return undefined;
             }
-            addStore(context: Store<any>): void {
-                _this.addStore(context);
+            addStore(store: Store<any>): void {
+                _this.addStore(store);
             }
             removeStore(namespace: string): void {
                 _this.removeStore(namespace);
@@ -325,20 +328,16 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         getRegisteredEvents: () => this.registeredEvents
     }
 
-    /*
-    * Returns the agent id
-    */
+    /** Returns the unique id of this agent instance. */
     get id() {
         return this.#id
     }
 
-    /*
-    * Returns the agent state.
-    */
+    /** Returns the current in-memory state for this agent. */
     get state() { return this.#state };
 
-    private cloneStoreValue<T extends StoreLike<any>>(context: Store<T>): Store<T> {
-        return createStore(structuredClone(context.value), context.namespace);
+    private cloneStoreValue<T extends StoreLike<any>>(store: Store<T>): Store<T> {
+        return createStore(structuredClone(store.value), store.namespace);
     }
 
     private cloneOptionsForFork(): CreateAgentOptions<TStore> {
@@ -350,8 +349,8 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
             clonedOpts.modelSettings = structuredClone(this.opts.modelSettings);
         if (this.opts.messages)
             clonedOpts.messages = structuredClone(this.opts.messages);
-        if (this.opts.context)
-            clonedOpts.context = this.cloneStoreValue(this.opts.context);
+        if (this.opts.store)
+            clonedOpts.store = this.cloneStoreValue(this.opts.store);
         if (this.opts.tools)
             clonedOpts.tools = this.opts.tools.map((tool) => ({ ...tool }));
 
@@ -529,6 +528,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         this.updateMergedInstructionsCache();
     }
 
+    /** Returns the current configuration options for this agent. */
     get options() { return this.opts }
 
     private stepOptions() { return this.opts.stepOptions as Required<StepOptions> }
@@ -543,6 +543,27 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         }
     }
 
+    /**
+     * Continues execution from the current message history for one or more steps.
+     *
+     * Use this when messages were seeded manually or when you want to continue an
+     * in-progress model/tool loop without appending a new user message first.
+     *
+     * @param stepParams - Optional per-call limits and step overrides.
+     * @returns The updated agent state after execution completes.
+     *
+     * @example
+     * ```ts
+     * const agent = fragola.agent({
+     *   name: "assistant",
+     *   description: "Minimal assistant",
+     *   instructions: "You are a helpful assistant",
+     *   messages: [{ role: "user", content: "Say hello once." }],
+     * });
+     *
+     * await agent.step();
+     * ```
+     */
     async step(stepParams?: StepParams) {
         await this.hooksLoaded;
         if (this.stopRequested) {
@@ -581,10 +602,17 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         return this.#state;
     }
 
+    /** Resets the internal step counter to 0 without changing messages or status. */
     resetStepCount() {
         this.#state.stepCount = 0;
     }
 
+    /**
+     * Resets the agent to an idle state and replaces its message history.
+     *
+     * @param params - Optional replacement messages for the new state.
+     * @throws {BadUsage} When called while the agent is not idle.
+     */
     reset(params: ResetParams = { messages: [] }) {
         if (this.#state.status != "idle") {
             throw new BadUsage(
@@ -611,6 +639,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         }
     }
 
+    /** Requests cancellation of the current run without awaiting completion. */
     stopSync() {
         this.stopRequested = true;
         if (this.abortController) {
@@ -687,7 +716,8 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
             };
             const defaultClientOptions = stepOptions.clientOptions ?? this.#instance.options;
             const callAPI: CallAPI = async (modelSettings, clientOpts) => {
-                const openai = clientOpts ? new OpenAI(clientOpts) : this.openai;
+                const SDK = this.#instance.sdk;
+                const openai = clientOpts ? new SDK(clientOpts) : this.openai;
                 const emptyAssistantMessage = { role: "assistant", content: "" } as OpenAI.ChatCompletionAssistantMessageParam;
 
                 let { signal: configSignal, value: config } = (await this.applyEvents("before:modelInvocation", {
@@ -723,7 +753,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
 
                         const requestBody: ChatCompletionCreateParamsBase = {
                             ...config.modelSettings as ChatCompletionCreateParamsBase,
-                            messages: [{ role: instructionsRole, content: this.getMergedInstructions() }, ...this.#state.messages]
+                            messages: [{ role: instructionsRole, content: this.getMergedInstructions() }, ...stripMessagesMeta(this.#state.messages)]
                         };
                         if (this.paramsTools?.length)
                             requestBody["tools"] = this.paramsTools;
@@ -742,7 +772,14 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                     const createProcesschunk = (): (chunk: OpenAI.Chat.Completions.ChatCompletionChunk | ChatCompletionChunk) => Promise<OpenAI.Chat.Completions.ChatCompletionChunk | ChatCompletionChunk> => {
                         if (EmodelInvocation) {
                             return async (chunk: OpenAI.Chat.Completions.ChatCompletionChunk | ChatCompletionChunk) => {
-                                const eModelInvocation = await this.applyEvents("modelInvocation", { kind: "chunk", data: chunk }, EmodelInvocation);
+                                const eModelInvocation = await this.applyEvents("modelInvocation", {
+                                    kind: "chunk",
+                                    chunk,
+                                    primaryChoice: chunk.choices[0],
+                                    delta: chunk.choices[0]?.delta,
+                                }, EmodelInvocation);
+                                if (isStopEvent(eModelInvocation.signal))
+                                    return eModelInvocation.signal as any;
                                 return eModelInvocation.value as any;
                             }
                         } else
@@ -753,13 +790,13 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                         let _chunk = await processchunk(chunk);
                         if (isStopEvent(_chunk))
                             break;
-                        if (chunk.choices.length > 0)
+                        if (_chunk.choices.length > 0)
                             partialMessage = streamChunkToMessage(_chunk, partialMessage);
-                        const finish_reason = chunk.choices[0]?.finish_reason ?? null;
+                        const finish_reason = _chunk.choices[0]?.finish_reason ?? null;
                         const partialMessageFinal = await this.applyEvents("aiMessage", {
                             message: partialMessage as typeof aiMessage,
                             finish_reason,
-                            usage: chunk.usage
+                            usage: _chunk.usage
                         });
                         if (isStopEvent(partialMessageFinal.signal))
                             break;
@@ -898,6 +935,25 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         return { ...this.options.modelSettings, model: this.options.modelSettings.model ?? this.#instance.options.model }
     }
 
+    /**
+     * Appends a user message, requests structured JSON output, and validates it against a Zod schema.
+     *
+     * @param query - The user prompt, schema, and optional per-call step overrides.
+     * @returns The schema validation result together with the final agent state.
+     *
+     * @example
+     * ```ts
+     * const result = await agent.json({
+     *   content: "my name is Ada",
+     *   name: "extract_person",
+     *   schema,
+     * });
+     *
+     * if (result.success) {
+     *   console.log(result.data);
+     * }
+     * ```
+     */
     async json<S extends z.ZodTypeAny = z.ZodTypeAny>(query: JsonQuery<S>): Promise<JsonResult<S, TMetaData>> {
         const { step, name, schema, strict, description, ignoreUserMessageEvents, ...message } = query;
         let _step = { ...step };
@@ -910,7 +966,8 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                 throw new JsonModeError(`JSON generation stopped before the model was called because a 'userMessage' event handler returned stop(). The json() pipeline requires the user message to reach the model. Remove that stop condition for this path, or set ignoreUserMessageEvents: true to bypass userMessage handlers for this call.`);
             _message = userMessageProcessed.value as typeof _message;
         }
-        await this.updateMessages((prev) => [...prev, stripUserMessageMeta({ role: "user", ..._message })]);
+        const userMessage = { role: "user", ..._message } as ChatCompletionMessageParam<TMetaData>;
+        await this.updateMessages((prev) => [...prev, userMessage]);
         if (!_step?.modelSettings)
             _step["modelSettings"] = { ...this.modelSettings() }
         let jsonSchema = zodToJsonSchema(schema);
@@ -976,7 +1033,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         const userMessageFinal = await this.applyEvents("userMessage", { message: message as Omit<ChatCompletionUserMessageParam<TMetaData>, "role"> }) as ApplyEventResult<EventUserMessage<TMetaData, TGlobalStore, TStore>>;
         if (isStopEvent(userMessageFinal.signal))
             return this.#state;
-        await this.updateMessages((prev) => [...prev, stripUserMessageMeta(userMessageFinal.value)]);
+        await this.updateMessages((prev) => [...prev, userMessageFinal.value as ChatCompletionMessageParam<TMetaData>]);
         return await this.step(query.step);
     }
 
@@ -1191,35 +1248,51 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      */
     onAfterToolCall<TParams = Record<any, any>>(callback: EventAfterToolCall<TParams, TMetaData, TGlobalStore, TStore>) { return this.on("after:toolCall", callback) }
 
-        /**
-         * Register a model invocation handler.
-         *
-         * This event lets you inspect or transform the payload associated with a model invocation.
-         * It fires for streamed chunks before each chunk is merged into the partial assistant message.
-         * Each callback receives a `{ kind, data }` payload and may return replacement data,
-         * `skip()` to leave it unchanged, or `context.stop()` to abort the
-         * stream early.
-         *
-         * @example
-         * // This example removes the string "[DEBUG]" from streamed chunk content.
-         * // It only transforms chunks (not completions), and leaves other data unchanged.
-         * agent.onModelInvocation((invocation) => {
-         *   if (invocation.kind !== "chunk") return invocation.data;
-         *   const choice = invocation.data.choices[0];
-         *   const content = choice?.delta?.content;
-         *   if (!choice || !content) return invocation.data;
-         *   return {
-         *     ...invocation.data,
-         *     choices: [{
-         *       ...choice,
-         *       delta: {
-         *         ...choice.delta,
-         *         content: content.replace("[DEBUG]", ""),
-         *       },
-         *     }],
-         *   };
-         * });
-         */
+     /**
+      * Register a model invocation handler.
+      *
+      * Use this event to inspect or transform data produced by the model before it is
+      * turned into the assistant message stored in state.
+      *
+      * Handle the payload as a discriminated union by checking `invocation.kind`:
+      * - `"chunk"`: streamed delta payload. The callback receives
+      *   `{ kind, chunk, primaryChoice, delta }` before that chunk is merged into the
+      *   partial assistant message.
+      * - `"completion"`: full assistant message payload. The callback receives
+      *   `{ kind: "completion", data }`, where `data` is the complete assistant message.
+      *
+      * For `kind === "chunk"`, you may:
+      * - return the raw chunk to replace it directly
+      * - return `{ injectChunk, merge?: true }` to update the whole chunk
+      * - return `{ injectPrimary, merge?: true }` to update `choices[0]`
+      * - return `{ injectDelta, merge?: true }` to update `choices[0].delta`
+      * - set `merge: false` on any `inject*` object to replace that target instead of merge-patching it
+      *
+      * For `kind === "completion"`, return the assistant message unchanged or return an
+      * updated message object.
+      *
+      * In both branches, you can also return `skip()` to leave the payload unchanged or
+      * `context.stop()` to abort further processing.
+      *
+      * @example
+      * agent.onModelInvocation((invocation) => {
+      *   if (invocation.kind === "completion") {
+      *     if (typeof invocation.data.content !== "string") return invocation.data;
+      *     return {
+      *       ...invocation.data,
+      *       content: invocation.data.content.trim(),
+      *     };
+      *   }
+      *
+      *   if (!invocation.delta?.content) return invocation.chunk;
+      *
+      *   return {
+      *     injectDelta: {
+      *       content: invocation.delta.content.replace("[DEBUG]", ""),
+      *     },
+      *   };
+      * });
+      */
     onModelInvocation(callback: EventModelInvocation<TMetaData, TGlobalStore, TStore>) { return this.on("modelInvocation", callback) }
 
     /**

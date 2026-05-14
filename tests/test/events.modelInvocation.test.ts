@@ -3,7 +3,7 @@
  *   before:modelInvocation → modelInvocation → after:modelInvocation
  */
 import { describe, it, expect, vi } from "vitest";
-import { nanoid } from "nanoid";
+import type OpenAI from "openai";
 import type { AgentAny } from "@fragola-ai/agentic-sdk-core/agent";
 import { skip } from "@fragola-ai/agentic-sdk-core/event";
 import { injectReply } from "../injectReply";
@@ -11,6 +11,45 @@ import { createTestClient } from "./createTestClient";
 
 const fragola = createTestClient();
 type ModelInvocationHandler = Parameters<AgentAny["onModelInvocation"]>[0];
+
+const createChunk = ({
+    id,
+    content,
+    model = "test-model",
+    role,
+    finishReason = null,
+}: {
+    id: string,
+    content?: string,
+    model?: string,
+    role?: "assistant",
+    finishReason?: OpenAI.Chat.Completions.ChatCompletionChunk.Choice["finish_reason"],
+}): OpenAI.ChatCompletionChunk => ({
+    id,
+    object: "chat.completion.chunk",
+    created: 1,
+    model,
+    choices: [{
+        index: 0,
+        delta: {
+            ...(role ? { role } : {}),
+            ...(content !== undefined ? { content } : {}),
+        },
+        finish_reason: finishReason,
+        logprobs: null,
+    }],
+});
+
+const createChunkStream = (chunks: OpenAI.ChatCompletionChunk[]) => (async function* () {
+    for (const chunk of chunks)
+        yield chunk;
+})();
+
+const injectChunkStream = (agent: AgentAny, chunks: OpenAI.ChatCompletionChunk[]) => {
+    agent.onBeforeModelInvocation(() => ({
+        injectResponse: (() => createChunkStream(chunks) as any) as any,
+    }));
+};
 // ─────────────────────────────────────────────────────────────────────────────
 // before:modelInvocation
 // ─────────────────────────────────────────────────────────────────────────────
@@ -170,17 +209,21 @@ describe("before:modelInvocation → after:modelInvocation connection", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// modelInvocation (streaming chunks) — requires real API with stream: true
+// modelInvocation (streaming chunks)
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("modelInvocation — streaming chunk events (real API)", () => {
+describe("modelInvocation — streaming chunk events", () => {
     it("fires chunk events; skip on a chunk passes it through unchanged", async () => {
         const agent = fragola.agent({
             name: "a",
             instructions: "You are a helpful assistant.",
             description: "",
-            modelSettings: { stream: true, max_tokens: 50 },
         });
+        injectChunkStream(agent, [
+            createChunk({ id: "chunk-1", role: "assistant", content: "say" }),
+            createChunk({ id: "chunk-2", content: " hi" }),
+            createChunk({ id: "chunk-3", finishReason: "stop" }),
+        ]);
 
         let chunkCount = 0;
         agent.onModelInvocation((invocation) => {
@@ -198,71 +241,342 @@ describe("modelInvocation — streaming chunk events (real API)", () => {
             name: "a",
             instructions: "You are a helpful assistant.",
             description: "",
-            modelSettings: { stream: true, max_tokens: 200 },
         });
+        injectChunkStream(agent, [
+            createChunk({ id: "chunk-1", role: "assistant", content: "one" }),
+            createChunk({ id: "chunk-2", content: " two" }),
+            createChunk({ id: "chunk-3", content: " three" }),
+            createChunk({ id: "chunk-4", finishReason: "stop" }),
+        ]);
 
         let chunksBeforeStop = 0;
         agent.onModelInvocation((invocation, ctx) => {
             chunksBeforeStop++;
-            if (chunksBeforeStop >= 1) return ctx.stop();
-            return invocation.data;
+            if (invocation.kind !== "chunk")
+                return invocation.data;
+            if (chunksBeforeStop >= 2)
+                return ctx.stop();
+            return invocation.chunk;
         });
 
-        await agent.userMessage({ content: "count from 1 to 100" });
-        // Stream was aborted after ≤1 chunks, so the message content should be partial/empty
-        expect(chunksBeforeStop).toBeGreaterThanOrEqual(1);
+        const state = await agent.userMessage({ content: "count from 1 to 100" });
+        const aiContent = state.messages.find((m) => m.role === "assistant")?.content;
+
+        expect(chunksBeforeStop).toBe(2);
+        expect(aiContent).toBe("one");
     });
 
-    it("modelInvocation handler can transform chunk data", async () => {
+    it("modelInvocation handlers can merge delta patches without rebuilding the chunk", async () => {
         const agent = fragola.agent({
             name: "a",
             instructions: "You are a helpful assistant.",
             description: "",
-            modelSettings: { stream: true, max_tokens: 50 },
         });
+        injectChunkStream(agent, [
+            createChunk({ id: "chunk-1", role: "assistant", content: "hello" }),
+            createChunk({ id: "chunk-2", content: " world" }),
+            createChunk({ id: "chunk-3", finishReason: "stop" }),
+        ]);
 
-        const [id1, id2, id3] = [nanoid(), nanoid(), nanoid()];
-        let firstContentChunkSeen = false;
-
-        // Guard handler: marks when the first content-bearing chunk arrives so the
-        // three transform handlers below can all target that same chunk in chain order.
-        agent.onModelInvocation((invocation) => {
+        const makeHandler = (suffix: string): ModelInvocationHandler => (invocation) => {
             if (invocation.kind !== "chunk")
                 return invocation.data;
-            if (!firstContentChunkSeen && invocation.data.choices[0]?.delta?.content)
-                firstContentChunkSeen = true;
-            return invocation.data;
-        });
-
-        const makeHandler = (id: string): ModelInvocationHandler => (invocation) => {
-            if (invocation.kind !== "chunk")
-                return invocation.data;
-
-            const choice = invocation.data.choices[0];
-            const delta = choice?.delta;
-            const content = delta?.content;
-
-            if (firstContentChunkSeen && choice && delta && content) {
-                return {
-                    ...invocation.data,
-                    choices: [{
-                        ...choice,
-                        delta: { ...delta, content: content + id },
-                    }],
-                };
-            }
-            return invocation.data;
+            if (!invocation.delta?.content)
+                return invocation.chunk;
+            return {
+                injectDelta: {
+                    content: invocation.delta.content + suffix,
+                },
+            };
         };
 
-        agent.onModelInvocation(makeHandler(id1));
-        agent.onModelInvocation(makeHandler(id2));
-        agent.onModelInvocation(makeHandler(id3));
+        agent.onModelInvocation(makeHandler("A"));
+        agent.onModelInvocation(makeHandler("B"));
+        agent.onModelInvocation(makeHandler("C"));
 
         const state = await agent.userMessage({ content: "say hello" });
         const aiContent = state.messages.find((m) => m.role === "assistant")?.content ?? "";
-        expect(typeof aiContent).toBe("string");
-        expect(aiContent).toContain(id1);
-        expect(aiContent).toContain(id2);
-        expect(aiContent).toContain(id3);
+        expect(aiContent).toBe("helloABC worldABC");
+    });
+
+    it("modelInvocation handlers can merge into the full chunk between handlers", async () => {
+        const agent = fragola.agent({
+            name: "a",
+            instructions: "You are a helpful assistant.",
+            description: "",
+        });
+        injectChunkStream(agent, [
+            createChunk({ id: "chunk-1", role: "assistant", content: "hello" }),
+            createChunk({ id: "chunk-2", finishReason: "stop" }),
+        ]);
+
+        const seenModels: string[] = [];
+
+        agent.onModelInvocation((invocation) => {
+            if (invocation.kind !== "chunk")
+                return invocation.data;
+            return {
+                injectChunk: {
+                    model: "patched-model",
+                },
+            };
+        });
+        agent.onModelInvocation((invocation) => {
+            if (invocation.kind !== "chunk")
+                return invocation.data;
+            seenModels.push(invocation.chunk.model);
+            return invocation.chunk;
+        });
+
+        await agent.userMessage({ content: "say hello" });
+        expect(seenModels).toEqual(["patched-model", "patched-model"]);
+    });
+
+    it("modelInvocation handlers can replace the primary choice when merge is false", async () => {
+        const agent = fragola.agent({
+            name: "a",
+            instructions: "You are a helpful assistant.",
+            description: "",
+        });
+        injectChunkStream(agent, [
+            createChunk({ id: "chunk-1", role: "assistant", content: "base" }),
+            createChunk({ id: "chunk-2", finishReason: "stop" }),
+        ]);
+
+        let replaced = false;
+        agent.onModelInvocation((invocation) => {
+            if (invocation.kind !== "chunk")
+                return invocation.data;
+            if (replaced || !invocation.delta?.content)
+                return invocation.chunk;
+            replaced = true;
+            return {
+                injectPrimary: {
+                    index: 0,
+                    delta: {
+                        role: "assistant",
+                        content: "replaced",
+                    },
+                    finish_reason: null,
+                    logprobs: null,
+                },
+                merge: false,
+            };
+        });
+
+        const state = await agent.userMessage({ content: "say hello" });
+        const aiContent = state.messages.find((m) => m.role === "assistant")?.content;
+        expect(aiContent).toBe("replaced");
+    });
+
+    it("a pipeline can merge injectDelta, injectPrimary, and injectChunk on the same chunk", async () => {
+        const agent = fragola.agent({
+            name: "a",
+            instructions: "You are a helpful assistant.",
+            description: "",
+        });
+        injectChunkStream(agent, [
+            createChunk({ id: "chunk-1", role: "assistant", content: "alpha" }),
+            createChunk({ id: "chunk-2", finishReason: "stop" }),
+        ]);
+
+        const snapshots: string[] = [];
+
+        agent.onModelInvocation((invocation) => {
+            if (invocation.kind !== "chunk")
+                return invocation.data;
+            if (!invocation.delta?.content)
+                return invocation.chunk;
+            return {
+                injectDelta: {
+                    content: invocation.delta.content + "!",
+                },
+            };
+        });
+        agent.onModelInvocation((invocation) => {
+            if (invocation.kind !== "chunk")
+                return invocation.data;
+            if (!invocation.delta?.content)
+                return invocation.chunk;
+            return {
+                injectPrimary: {
+                    finish_reason: "length",
+                },
+            };
+        });
+        agent.onModelInvocation((invocation) => {
+            if (invocation.kind !== "chunk")
+                return invocation.data;
+            if (!invocation.delta?.content)
+                return invocation.chunk;
+            return {
+                injectChunk: {
+                    model: "merged-model",
+                },
+            };
+        });
+        agent.onModelInvocation((invocation) => {
+            if (invocation.kind !== "chunk")
+                return invocation.data;
+            if (invocation.delta?.content)
+                snapshots.push(`${invocation.chunk.model}:${invocation.primaryChoice?.finish_reason}:${invocation.delta.content}`);
+            return invocation.chunk;
+        });
+
+        const state = await agent.userMessage({ content: "say alpha" });
+        const aiContent = state.messages.find((m) => m.role === "assistant")?.content;
+
+        expect(snapshots).toEqual(["merged-model:length:alpha!"]);
+        expect(aiContent).toBe("alpha!");
+    });
+
+    it("a pipeline can replace delta, primary choice, and then the full chunk", async () => {
+        const agent = fragola.agent({
+            name: "a",
+            instructions: "You are a helpful assistant.",
+            description: "",
+        });
+        injectChunkStream(agent, [
+            createChunk({ id: "chunk-1", role: "assistant", content: "base" }),
+            createChunk({ id: "chunk-2", content: " tail" }),
+            createChunk({ id: "chunk-3", finishReason: "stop" }),
+        ]);
+
+        const snapshots: string[] = [];
+
+        agent.onModelInvocation((invocation) => {
+            if (invocation.kind !== "chunk")
+                return invocation.data;
+            if (invocation.delta?.content !== "base")
+                return invocation.chunk;
+            return {
+                injectDelta: {
+                    role: "assistant",
+                    content: "delta-replaced",
+                },
+                merge: false,
+            };
+        });
+        agent.onModelInvocation((invocation) => {
+            if (invocation.kind !== "chunk")
+                return invocation.data;
+            if (invocation.delta?.content !== "delta-replaced")
+                return invocation.chunk;
+            snapshots.push(`delta:${invocation.delta.content}`);
+            return {
+                injectPrimary: {
+                    index: 0,
+                    delta: {
+                        role: "assistant",
+                        content: "primary-replaced",
+                    },
+                    finish_reason: null,
+                    logprobs: null,
+                },
+                merge: false,
+            };
+        });
+        agent.onModelInvocation((invocation) => {
+            if (invocation.kind !== "chunk")
+                return invocation.data;
+            if (invocation.delta?.content !== "primary-replaced")
+                return invocation.chunk;
+            snapshots.push(`primary:${invocation.primaryChoice?.delta?.content}`);
+            return {
+                injectChunk: createChunk({
+                    id: "chunk-1-replaced",
+                    model: "replaced-model",
+                    role: "assistant",
+                    content: "chunk-replaced",
+                }),
+                merge: false,
+            };
+        });
+        agent.onModelInvocation((invocation) => {
+            if (invocation.kind !== "chunk")
+                return invocation.data;
+            if (invocation.delta?.content === "chunk-replaced")
+                snapshots.push(`chunk:${invocation.chunk.model}:${invocation.delta.content}`);
+            return invocation.chunk;
+        });
+
+        const state = await agent.userMessage({ content: "say base" });
+        const aiContent = state.messages.find((m) => m.role === "assistant")?.content;
+
+        expect(snapshots).toEqual([
+            "delta:delta-replaced",
+            "primary:primary-replaced",
+            "chunk:replaced-model:chunk-replaced",
+        ]);
+        expect(aiContent).toBe("chunk-replaced tail");
+    });
+
+    it("later merge handlers see data produced by earlier replace handlers", async () => {
+        const agent = fragola.agent({
+            name: "a",
+            instructions: "You are a helpful assistant.",
+            description: "",
+        });
+        injectChunkStream(agent, [
+            createChunk({ id: "chunk-1", role: "assistant", content: "start" }),
+            createChunk({ id: "chunk-2", finishReason: "stop" }),
+        ]);
+
+        const snapshots: string[] = [];
+
+        agent.onModelInvocation((invocation) => {
+            if (invocation.kind !== "chunk")
+                return invocation.data;
+            if (invocation.delta?.content !== "start")
+                return invocation.chunk;
+            return {
+                injectChunk: createChunk({
+                    id: "chunk-replaced",
+                    model: "phase-model",
+                    role: "assistant",
+                    content: "phase",
+                }),
+                merge: false,
+            };
+        });
+        agent.onModelInvocation((invocation) => {
+            if (invocation.kind !== "chunk")
+                return invocation.data;
+            if (invocation.delta?.content !== "phase")
+                return invocation.chunk;
+            snapshots.push(`after-replace:${invocation.chunk.id}:${invocation.chunk.model}:${invocation.delta.content}`);
+            return {
+                injectPrimary: {
+                    finish_reason: "length",
+                },
+            };
+        });
+        agent.onModelInvocation((invocation) => {
+            if (invocation.kind !== "chunk")
+                return invocation.data;
+            if (invocation.delta?.content !== "phase")
+                return invocation.chunk;
+            return {
+                injectDelta: {
+                    content: invocation.delta.content + "-done",
+                },
+            };
+        });
+        agent.onModelInvocation((invocation) => {
+            if (invocation.kind !== "chunk")
+                return invocation.data;
+            if (invocation.delta?.content === "phase-done")
+                snapshots.push(`after-merge:${invocation.chunk.id}:${invocation.primaryChoice?.finish_reason}:${invocation.delta.content}`);
+            return invocation.chunk;
+        });
+
+        const state = await agent.userMessage({ content: "say start" });
+        const aiContent = state.messages.find((m) => m.role === "assistant")?.content;
+
+        expect(snapshots).toEqual([
+            "after-replace:chunk-replaced:phase-model:phase",
+            "after-merge:chunk-replaced:length:phase-done",
+        ]);
+        expect(aiContent).toBe("phase-done");
     });
 });

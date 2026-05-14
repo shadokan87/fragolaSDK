@@ -2,13 +2,14 @@ import type OpenAI from "openai/index.js";
 import { skip, SKIP_EVENT, stop } from "./event"
 import type { EventAfterStateUpdate, EventAfterStep, EventAfterModelInvocation, EventAfterToolCall } from "./eventAfter"
 import type { EventBeforeStep, EventBeforeModelInvocation, EventBeforeToolCall, ModelInvocationConfig, ToolCallConfig } from "./eventBefore"
-import type { EventAiMessage, EventModelInvocation, EventToolCall, EventUserMessage } from "./eventDefault"
+import type { EventAiMessage, EventModelInvocation, EventToolCall, EventUserMessage, MergePatch, ModelInvocationChunk, ModelInvocationChunkInjection, ModelInvocationDelta, ModelInvocationPrimaryChoice } from "./eventDefault"
 import type { registeredEvent } from "./extendedJS/events/EventMap"
 import type { ChatCompletionAssistantMessageParam, ChatCompletionUserMessageParam, DefineMetaData, ToolHandlerReturnTypeNonAsync } from "./fragola"
 import type { maybePromise, StoreLike } from "./types"
 import type { AgentContext, STOP } from "./agentContext"
 import { type applyEventParams } from "./agent"
 import { isSkipEvent, isStopEvent } from "./utils";
+import { BadUsage } from "./exceptions";
 
 export type AccumulateCallback<T> = (data: Awaited<T>) => maybePromise<void>;
 export type EventResult<T extends (...args: any) => any> = Awaited<ReturnType<T>>;
@@ -26,6 +27,88 @@ export type ApplyEventResult<T extends (...args: any[]) => any> = {
     signal: ReturnType<typeof skip> | ReturnType<typeof stop> | undefined,
     value: EventStripSignal<T>
 }
+
+const createDefaultModelInvocationChoice = (): ModelInvocationPrimaryChoice => ({
+    index: 0,
+    delta: {},
+    finish_reason: null,
+    logprobs: null,
+});
+
+const replacePrimaryChoice = (chunk: ModelInvocationChunk, primaryChoice: ModelInvocationPrimaryChoice): ModelInvocationChunk => {
+    const choices = [...chunk.choices];
+    choices[0] = primaryChoice;
+    return {
+        ...chunk,
+        choices,
+    };
+};
+
+const mergePatch = <T>(current: T, patch: MergePatch<T>): T => {
+    if (patch === undefined)
+        return current;
+    if (patch === null || typeof patch !== "object" || Array.isArray(patch))
+        return patch as T;
+
+    const currentObject = current && typeof current === "object" && !Array.isArray(current)
+        ? current as Record<string, unknown>
+        : {};
+    const result: Record<string, unknown> = { ...currentObject };
+
+    for (const [key, value] of Object.entries(patch)) {
+        if (value === undefined)
+            continue;
+        result[key] = mergePatch(currentObject[key], value as never);
+    }
+
+    return result as T;
+};
+
+const isModelInvocationChunkInjection = (value: unknown): value is ModelInvocationChunkInjection => {
+    if (!value || typeof value !== "object")
+        return false;
+    return "injectChunk" in value || "injectPrimary" in value || "injectDelta" in value;
+};
+
+const resolveModelInvocationChunk = (
+    currentChunk: ModelInvocationChunk,
+    next: ModelInvocationChunk | ModelInvocationChunkInjection,
+): ModelInvocationChunk => {
+    if (!isModelInvocationChunkInjection(next))
+        return next;
+
+    const injectionKeys = ["injectChunk", "injectPrimary", "injectDelta"]
+        .filter((key) => key in next);
+
+    if (injectionKeys.length !== 1) {
+        throw new BadUsage(
+            `Invalid modelInvocation chunk injection result. Return exactly one of 'injectChunk', 'injectPrimary', or 'injectDelta' so Fragola can determine which part of the chunk to update.`
+        );
+    }
+
+    if ("injectChunk" in next) {
+        return next.merge === false
+            ? next.injectChunk
+            : mergePatch(currentChunk, next.injectChunk) as ModelInvocationChunk;
+    }
+
+    const currentPrimaryChoice = currentChunk.choices[0] ?? createDefaultModelInvocationChoice();
+
+    if ("injectPrimary" in next) {
+        const primaryChoice = next.merge === false
+            ? next.injectPrimary
+            : mergePatch(currentPrimaryChoice, next.injectPrimary) as ModelInvocationPrimaryChoice;
+        return replacePrimaryChoice(currentChunk, primaryChoice);
+    }
+
+    const delta = next.merge === false
+        ? next.injectDelta
+        : mergePatch((currentPrimaryChoice.delta ?? {}) as ModelInvocationDelta, next.injectDelta);
+    return replacePrimaryChoice(currentChunk, {
+        ...currentPrimaryChoice,
+        delta,
+    });
+};
 
 export async function applyAfterStateUpdate<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>>(
     events: registeredEvent<"after:stateUpdate", TMetaData, TGlobalStore, TStore>[],
@@ -152,12 +235,17 @@ export async function applyModelInvocation<TMetaData extends DefineMetaData<any>
 ) {
     let result: ApplyEventResult<EventModelInvocation<TMetaData, TGlobalStore, TStore>> = {
         signal: undefined,
-        value: _params.data as any
+        value: (_params.kind === "chunk" ? _params.chunk : _params.data) as any
     }
     for (let i = 0; i < events.length; i++) {
         const {callback} = events[i];
         const invocation = _params.kind === "chunk"
-            ? { kind: "chunk" as const, data: result.value as OpenAI.ChatCompletionChunk }
+            ? {
+                kind: "chunk" as const,
+                chunk: result.value as ModelInvocationChunk,
+                primaryChoice: (result.value as ModelInvocationChunk).choices[0],
+                delta: (result.value as ModelInvocationChunk).choices[0]?.delta as ModelInvocationDelta | undefined,
+            }
             : { kind: "completion" as const, data: result.value as ChatCompletionAssistantMessageParam<TMetaData> };
         const res = await callback(invocation, context);
         if (accumulate)
@@ -170,7 +258,9 @@ export async function applyModelInvocation<TMetaData extends DefineMetaData<any>
             result.signal = res as any;
             continue;
         }
-        result.value = res as any;
+        result.value = _params.kind === "chunk"
+            ? resolveModelInvocationChunk(result.value as ModelInvocationChunk, res as ModelInvocationChunk | ModelInvocationChunkInjection)
+            : res as any;
     }
     return result;
 }

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { tool } from "@fragola-ai/agentic-sdk-core";
 import type { AgentAny } from "@fragola-ai/agentic-sdk-core/agent";
-import { createStore } from "@fragola-ai/agentic-sdk-core/context";
+import { createStore } from "@fragola-ai/agentic-sdk-core/store";
 import { Hook } from "@fragola-ai/agentic-sdk-core/hook";
 import { createTestClient } from "./createTestClient";
 import { injectReply } from "../injectReply";
@@ -67,35 +67,35 @@ describe("fork", () => {
     it("clones local contexts, namespaced contexts, and scoped instructions without sharing mutable state", () => {
         const agent = fragola.agent({
             ...baseAgentOptions,
-            context: createStore({ nested: { count: 1 } }, "local"),
+            store: createStore({ nested: { count: 1 } }, "local"),
         });
-        agent.context.addContext(createStore({ nested: { count: 2 } }, "extra"));
+        agent.context.addStore(createStore({ nested: { count: 2 } }, "extra"));
         agent.context.setInstructions("scoped instruction", "scope:a");
 
         const fork = agent.fork();
 
         expect(fork.id).not.toBe(agent.id);
         expect(fork.forkOf).toBe(agent.id);
-        expect(fork.context.getContext()?.namespace).toBe("local");
-        expect(fork.context.getContext("extra")?.namespace).toBe("extra");
+        expect(fork.context.getStore()?.namespace).toBe("local");
+        expect(fork.context.getStore("extra")?.namespace).toBe("extra");
         expect(fork.context.getInstructions("scope:a")).toBe("scoped instruction");
-        expect(fork.context.getContext()).not.toBe(agent.context.getContext());
-        expect(fork.context.getContext("extra")).not.toBe(agent.context.getContext("extra"));
+        expect(fork.context.getStore()).not.toBe(agent.context.getStore());
+        expect(fork.context.getStore("extra")).not.toBe(agent.context.getStore("extra"));
 
-        agent.context.getContext<{ nested: { count: number } }>()!.update(() => ({ nested: { count: 10 } }));
-        agent.context.getContext<{ nested: { count: number } }>("extra")!.update(() => ({ nested: { count: 20 } }));
+        agent.context.getStore<{ nested: { count: number } }>()!.update(() => ({ nested: { count: 10 } }));
+        agent.context.getStore<{ nested: { count: number } }>("extra")!.update(() => ({ nested: { count: 20 } }));
         agent.context.setInstructions("original only", "scope:a");
 
-        expect(fork.context.getContext<{ nested: { count: number } }>()!.value).toEqual({ nested: { count: 1 } });
-        expect(fork.context.getContext<{ nested: { count: number } }>("extra")!.value).toEqual({ nested: { count: 2 } });
+        expect(fork.context.getStore<{ nested: { count: number } }>()!.value).toEqual({ nested: { count: 1 } });
+        expect(fork.context.getStore<{ nested: { count: number } }>("extra")!.value).toEqual({ nested: { count: 2 } });
         expect(fork.context.getInstructions("scope:a")).toBe("scoped instruction");
 
-        fork.context.getContext<{ nested: { count: number } }>()!.update(() => ({ nested: { count: 100 } }));
-        fork.context.getContext<{ nested: { count: number } }>("extra")!.update(() => ({ nested: { count: 200 } }));
+        fork.context.getStore<{ nested: { count: number } }>()!.update(() => ({ nested: { count: 100 } }));
+        fork.context.getStore<{ nested: { count: number } }>("extra")!.update(() => ({ nested: { count: 200 } }));
         fork.context.setInstructions("fork only", "scope:a");
 
-        expect(agent.context.getContext<{ nested: { count: number } }>()!.value).toEqual({ nested: { count: 10 } });
-        expect(agent.context.getContext<{ nested: { count: number } }>("extra")!.value).toEqual({ nested: { count: 20 } });
+        expect(agent.context.getStore<{ nested: { count: number } }>()!.value).toEqual({ nested: { count: 10 } });
+        expect(agent.context.getStore<{ nested: { count: number } }>("extra")!.value).toEqual({ nested: { count: 20 } });
         expect(agent.context.getInstructions("scope:a")).toBe("original only");
     });
 

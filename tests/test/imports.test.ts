@@ -9,7 +9,7 @@ import {
 	stripUserMessageMeta,
 	stripToolMessageMeta,
 	Fragola
-} from '@fragola-ai/agentic-sdk-core';
+} from '@fragola-ai/agent';
 
 import type {
 	ToolHandlerReturnTypeNonAsync,
@@ -22,13 +22,13 @@ import type {
 	MessageMeta,
 	ChatCompletionMessageParam,
 	Tool as ToolType
-} from '@fragola-ai/agentic-sdk-core';
+} from '@fragola-ai/agent';
 
 // exports from `agent.index.ts`
 import {
     //@ts-ignore
 	skip as skipFromAgent
-} from '@fragola-ai/agentic-sdk-core/agent';
+} from '@fragola-ai/agent/agent';
 
 import type {
 	AgentState,
@@ -39,20 +39,20 @@ import type {
 	StepParams,
 	UserMessageQuery,
 	Agent as AgentType,
-} from '@fragola-ai/agentic-sdk-core/agent';
+} from '@fragola-ai/agent/agent';
 
 // exports from `context.index.ts`
-import { Store } from '@fragola-ai/agentic-sdk-core/store';
-import type { ContextChangeCallback } from '@fragola-ai/agentic-sdk-core/store';
+import { Store } from '@fragola-ai/agent/store';
+import type { ContextChangeCallback } from '@fragola-ai/agent/store';
 
 // exports from `event.index.ts`
-import { SKIP_EVENT, skip as skipFromEvent } from '@fragola-ai/agentic-sdk-core/event';
+import { SKIP_EVENT, skip as skipFromEvent } from '@fragola-ai/agent/event';
 import type {
 	AgentDefaultEventId,
 	eventResult,
 	AgentEventId,
 	EventDefaultCallback
-} from '@fragola-ai/agentic-sdk-core/event';
+} from '@fragola-ai/agent/event';
 
 import { describe, it, expect } from 'vitest';
 describe('package import surface', () => {

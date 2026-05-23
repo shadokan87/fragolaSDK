@@ -1,5 +1,5 @@
 import { createHeaders, PORTKEY_GATEWAY_URL } from 'portkey-ai';
-import { Fragola, type ClientOptions } from "@fragola-ai/agentic-sdk-core";
+import { Fragola, type ClientOptions } from "@fragola-ai/agent";
 import 'dotenv/config';
 export const defaultOpts: ClientOptions = {
   baseURL: PORTKEY_GATEWAY_URL,

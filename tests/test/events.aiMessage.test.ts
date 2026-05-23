@@ -5,7 +5,7 @@
  * before:modelInvocation.
  */
 import { describe, it, expect, vi } from "vitest";
-import { skip } from "@fragola-ai/agentic-sdk-core/event";
+import { skip } from "@fragola-ai/agent/event";
 import { injectReply } from "../injectReply";
 import { createTestClient } from "./createTestClient";
 

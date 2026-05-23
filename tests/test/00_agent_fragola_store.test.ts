@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createStore } from "@fragola-ai/agentic-sdk-core/store";
+import { createStore } from "@fragola-ai/agent/store";
 import { createTestClient } from "./createTestClient";
 const getTestContext = (namespace = "test") => createStore({ value: 42 }, namespace);
 

@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
-import { tool } from "@fragola-ai/agentic-sdk-core";
-import type { AgentAny } from "@fragola-ai/agentic-sdk-core/agent";
-import { createStore } from "@fragola-ai/agentic-sdk-core/store";
-import { Hook } from "@fragola-ai/agentic-sdk-core/hook";
+import { tool } from "@fragola-ai/agent";
+import type { AgentAny } from "@fragola-ai/agent/agent";
+import { createStore } from "@fragola-ai/agent/store";
+import { Hook } from "@fragola-ai/agent/hook";
 import { createTestClient } from "./createTestClient";
 import { injectReply } from "../injectReply";
 

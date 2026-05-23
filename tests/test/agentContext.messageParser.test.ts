@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, expectTypeOf, it } from "vitest";
-import type { ChatCompletionMessageParam, DefineMetaData } from "@fragola-ai/agentic-sdk-core";
+import type { ChatCompletionMessageParam, DefineMetaData } from "@fragola-ai/agent";
 import { createTestClient } from "./createTestClient";
 
 type TestMeta = DefineMetaData<{

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { z } from "zod";
-import type { Tool } from "@fragola-ai/agentic-sdk-core";
-import { createStore } from "@fragola-ai/agentic-sdk-core/store";
+import type { Tool } from "@fragola-ai/agent";
+import { createStore } from "@fragola-ai/agent/store";
 import { createTestClient } from "./createTestClient";
 
 process.env["OPENAI_API_KEY"] = process.env["OPENAI_API_KEY"] ?? "xxx";

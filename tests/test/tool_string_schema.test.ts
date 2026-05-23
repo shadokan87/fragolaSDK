@@ -1,10 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { tool } from "@fragola-ai/agentic-sdk-core";
+import { tool } from "@fragola-ai/agent";
 import { createTestClient } from "./createTestClient";
 import { z } from "zod";
 import Ajv from "ajv";
 import type OpenAI from "openai";
-import type { FragolaHook } from "@fragola-ai/agentic-sdk-core/hook";
+import type { FragolaHook } from "@fragola-ai/agent/hook";
 
 const fragola = createTestClient();
 // Used to avoid token cost for tests where model response is not relevant

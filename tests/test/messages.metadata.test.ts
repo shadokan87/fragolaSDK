@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { Fragola, type ClientOptions, type DefineMetaData } from "@fragola-ai/agentic-sdk-core";
+import { Fragola, type ClientOptions, type DefineMetaData } from "@fragola-ai/agent";
+import type { AgentState } from "@fragola-ai/agent/agent";
 
 type TestMeta = DefineMetaData<{
   user: { requestId: string },

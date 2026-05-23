@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { Fragola, tool, type DefineMetaData } from "@fragola-ai/agentic-sdk-core";
+import { Fragola, tool, type DefineMetaData } from "@fragola-ai/agent";
 import z from "zod";
 import { createTestClient } from "./createTestClient";
 

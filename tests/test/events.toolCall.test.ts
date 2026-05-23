@@ -7,10 +7,10 @@
  * follow-up invocation (after the tool result message is appended).
  */
 import { describe, it, expect, vi } from "vitest";
-import { skip } from "@fragola-ai/agentic-sdk-core/event";
-import { tool } from "@fragola-ai/agentic-sdk-core";
+import { skip } from "@fragola-ai/agent/event";
+import { tool } from "@fragola-ai/agent";
 import { z } from "zod";
-import type { AgentAny } from "@fragola-ai/agentic-sdk-core/agent";
+import type { AgentAny } from "@fragola-ai/agent/agent";
 import { createTestClient } from "./createTestClient";
 
 const fragola = createTestClient();

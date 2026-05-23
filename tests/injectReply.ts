@@ -1,5 +1,5 @@
-import type { AgentAny } from "@fragola-ai/agentic-sdk-core/agent";
-import { Hook } from "@fragola-ai/agentic-sdk-core/hook";
+import type { AgentAny } from "@fragola-ai/agent/agent";
+import { Hook } from "@fragola-ai/agent/hook";
 
 /**
  * Hook to inject a canned assistant reply so no real model call is made.

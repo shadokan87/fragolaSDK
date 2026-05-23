@@ -15,7 +15,7 @@ bun run publish:local
 
 echo -e "\n⏳ \033[1;34mWaiting for package to be available in registry...\033[0m"
 # Wait for package to be available in registry
-npm view @fragola-ai/agentic-sdk-core versions --registry http://localhost:4873
+npm view @fragola-ai/agent versions --registry http://localhost:4873
 sleep 1
 
 # Get the new version
@@ -24,7 +24,7 @@ VERSION=$(node -p "require('./package.json').version")
 echo -e "\n🧹 \033[1;32mCleaning and reinstalling in tests folder...\033[0m"
 # Clean and reinstall in tests folder
 cd tests
-bun update @fragola-ai/agentic-sdk-core --registry http://localhost:4873
+bun update @fragola-ai/agent --registry http://localhost:4873
 
 echo -e "\n🧪 \033[1;31mRunning tests...\033[0m"
 # Parse optional --tests=<file1,file2> argument

@@ -1,0 +1,62 @@
+---
+title: Local store
+description: Keep per-agent mutable state close to the agent runtime.
+---
+
+The local store belongs to one agent instance.
+
+Use it for mutable runtime data that should stay close to the conversation but should not be written into `state.messages`.
+
+Typical examples are counters, cached tool outputs, temporary workflow flags, or request-scoped application state.
+
+## Create a local store
+
+```ts
+import { createStore } from "@fragola-ai/agent/store";
+
+const sessionStore = createStore({
+	savedCount: 0,
+	lastCustomerId: null as string | null,
+}, "session");
+
+const agent = fragola.agent({
+	name: "support-agent",
+	description: "Tracks session state",
+	instructions: "Be helpful.",
+	store: sessionStore,
+});
+```
+
+Once the store is attached, you can access it as `agent.context.store` inside events and tool handlers.
+
+## Update the store
+
+```ts
+agent.context.store.update((prev) => ({
+	...prev,
+	savedCount: prev.savedCount + 1,
+}));
+```
+
+Use `update()` when the next value depends on the previous one. Use `set()` when you want to replace the whole value.
+
+## Store API
+
+| Surface | Parameters | Description |
+| --- | --- | --- |
+| `createStore(value, namespace?)` | `value: any`, `namespace?: string` | Create a new store. The namespace is optional for the default local store. |
+| `store.value` | none | Read the current value. |
+| `store.set(data)` | `data: any` | Replace the current value. |
+| `store.update(callback)` | `callback: (prev) => next` | Compute the next value from the previous value. |
+| `store.onChange(callback)` | `callback: (value) => void` | Subscribe to store updates. |
+| `store.namespace` | none | Read the namespace if one was assigned. |
+
+## When to use a local store
+
+Use a local store when the data should:
+
+- live with one agent,
+- be mutable over time,
+- and stay outside the model-visible message history.
+
+If several agents need the same runtime data, move that state to a [global store](/stores/global-store) or a [namespaced store](/stores/namespaced-stores).

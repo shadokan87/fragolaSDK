@@ -1,0 +1,51 @@
+---
+title: onAfterStep
+description: Observe step completion and new messages.
+---
+
+Runs after a step completes. Access normalized options, new messages, and step count.
+
+## Parameters
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `options` | `Required<StepOptions>` | Normalized step options that were used. |
+| `newMessages` | `ChatCompletionMessageParam[]` | Messages added during this step. |
+| `stepsTaken` | `number` | Number of steps taken in this execution. |
+| `context` | `AgentContext` | Agent context with state, stores, and controls. |
+
+## Returns
+
+`void` or `Promise<void>` - This is a side-effect only event.
+
+## Examples
+
+Log step completion:
+
+```ts
+agent.onAfterStep((options, newMessages, stepsTaken) => {
+  console.log(`Step ${stepsTaken} added ${newMessages.length} messages`);
+});
+```
+
+Track step metrics:
+
+```ts
+agent.onAfterStep(async (options, newMessages, stepsTaken, context) => {
+  await analytics.track("step_complete", {
+    stepCount: context.state.stepCount,
+    messageCount: newMessages.length,
+    maxStep: options.maxStep,
+  });
+});
+```
+
+Detect tool loops:
+
+```ts
+agent.onAfterStep((options, newMessages, stepsTaken, context) => {
+  if (stepsTaken === options.maxStep) {
+    console.warn("Hit maxStep limit - possible tool loop");
+  }
+});
+```

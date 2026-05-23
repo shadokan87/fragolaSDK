@@ -1,0 +1,77 @@
+---
+title: onModelInvocation
+description: Transform model responses during or after streaming.
+---
+
+Runs during streaming or after completion. Inspect or transform data before it becomes the assistant message.
+
+## Parameters
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `payload` | `ModelInvocationPayload` | Discriminated union: `{ kind: "chunk", chunk, primaryChoice, delta }` or `{ kind: "completion", data }`. |
+| `context` | `AgentContext` | Agent context with state, stores, and controls. |
+
+## Returns
+
+For `kind === "chunk"`:
+- Raw chunk object
+- `{ injectChunk, merge?: true }` - Update full chunk
+- `{ injectPrimary, merge?: true }` - Update `choices[0]`
+- `{ injectDelta, merge?: true }` - Update `choices[0].delta`
+- `skip()` - Keep payload unchanged
+- `context.stop()` - Abort processing
+
+For `kind === "completion"`:
+- Modified assistant message
+- `skip()` or `context.stop()`
+
+## Examples
+
+Filter streaming content:
+
+```ts
+agent.onModelInvocation((payload) => {
+  if (payload.kind === "completion") {
+    if (typeof payload.data.content !== "string") return payload.data;
+    return {
+      ...payload.data,
+      content: payload.data.content.trim(),
+    };
+  }
+
+  if (!payload.delta?.content) return payload.chunk;
+
+  return {
+    injectDelta: {
+      content: payload.delta.content.replace("[DEBUG]", ""),
+    },
+  };
+});
+```
+
+Log streaming chunks:
+
+```ts
+agent.onModelInvocation((payload) => {
+  if (payload.kind === "chunk" && payload.delta?.content) {
+    process.stdout.write(payload.delta.content);
+  }
+  return payload.kind === "chunk" ? payload.chunk : payload.data;
+});
+```
+
+Modify completion:
+
+```ts
+agent.onModelInvocation((payload) => {
+  if (payload.kind !== "completion") return payload.chunk;
+  
+  return {
+    ...payload.data,
+    content: typeof payload.data.content === "string"
+      ? payload.data.content.toUpperCase()
+      : payload.data.content,
+  };
+});
+```

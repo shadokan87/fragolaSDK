@@ -1,0 +1,58 @@
+---
+title: onToolCall
+description: Transform tool results after handler execution.
+---
+
+Runs after a tool handler executes. Transform the result before it's sent to the model.
+
+## Parameters
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `result` | `any` | The value returned by the tool handler. |
+| `params` | `Record<string, any>` | Validated parameters passed to the handler. |
+| `tool` | `Tool` | The tool definition object. |
+| `context` | `AgentContext` | Agent context with state, stores, and controls. |
+
+## Returns
+
+Return one of:
+- Modified result - Transform the result
+- `skip()` - Keep result unchanged
+- `context.stop()` - Stop remaining toolCall/after:toolCall pipeline
+
+## Examples
+
+Enrich tool results:
+
+```ts
+agent.onToolCall((result, params, tool) => {
+  if (tool.name !== "get_weather") return result;
+
+  return {
+    requestedLocation: params.location,
+    data: result,
+  };
+});
+```
+
+Log tool execution:
+
+```ts
+agent.onToolCall((result, params, tool) => {
+  console.log(`${tool.name}(${JSON.stringify(params)}) => ${JSON.stringify(result)}`);
+  return result;
+});
+```
+
+Handle errors:
+
+```ts
+agent.onToolCall((result, params, tool) => {
+  if (result?.error) {
+    console.error(`Tool ${tool.name} failed:`, result.error);
+    return { error: true, message: "Tool execution failed" };
+  }
+  return result;
+});
+```

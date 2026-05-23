@@ -1,0 +1,36 @@
+---
+title: Quickstart
+description: Create an agent, send a message, and inspect the resulting state.
+---
+
+This is the fastest end-to-end example in Fragola. In under 20 lines, you'll have a working conversational agent.
+
+```ts
+import { Fragola } from "@fragola-ai/agent";
+
+const fragola = new Fragola({
+  apiKey: process.env.OPENAI_API_KEY!,
+  model: "gpt-4o-mini",
+});
+
+const agent = fragola.agent({
+  name: "starter-agent",
+  description: "First Fragola agent",
+  instructions: "You are concise, clear, and helpful.",
+});
+
+const state = await agent.userMessage({
+  content: "Write a one-line release note for a docs redesign.",
+});
+
+// Safely access the AI's response
+console.log(state.context.messageParser.finalOutput()?.content);
+```
+
+## What Just Happened?
+
+`userMessage()` appends your message to the conversation, sends it to the model, and returns the updated state.
+
+Use `context.messageParser.finalOutput()` to safely get the AI's text response—it returns `undefined` if the last message isn't an assistant text message (e.g., during tool execution). Prefer this over `messages.at(-1)` for type safety.
+
+**Next**: [First Agent](/get-started/first-agent) for core concepts.

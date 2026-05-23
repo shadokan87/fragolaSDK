@@ -1,0 +1,18 @@
+{
+  "pages": [
+    "index",
+    "lifecycle",
+    "on-user-message",
+    "on-ai-message",
+    "on-model-invocation",
+    "on-tool-call",
+    "on-before-step",
+    "on-before-model-invocation",
+    "on-before-tool-call",
+    "on-after-state-update",
+    "on-after-step",
+    "on-after-model-invocation",
+    "on-after-tool-call",
+    "skip-and-stop"
+  ]
+}

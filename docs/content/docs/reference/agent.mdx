@@ -1,0 +1,63 @@
+---
+title: Agent
+description: The runtime surface for messages, steps, tools, and events.
+---
+
+`Agent` owns the conversation state, tools, events, and execution loop.
+
+## Core properties
+
+| Property | Description |
+| --- | --- |
+| `agent.id` | Unique id for this agent instance. |
+| `agent.forkOf` | Parent agent id when the agent was created with `fork()`. |
+| `agent.state` | Current in-memory state: messages, step count, and status. |
+| `agent.options` | Current mutable agent options. |
+| `agent.context` | Live runtime context used by tools, hooks, and event handlers. |
+
+## Main methods
+
+| Method | Description |
+| --- | --- |
+| `agent.userMessage(query)` | Append a user message and continue the loop. |
+| `agent.step(stepParams?)` | Continue execution from the current messages without adding a new user message. |
+| `agent.json(query)` | Request structured JSON and validate it against a Zod schema. |
+| `agent.reset(params?)` | Replace the message history and reset step count. Agent must be idle. |
+| `agent.resetStepCount()` | Reset only the step counter. |
+| `agent.fork()` | Clone the current state, options, hooks, scoped instructions, and extra stores into a new agent. |
+| `agent.stop()` / `agent.stopSync()` | Request cancellation of the current run. |
+| `agent.use(hook, name?)` | Attach a reusable hook. |
+
+Event registration methods such as `onModelInvocation()`, `onBeforeToolCall()`, or `onAfterStateUpdate()` are documented in the [Events](/events) section.
+
+## `userMessage()` parameters
+
+| Parameter | Required | Description |
+| --- | --- | --- |
+| `content` | Yes | User message content. This can be text or other OpenAI-compatible user message content parts. |
+| `meta` | No | Typed user metadata when the agent uses `DefineMetaData`. |
+| `step` | No | Per-call step overrides such as `by`, `modelSettings`, or `clientOptions`. |
+
+## `step()` parameters
+
+| Parameter | Required | Description |
+| --- | --- | --- |
+| `by` | No | Stop after at most `N` steps for this call. |
+| `maxStep` | No | Override the maximum step ceiling for this execution. |
+| `resetStepCountAfterUserMessage` | No | Override how the step counter behaves after a new user turn. |
+| `modelSettings` | No | Override model inference settings for this execution. |
+| `clientOptions` | No | Override OpenAI client options for this execution. |
+
+## `json()` parameters
+
+| Parameter | Required | Description |
+| --- | --- | --- |
+| `content` | Yes | Prompt to extract from. |
+| `schema` | Yes | Zod schema used to validate the parsed JSON. |
+| `name` | No | Schema name forwarded to the response format. |
+| `description` | No | Schema description forwarded to the response format. |
+| `strict` | No | Strictness flag for the JSON schema response format. |
+| `step` | No | Per-call step overrides. |
+| `ignoreUserMessageEvents` | No | Skip `userMessage` event handlers for this extraction call. |
+
+For workflow guidance rather than lookup-style tables, read the [Agents](/agents) and [Structured output](/agents/structured-output) guides.

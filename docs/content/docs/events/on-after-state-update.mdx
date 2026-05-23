@@ -1,0 +1,65 @@
+---
+title: onAfterStateUpdate
+description: Observe every state transition for real-time updates.
+---
+
+Runs after every state update. Use for streaming UI updates, persistence, or metrics.
+
+## Parameters
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `context` | `AgentContext` | Agent context with current state, stores, and controls. |
+
+## Returns
+
+`void` or `Promise<void>` - This is a side-effect only event.
+
+## Examples
+
+Stream state to frontend:
+
+```ts
+agent.onAfterStateUpdate((context) => {
+  socket.emit('state', {
+    messages: context.state.messages,
+    status: context.state.status,
+    stepCount: context.state.stepCount,
+  });
+});
+```
+
+Track state for sync access:
+
+```ts
+let state = agent.state;
+
+agent.onAfterStateUpdate((context) => {
+  state = context.state;
+});
+
+await agent.userMessage({ content: "Hello" });
+console.log(state.messages.length);
+```
+
+Persist to database:
+
+```ts
+agent.onAfterStateUpdate(async (context) => {
+  if (context.state.status === "idle") {
+    await db.conversations.update({
+      id: conversationId,
+      messages: context.state.messages,
+      stepCount: context.state.stepCount,
+    });
+  }
+});
+```
+
+Log state transitions:
+
+```ts
+agent.onAfterStateUpdate((context) => {
+  console.log(`State: ${context.state.status}, Steps: ${context.state.stepCount}`);
+});
+```

@@ -1,0 +1,78 @@
+---
+title: First Agent
+description: Create agents with instructions, tools, and conversation history.
+---
+
+An agent wraps an AI model with stateful conversation management, tool execution, and lifecycle events. 
+
+## Creating an Agent
+
+```ts
+import { Fragola } from "@fragola-ai/agent";
+
+const fragola = new Fragola({
+  apiKey: process.env.OPENAI_API_KEY!,
+  model: "gpt-4o-mini",
+});
+
+const agent = fragola.agent({
+  name: "support-router",
+  description: "Triages incoming support requests",
+  instructions: "Ask clarifying questions before taking action. Be concise.",
+});
+```
+
+### Agent Options
+
+| Option | Type | Description |
+| --- | --- | --- |
+| `name` | `string` | Agent identifier for logs and debugging. **Required**. |
+| `description` | `string` | Human-readable summary of the agent's purpose. **Required**. |
+| `instructions` | `string` | System prompt that persists across all messages. **Required**. |
+| `tools` | `Tool[]?` | Functions the agent can call. |
+| `messages` | `ChatCompletionMessageParam[]?` | Seed conversation history. |
+| `modelSettings` | `ModelSettings?` | Override temperature, max_tokens, etc. |
+| `events` | `EventHandlers?` | Lifecycle event handlers. |
+
+## Using the Agent
+
+Send messages:
+
+```ts
+const state = await agent.userMessage({
+  content: "I can't log into my account",
+});
+
+console.log(state.context.messageParser.finalOutput()?.content);
+```
+
+Context is maintained across messages:
+
+```ts
+const state2 = await agent.userMessage({
+  content: "It says 'Invalid credentials'",
+});
+
+console.log(state2.messages.length);  // 4 (2 user + 2 assistant)
+console.log(state2.stepCount);        // 2
+```
+
+**Alternative state tracking:** Track state via events for real-time UIs:
+
+```ts
+let state = agent.state;
+
+agent.onAfterStateUpdate((context) => {
+  state = context.state;
+  // Send to frontend via SSE or WebSocket
+  socket.emit('state', state);
+});
+
+await agent.userMessage({ content: "Hello" });
+```
+
+## Next Steps
+
+- [Agent with Tools](/get-started/agent-with-tools) - Add capabilities
+- [Instructions](/agents/instructions) - Customize behavior
+- [Messages and State](/agents/messages-and-state) - Access conversation history

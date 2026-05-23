@@ -1,0 +1,55 @@
+---
+title: Work with metadata
+description: Attach typed application data to messages and keep it available throughout the agent lifecycle.
+---
+
+Use metadata when your application needs message-level context such as request IDs, cache provenance, moderation results, or tracing data.
+
+## Define metadata
+
+```ts
+import { Fragola, type DefineMetaData } from "@fragola-ai/agent";
+
+type ConversationMeta = DefineMetaData<{
+  user: { requestId: string };
+  ai: { answerId: string };
+  tool: { source: "cache" | "api" };
+}>;
+
+const agent = fragola.agent<ConversationMeta>({
+  name: "metadata-agent",
+  description: "Tracks metadata on messages",
+  instructions: "Be concise.",
+});
+```
+
+## Attach metadata to messages
+
+```ts
+await agent.userMessage({
+  content: "Summarize the latest deployment status.",
+  meta: { requestId: "req_001" },
+});
+
+agent.onBeforeModelInvocation(() => ({
+  injectMessage: {
+    content: "Deployment succeeded.",
+    meta: { answerId: "ans_001" },
+  },
+}));
+```
+
+## Read metadata from live state
+
+```ts
+const parser = agent.context.messagesParser;
+
+const userMeta = parser.messageByRole("user")?.meta;
+const assistantMeta = parser.finalOutput()?.meta;
+```
+
+## Important boundary
+
+Metadata stays in `state.messages`.
+
+Fragola strips it only before the outbound OpenAI request payload is sent. That means you can keep app-specific metadata in state, hooks, tools, and events without leaking it to the model request body.

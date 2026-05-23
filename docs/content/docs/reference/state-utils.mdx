@@ -1,0 +1,249 @@
+---
+title: State Utils
+description: Helper utilities for safe, type-safe message parsing and inspection.
+---
+
+The `stateUtils` module provides utilities for reading and analyzing conversation state without mutating it. Most commonly, you'll use the `MessagesParser` interface via `context.messageParser` in your agents.
+
+## Overview
+
+State utils exist to make message access safe and convenient. Instead of manually filtering or searching through `state.messages`, use the provided helpers that handle edge cases and provide type safety.
+
+**When to use**: Accessing messages in event handlers, inspecting tool execution, building UI components, or any time you need to find specific messages.
+
+## `messagesUtils(messagesSource)`
+
+Creates a `MessagesParser` instance from a message source.
+
+### Parameters
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `messagesSource` | `ChatCompletionMessageParam[] \| (() => ChatCompletionMessageParam[])` | Either a snapshot array of messages, or a getter function that returns messages. Use a function for live parsing as messages change. |
+
+### Returns
+
+`MessagesParser` - An object with helper methods for safe message access.
+
+### Example
+
+```ts
+import { messagesUtils } from "@fragola-ai/agent";
+
+// Option 1: Snapshot (static array)
+const parser1 = messagesUtils(agent.state.messages);
+
+// Option 2: Live getter (tracks changes)
+const parser2 = messagesUtils(() => agent.state.messages);
+
+// Most common: Use the built-in parser on context
+const parser3 = agent.context.messageParser;
+```
+
+**Recommended**: Use `context.messageParser` instead of creating your own parser. It's already available on all agent contexts and stays synchronized with the current state.
+
+## MessagesParser Interface
+
+The `MessagesParser` provides four methods and one property for message access:
+
+### Properties
+
+| Property | Type | Description |
+| --- | --- | --- |
+| `messages` | `ChatCompletionMessageParam[]` | Read-only accessor to the current message array from the source. Always up-to-date if you used a getter function. |
+
+### Methods
+
+#### `finalOutput()`
+
+Returns the last assistant message **only if it contains text content** (not tool calls).
+
+**Parameters**: None
+
+**Returns**: `ChatCompletionAssistantMessageParam | undefined`
+
+Returns `undefined` if:
+- Last message is not from assistant
+- Last message is a tool call request
+- Last message is a tool result
+- Messages array is empty
+
+**Example**:
+
+```ts
+const response = parser.finalOutput();
+if (response) {
+  console.log("AI said:", response.content);
+} else {
+  console.log("No final output yet (tools executing or conversation in progress)");
+}
+```
+
+**When to use**: Getting the AI's text response for display, logging, or processing. This is the **recommended** way to access AI responses.
+
+#### `messageByRole(role)`
+
+Searches backwards through messages to find the **last message** with the specified role.
+
+**Parameters**:
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `role` | `"user" \| "assistant" \| "tool" \| "system" \| "developer"` | The message role to search for. |
+
+**Returns**: `MessageByRole<TRole> | undefined` - The last message with the specified role, or `undefined` if not found.
+
+**Example**:
+
+```ts
+// Find the last user message
+const lastUser = parser.messageByRole("user");
+if (lastUser) {
+  console.log("User asked:", lastUser.content);
+}
+
+// Find the last assistant message (could be text or tool calls)
+const lastAssistant = parser.messageByRole("assistant");
+if (lastAssistant && "tool_calls" in lastAssistant) {
+  console.log("Assistant is calling tools");
+}
+
+// Find the last tool result
+const lastTool = parser.messageByRole("tool");
+```
+
+**When to use**: Finding specific message types without manual filtering. More efficient than `messages.filter()` for finding the most recent message of a type.
+
+#### `toolCallOrigin(toolMessage)`
+
+Traces a tool result message back to the original assistant message that requested it. Returns the specific `ChatCompletionMessageToolCall` object.
+
+**Parameters**:
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `toolMessage` | `ChatCompletionToolMessageParam` | A tool result message (role: "tool") to trace back to its origin. |
+
+**Returns**: `ChatCompletionMessageToolCall | undefined` - The tool call object from the assistant message, or `undefined` if not found.
+
+**Example**:
+
+```ts
+const lastTool = parser.messageByRole("tool");
+
+if (lastTool?.role === "tool") {
+  const origin = parser.toolCallOrigin(lastTool);
+  
+  if (origin) {
+    console.log("Function:", origin.function.name);
+    console.log("Arguments:", JSON.parse(origin.function.arguments));
+    console.log("Tool Call ID:", origin.id);
+  }
+}
+```
+
+**When to use**: Understanding which function was called and with what arguments when processing tool results. Particularly useful in event handlers like `onToolResult` or `onAfterToolExecution`.
+
+## Usage in Agents
+
+The `MessagesParser` is automatically available on every agent context as `context.messageParser`:
+
+```ts
+const agent = fragola.agent({
+  name: "example",
+  description: "Example agent",
+  instructions: "Be helpful",
+});
+
+const state = await agent.userMessage({ content: "Hello" });
+
+// Access via context (recommended)
+const response = state.context.messageParser.finalOutput();
+console.log(response?.content);
+```
+
+## Usage in Event Handlers
+
+Event handlers receive `context`, which includes the live `messageParser`:
+
+```ts
+agent.events.on("onToolResult", ({ context, call, result }) => {
+  // Find the tool message
+  const toolMessage = context.messageParser.messageByRole("tool");
+  
+  // Trace it back to the original call
+  if (toolMessage?.role === "tool") {
+    const origin = context.messageParser.toolCallOrigin(toolMessage);
+    console.log(`Tool ${origin?.function.name} completed`);
+  }
+});
+
+agent.events.on("onBeforeModelInvocation", ({ context }) => {
+  // Count messages by type
+  const messages = context.messageParser.messages;
+  const userCount = messages.filter(m => m.role === "user").length;
+  const aiCount = messages.filter(m => m.role === "assistant").length;
+  
+  console.log(`Sending ${messages.length} messages (${userCount} user, ${aiCount} AI)`);
+});
+```
+
+## Comparison: Direct Access vs MessagesParser
+
+| Approach | Type Safety | Performance | Use Case |
+| --- | --- | --- | --- |
+| `messages.at(-1)` | ❌ No guarantee | Fast | When you need the absolute last message and will handle type checking manually |
+| `finalOutput()` | ✅ Guaranteed assistant text or undefined | Fast | **Recommended**: Getting the AI's text response safely |
+| `messageByRole(role)` | ✅ Guaranteed role match or undefined | Fast (reverse search) | Finding the most recent message of a specific type |
+| `messages.filter(...)` | ⚠️ Manual type narrowing | Slower (full scan) | Finding all messages matching a condition |
+| `toolCallOrigin(msg)` | ✅ Guaranteed tool call object or undefined | Fast (forward search) | Tracing tool execution origins |
+
+## Complete Example
+
+```ts
+import { Fragola, messagesUtils } from "@fragola-ai/agent";
+
+const fragola = new Fragola({
+  apiKey: process.env.OPENAI_API_KEY!,
+  model: "gpt-4o-mini",
+});
+
+const agent = fragola.agent({
+  name: "demo",
+  description: "Demo agent with tools",
+  instructions: "Be helpful",
+  tools: [someTool],
+});
+
+// Send a message
+const state = await agent.userMessage({ content: "Use the tool" });
+
+// Option 1: Use built-in parser (recommended)
+const response = state.context.messageParser.finalOutput();
+console.log("AI response:", response?.content);
+
+// Option 2: Create custom parser from snapshot
+const parser = messagesUtils(state.messages);
+const lastUser = parser.messageByRole("user");
+console.log("User said:", lastUser?.content);
+
+// Option 3: Create live parser (tracks updates)
+const liveParser = messagesUtils(() => agent.state.messages);
+// liveParser.messages always reflects current state
+```
+
+## Best Practices
+
+- ✅ **Use `context.messageParser`** in agents and event handlers—it's already available
+- ✅ **Use `finalOutput()`** when you need the AI's text response
+- ✅ **Use `messageByRole()`** to find specific message types efficiently
+- ✅ **Check for `undefined`** when using parser methods—they return `undefined` if the message doesn't match expectations
+- ✅ **Use `toolCallOrigin()`** in event handlers to trace tool execution
+- ❌ **Don't create a new parser** when `context.messageParser` is available
+- ❌ **Don't assume `messages.at(-1)`** is always an assistant text message
+
+## See Also
+
+- [Messages and State](/agents/messages-and-state) - Complete guide to message handling
+- [Agent Context](/reference/agent-context) - Full `AgentContext` API reference
+- [Events](/events) - Event handlers that use messageParser

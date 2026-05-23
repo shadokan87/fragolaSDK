@@ -1,0 +1,8 @@
+{
+  "pages": [
+    "index",
+    "local-store",
+    "global-store",
+    "namespaced-stores"
+  ]
+}

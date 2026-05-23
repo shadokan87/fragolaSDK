@@ -1,0 +1,18 @@
+---
+title: Installing hooks
+description: Attach a hook to an agent and reuse the same behavior across agents.
+---
+
+Attach hooks with `agent.use()`.
+
+```ts
+const agent = fragola
+  .agent({
+    name: "with-hook",
+    description: "Agent with reusable behavior",
+    instructions: "Be concise.",
+  })
+  .use(loggingHook, "logging");
+```
+
+External hook packages will use the same `use()` entrypoint.

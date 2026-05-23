@@ -1,0 +1,16 @@
+---
+title: Creating agents
+description: Create agents from a shared Fragola client and keep configuration explicit.
+---
+
+Create agents from a shared `Fragola` instance so client options and global resources stay in one place.
+
+```ts
+const agent = fragola.agent({
+  name: "research-agent",
+  description: "Summarizes technical material",
+  instructions: "Cite concrete details and stay concise.",
+});
+```
+
+You can also pass initial `messages`, `tools`, and other agent options when you construct it.

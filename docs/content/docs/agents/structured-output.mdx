@@ -1,0 +1,77 @@
+---
+title: Structured output
+description: Extract typed JSON when you need deterministic shapes.
+---
+
+Use structured output when the result must match a schema instead of just sounding right.
+
+Fragola exposes two related helpers:
+
+- `agent.json()` when extraction belongs to an existing long-lived agent.
+- `fragola.json()` when you want a one-off extraction without managing agent state yourself.
+
+## Use `agent.json()` inside an existing workflow
+
+```ts
+import { z } from "zod";
+
+const result = await agent.json({
+	content: "Ada Lovelace was an English mathematician and writer.",
+	name: "person_summary",
+	schema: z.object({
+		name: z.string(),
+		profession: z.string(),
+	}),
+});
+
+if (result.success) {
+	console.log(result.data.name, result.data.profession);
+}
+```
+
+`agent.json()` appends a user message, requests structured JSON from the model, parses the assistant response, and validates it with your Zod schema.
+
+## Parameters for `agent.json()`
+
+| Parameter | Required | Description |
+| --- | --- | --- |
+| `content` | Yes | The extraction prompt. It uses the same user-message content shape as `userMessage()`. |
+| `schema` | Yes | The Zod schema used to validate the parsed JSON response. |
+| `name` | No | Name forwarded to the JSON schema response format. Useful for debugging and model clarity. |
+| `description` | No | Human-readable description of the schema passed to the model. |
+| `strict` | No | Passed through to the OpenAI-style JSON schema response format. |
+| `step` | No | Per-call `StepParams` such as `by`, `modelSettings`, or `clientOptions`. |
+| `ignoreUserMessageEvents` | No | Skip `userMessage` event handlers for this extraction call. |
+
+## Result shape
+
+| Field | Meaning |
+| --- | --- |
+| `success` | `true` if the parsed JSON matched the Zod schema. |
+| `data` | Parsed typed data when `success === true`. |
+| `error` | Zod validation error when `success === false`. |
+| `state` | Final agent state after the extraction step completed. |
+
+## Use `fragola.json()` for one-off extraction
+
+```ts
+const result = await fragola.json({
+	content: "The order total is 42 dollars and the customer is Alice.",
+	name: "order_summary",
+	schema: z.object({
+		customer: z.string(),
+		total: z.number(),
+	}),
+});
+```
+
+`fragola.json()` creates a temporary extraction agent for you. It is a good fit for API endpoints, import pipelines, or small utility scripts where you do not need a long-lived conversational agent.
+
+## What happens on failure
+
+- If the assistant returns invalid JSON or no assistant message at all, Fragola throws `JsonModeError`.
+- If the assistant returns valid JSON that does not match your Zod schema, the method returns `{ success: false, error, state }`.
+
+That split is intentional: transport and parsing failures are exceptional, while schema mismatch is often a business-level validation result you may want to handle explicitly.
+
+For a shorter recipe-oriented example, see [JSON extraction](/recipes/json-extraction).

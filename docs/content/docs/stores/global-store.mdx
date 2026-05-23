@@ -1,0 +1,56 @@
+---
+title: Global store
+description: Share mutable state from the Fragola instance across agents.
+---
+
+Use the Fragola-level store when several agents need the same mutable runtime state.
+
+This is a good fit for shared tenant configuration, process-wide counters, caches, or service handles that should not be recreated per agent.
+
+## Create a global store
+
+```ts
+import { Fragola } from "@fragola-ai/agent";
+import { createStore } from "@fragola-ai/agent/store";
+
+const globalStore = createStore({
+	tenantId: "acme",
+	totalRequests: 0,
+});
+
+const fragola = new Fragola(
+	{
+		apiKey: process.env.OPENAI_API_KEY!,
+		model: "gpt-4o-mini",
+	},
+	globalStore,
+);
+```
+
+Every agent created from that `Fragola` instance can reach the same store through `context.instance.store`.
+
+## Use the global store inside handlers
+
+```ts
+agent.onAfterStateUpdate((context) => {
+	context.instance.store?.update((prev) => ({
+		...prev,
+		totalRequests: prev.totalRequests + 1,
+	}));
+});
+```
+
+## Global store surfaces
+
+| Surface | Description |
+| --- | --- |
+| `new Fragola(clientOptions, globalStore)` | Attach a default shared store to the client instance. |
+| `fragola.store` | Read the default global store directly. |
+| `context.instance.store` | Access the same global store from an agent handler. |
+| `fragola.getStore(namespace?)` | Read the default global store or a namespaced store registered on the Fragola instance. |
+
+## Important distinction
+
+`agent.context.getStore()` returns the agent's local store or one of its agent-scoped namespaced stores.
+
+It does not automatically return the Fragola global store. For shared client-level state, use `context.instance.store` or `context.instance.getStore(...)`.

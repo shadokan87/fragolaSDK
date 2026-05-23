@@ -1,0 +1,57 @@
+---
+title: onUserMessage
+description: Transform user messages before they're appended to state.
+---
+
+Runs when a user message is appended. Transform the message before it's added to conversation history.
+
+## Parameters
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `message` | `ChatCompletionUserMessageParam` | The user message about to be appended. |
+| `context` | `AgentContext` | Agent context with state, stores, and controls. |
+
+## Returns
+
+Return one of:
+- Modified user message - Transform before appending
+- `skip()` - Keep message unchanged
+- `context.stop()` - Prevent message append and step execution
+
+## Examples
+
+Trim user input:
+
+```ts
+agent.onUserMessage((message) => ({
+  ...message,
+  content: typeof message.content === "string" 
+    ? message.content.trim()
+    : message.content,
+}));
+```
+
+Add metadata:
+
+```ts
+agent.onUserMessage((message, context) => ({
+  ...message,
+  metadata: {
+    timestamp: Date.now(),
+    stepCount: context.state.stepCount,
+  },
+}));
+```
+
+Validate input:
+
+```ts
+agent.onUserMessage((message, context) => {
+  if (typeof message.content === "string" && message.content.length > 1000) {
+    console.warn("User message too long");
+    return context.stop();
+  }
+  return message;
+});
+```

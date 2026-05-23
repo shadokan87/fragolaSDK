@@ -1,0 +1,53 @@
+---
+title: onBeforeStep
+description: Modify step options before execution.
+---
+
+Runs before a step executes. Override step configuration like maxStep or reset behavior.
+
+## Parameters
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `options` | `StepOptions` | Current step options including `maxStep` and `resetStepCountAfterUserMessage`. |
+| `context` | `AgentContext` | Agent context with state, stores, and controls. |
+
+## Returns
+
+Return one of:
+- Modified `StepOptions` - Override step configuration
+- `skip()` - Keep current options unchanged
+- `context.stop()` - Cancel step execution
+
+## Examples
+
+Override maxStep:
+
+```ts
+agent.onBeforeStep((options) => ({
+  ...options,
+  maxStep: 5,
+}));
+```
+
+Conditional step limits:
+
+```ts
+agent.onBeforeStep((options, context) => {
+  if (context.state.messages.length > 50) {
+    return { ...options, maxStep: 1 };
+  }
+  return options;
+});
+```
+
+Stop based on condition:
+
+```ts
+agent.onBeforeStep((options, context) => {
+  if (context.state.stepCount >= 10) {
+    return context.stop();
+  }
+  return options;
+});
+```

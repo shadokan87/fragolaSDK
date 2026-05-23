@@ -1,0 +1,12 @@
+---
+title: Tool results
+description: Understand what happens after a handler returns.
+---
+
+The tool handler result becomes the value seen by:
+
+- later `onToolCall()` handlers,
+- `onAfterToolCall()` side effects,
+- and the tool message written into the conversation state.
+
+Use the tool events section when you need to transform or short-circuit that result.

@@ -1,0 +1,31 @@
+---
+title: JSON extraction
+description: Extract a typed object from a prompt using Fragola's JSON helper.
+---
+
+Use `fragola.json()` for one-off extraction when you do not need to keep a long-lived agent around.
+
+```ts
+import { Fragola } from "@fragola-ai/agent";
+import { z } from "zod";
+
+const fragola = new Fragola({
+  apiKey: process.env.OPENAI_API_KEY!,
+  model: "gpt-4o-mini",
+});
+
+const result = await fragola.json({
+  content: "Ada Lovelace was an English mathematician and writer.",
+  name: "person_summary",
+  schema: z.object({
+    name: z.string(),
+    profession: z.string(),
+  }),
+});
+
+if (result.success) {
+  console.log(result.data.name, result.data.profession);
+}
+```
+
+If you need the same behavior on an existing long-lived agent, use [`agent.json()`](/agents/structured-output) instead.

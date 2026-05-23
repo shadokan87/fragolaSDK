@@ -1,0 +1,16 @@
+---
+title: Writing hooks
+description: Compose reusable agent behavior as a hook.
+---
+
+```ts
+import { Hook } from "@fragola-ai/agent/hook";
+
+const loggingHook = Hook((agent) => {
+  agent.onAfterStateUpdate((context) => {
+    console.log(context.state.messages.length);
+  });
+});
+```
+
+Use hooks when the same event wiring or tool registration needs to be shared by more than one agent.

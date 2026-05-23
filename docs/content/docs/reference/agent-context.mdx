@@ -1,0 +1,34 @@
+---
+title: AgentContext
+description: The shared runtime context available to hooks, events, and handlers.
+---
+
+`AgentContext` exposes state, store access, raw message utilities, and parser helpers.
+
+## Properties and methods
+
+| Surface | Description |
+| --- | --- |
+| `context.state` | Current agent state. |
+| `context.options` | Current agent options. |
+| `context.raw.updateMessages(callback)` | Low-level full-message-array update hook. |
+| `context.store` | Default local store for the current agent. |
+| `context.messagesParser` | Helper methods bound to the current `state.messages`. |
+| `context.instance` | Parent `Fragola` instance. |
+| `context.getStore(namespace?)` | Read the default local store or an agent-scoped namespaced store. |
+| `context.addStore(store)` | Register an agent-scoped namespaced store. |
+| `context.removeStore(namespace)` | Remove an agent-scoped namespaced store. |
+| `context.updateTools(callback)` | Replace or edit the current tool list. |
+| `context.setInstructions(instructions, scope?)` | Set default instructions or a scoped instruction fragment. |
+| `context.getInstructions(scope?)` | Read the default instructions or one scoped fragment. |
+| `context.removeInstructions(scope)` | Remove one scoped instruction fragment. |
+| `context.setOptions(options)` | Update mutable agent options while the agent is idle. |
+| `context.stop()` / `context.stopSync()` | Request cancellation of the current run. |
+
+## Notes
+
+- `context.getStore()` is about agent-local stores. For Fragola-level shared stores, use `context.instance.store` or `context.instance.getStore(...)`.
+- `context.raw.updateMessages()` is intentionally low-level. Prefer higher-level APIs first.
+- `context.messagesParser` is the best entry point when you need to read final output or find the origin of a tool result.
+
+For more narrative guidance and examples, read [Context](/agents/context).

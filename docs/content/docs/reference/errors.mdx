@@ -1,0 +1,43 @@
+---
+title: Errors
+description: Fragola-specific error types and how to reason about them.
+---
+
+Fragola throws a small set of SDK-specific error classes when execution cannot continue safely.
+
+## Error classes
+
+| Error | When it is used |
+| --- | --- |
+| `FragolaError` | Base class for SDK-specific runtime errors. |
+| `BadUsage` | The caller provided an invalid configuration or used an API in a way the runtime cannot support. |
+| `MaxStepHitError` | A multi-step loop exceeded `maxStep` before finishing. |
+| `JsonModeError` | `json()` could not produce a valid assistant JSON response. |
+
+## Practical guidance
+
+- Catch `BadUsage` when the problem is likely in your own configuration or integration code.
+- Catch `MaxStepHitError` when building tool-heavy agents and decide whether to retry, raise the step limit, or surface a fallback response.
+- Catch `JsonModeError` when using structured extraction and you want to log the failed response or return a validation error to the caller.
+
+## Example
+
+```ts
+import { JsonModeError, MaxStepHitError } from "@fragola-ai/agent";
+
+try {
+	const result = await agent.json({
+		content: "Extract the order total.",
+		name: "order_total",
+		schema,
+	});
+} catch (error) {
+	if (error instanceof JsonModeError) {
+		console.error("json extraction failed", error.message);
+	} else if (error instanceof MaxStepHitError) {
+		console.error("agent loop hit maxStep", error.message);
+	} else {
+		throw error;
+	}
+}
+```

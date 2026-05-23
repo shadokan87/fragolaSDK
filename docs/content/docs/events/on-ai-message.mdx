@@ -1,0 +1,66 @@
+---
+title: onAiMessage
+description: Transform assistant messages before they're appended to state.
+---
+
+Runs for assistant messages, including partial streamed messages. Transform the message before it's added to conversation history.
+
+## Parameters
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `message` | `ChatCompletionAssistantMessageParam` | The assistant message (partial during streaming). |
+| `finish_reason` | `string \| null` | Reason for completion (`"stop"`, `"tool_calls"`, etc.). `null` during streaming. |
+| `usage` | `object \| undefined` | Token usage information from the model. |
+| `context` | `AgentContext` | Agent context with state, stores, and controls. |
+
+## Returns
+
+Return one of:
+- Modified assistant message - Transform before appending
+- `skip()` - Keep message unchanged
+- `context.stop()` - Prevent message from being appended
+
+## Examples
+
+Trim message content:
+
+```ts
+agent.onAiMessage((message, finish_reason) => {
+  if (finish_reason === null) return message;
+  if (typeof message.content !== "string") return message;
+  
+  return {
+    ...message,
+    content: message.content.trim(),
+  };
+});
+```
+
+Add metadata:
+
+```ts
+agent.onAiMessage((message, finish_reason) => {
+  if (finish_reason === null) return message;
+  
+  return {
+    ...message,
+    content: typeof message.content === "string" 
+      ? `${message.content}\n\n(verified)`
+      : message.content,
+  };
+});
+```
+
+Filter during streaming:
+
+```ts
+agent.onAiMessage((message) => {
+  if (typeof message.content !== "string") return message;
+  
+  return {
+    ...message,
+    content: message.content.replace("[DEBUG]", ""),
+  };
+});
+```

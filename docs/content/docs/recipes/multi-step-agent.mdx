@@ -1,0 +1,68 @@
+---
+title: Multi-step agent
+description: Let an agent iterate through several tool and model cycles.
+---
+
+Fragola already supports multi-step behavior. You do not need to build a manual loop just because the model calls tools.
+
+If the model asks for a tool, Fragola will execute that tool, append the tool message, and continue until the model reaches a stopping condition or the step limit is hit.
+
+## A normal `userMessage()` call can already be multi-step
+
+```ts
+const agent = fragola.agent({
+	name: "research-agent",
+	description: "Looks things up before answering",
+	instructions: "Use tools when they provide better evidence than memory.",
+	tools: [searchDocs, fetchDocument],
+	stepOptions: { maxStep: 5 },
+});
+
+await agent.userMessage({
+	content: "Find the migration guide, read it, and summarize the breaking changes.",
+});
+```
+
+In practice, that single call may contain several internal steps:
+
+- one model turn that requests a tool,
+- one or more tool executions,
+- another model turn that uses the tool result,
+- and finally the assistant answer.
+
+## Control how far one call can go
+
+| Parameter | Where | Description |
+| --- | --- | --- |
+| `by` | `step({ by })` or `userMessage({ step: { by } })` | Stop after at most `N` executed steps for that call. |
+| `maxStep` | Agent `stepOptions` or per-call step overrides | Global ceiling before Fragola throws `MaxStepHitError`. |
+| `resetStepCountAfterUserMessage` | `stepOptions` | Reset the internal step counter after a new user turn. |
+| `modelSettings` | `stepOptions` | Override model inference settings for that execution. |
+| `clientOptions` | `stepOptions` | Override OpenAI client options for that execution. |
+
+## Continue a seeded conversation manually with `step()`
+
+Use `step()` when you already have a message history and want to advance it without appending a new user message first.
+
+```ts
+const seeded = fragola.agent({
+	name: "seeded-agent",
+	description: "Continues an existing conversation",
+	instructions: "Be concise.",
+	messages: [{ role: "user", content: "Say hello once." }],
+});
+
+await seeded.step({ by: 1 });
+```
+
+This is useful for tests, replayed sessions, or workflows where messages are inserted by another system.
+
+## When multi-step goes wrong
+
+If the loop cannot finish before `maxStep`, Fragola throws `MaxStepHitError`.
+
+That usually means one of three things:
+
+- the prompt keeps sending the model back to tools,
+- the tool results are not giving the model enough information to finish,
+- or the step limit is simply too low for the workflow.

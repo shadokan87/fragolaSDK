@@ -1,0 +1,68 @@
+---
+title: Tool-using agent
+description: A practical agent flow where the model calls one or more tools.
+---
+
+This recipe shows the full flow most production agents rely on:
+
+1. the model decides to call a tool,
+2. Fragola validates the tool arguments,
+3. the handler returns a result,
+4. that result is written back into the conversation,
+5. the model gets another turn to produce the final answer.
+
+## Example
+
+```ts
+import { Fragola, tool } from "@fragola-ai/agent";
+import { createStore } from "@fragola-ai/agent/store";
+import { z } from "zod";
+
+const fragola = new Fragola({
+	apiKey: process.env.OPENAI_API_KEY!,
+	model: "gpt-4o-mini",
+});
+
+const searchDocs = tool({
+	name: "search_docs",
+	description: "Search internal docs by keyword",
+	schema: z.object({ query: z.string() }),
+	handler: async ({ query }) => {
+		return [
+			{ title: "Work with metadata", url: "/agents/work-with-metadata", match: query },
+		];
+	},
+});
+
+const agent = fragola.agent({
+	name: "docs-assistant",
+	description: "Answers questions about the docs",
+	instructions: "Use the search tool before answering questions about specific pages.",
+	tools: [searchDocs],
+	store: createStore({ toolCalls: 0 }, "session"),
+});
+
+agent.onAfterToolCall((_result, _params, _tool, context) => {
+	context.store.update((prev) => ({
+		...prev,
+		toolCalls: prev.toolCalls + 1,
+	}));
+});
+
+const state = await agent.userMessage({
+	content: "Find the metadata page and tell me what it is for.",
+});
+
+console.log(agent.context.store.value.toolCalls);
+console.log(agent.context.messagesParser.finalOutput()?.content);
+console.log(state.messages);
+```
+
+## What to notice
+
+- The tool schema is what lets Fragola validate the arguments before your handler runs.
+- The tool result is available to tool events before it becomes a tool message in state.
+- The final answer usually comes after the tool call, not in the same model turn that requested it.
+- `messagesParser.finalOutput()` is a convenient way to read the last assistant answer once the loop finishes.
+
+If you only need the minimal setup, read [Agent with tools](/get-started/agent-with-tools). This recipe is the next step once you want to inspect or instrument the full tool cycle.

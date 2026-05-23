@@ -1,0 +1,58 @@
+---
+title: Fragola
+description: The top-level client that owns OpenAI-compatible configuration and shared resources.
+---
+
+`Fragola` creates agents, exposes shared client options, and can hold a global store.
+
+## Constructor
+
+```ts
+const fragola = new Fragola(clientOptions, globalStore, sdk);
+```
+
+| Parameter | Required | Description |
+| --- | --- | --- |
+| `clientOptions` | Yes | OpenAI-compatible client options plus the default `model` for agents created from this instance. |
+| `globalStore` | No | Default shared store available through `fragola.store` and `context.instance.store`. |
+| `sdk` | No | Advanced/testing override for the OpenAI-compatible SDK constructor. |
+
+## Common client options
+
+`clientOptions` extends the OpenAI client options, so the exact set depends on the SDK. The most common fields are:
+
+| Option | Required | Description |
+| --- | --- | --- |
+| `model` | Yes | Default model used by agents unless they override it in `modelSettings`. |
+| `apiKey` | Usually | OpenAI-compatible API key, unless your environment or custom endpoint provides auth another way. |
+| `baseURL` | No | Custom OpenAI-compatible endpoint. |
+| `events.agentCreated` | No | Callback fired after `fragola.agent(...)` creates a new agent. |
+
+## Main surfaces
+
+| Surface | Description |
+| --- | --- |
+| `fragola.agent(opts)` | Create a new `Agent` bound to this client instance. |
+| `fragola.json(query, options?)` | Run one-off structured extraction through a temporary agent. |
+| `fragola.options` | Read the current client options. |
+| `fragola.store` | Read the default global store, if one exists. |
+| `fragola.getStore(namespace?)` | Read the default global store or a shared namespaced store. |
+| `fragola.addStore(store)` | Register a shared namespaced store. |
+| `fragola.removeStore(namespace)` | Remove a shared namespaced store. |
+
+## Minimal example
+
+```ts
+import { Fragola } from "@fragola-ai/agent";
+
+const fragola = new Fragola({
+	apiKey: process.env.OPENAI_API_KEY!,
+	model: "gpt-4o-mini",
+});
+
+const agent = fragola.agent({
+	name: "assistant",
+	description: "Minimal assistant",
+	instructions: "You are a helpful assistant.",
+});
+```

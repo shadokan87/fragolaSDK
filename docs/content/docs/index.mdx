@@ -1,74 +1,62 @@
 ---
-title: Overview
-description: Overview of the Fragola SDK
+title: Introduction
+description: Start building event-driven agents with tools, state, and hooks.
 ---
 
-Fragola is an event-driven SDK for building AI-first software. It enables you to build complex agentic systems with a lightweight, production-ready toolkit that stays out of your way.
+Fragola is an event-driven SDK for building agents without hiding the underlying OpenAI message model.
 
-The SDK is built around a small set of powerful primitives:
+The core primitives stay small:
 
-- **Agents**: LLM instances with a state and tools.
-- **Tools**: Strongly-typed functions with Zod or JSON schema validation.
-- **Hooks**: Package reusable agent behavior and integrations.
-- **Stores**: Standard way of handling runtime variables for your agents.
-- **Events**: A rich subscription system for observability and control.
-- **Metadatas**: Insert custom typed metadata in your agent conversation.
+- **Agents** own instructions, messages, tools, and runtime state.
+- **Tools** are typed functions the model can call.
+- **Events** expose the model and tool lifecycle.
+- **Hooks** package reusable behavior and integrations.
+- **Stores** hold shared mutable runtime data.
+- **Metadata** lets you keep typed app data attached to messages.
 
-## Why use Fragola
+## Start here
 
-Fragola is designed to be the **foundation** of your AI architecture, not a rigid framework that dictates it.
+- Read [Quickstart](/get-started/quickstart) for the shortest path from install to first reply.
+- Read [Agent with tools](/get-started/agent-with-tools) to see the main production flow.
+- Read [Work with metadata](/agents/work-with-metadata) if you need request IDs, trace data, or cache hints on messages.
+- Browse [Events](/events) when you want to intercept model calls, tool execution, or state updates.
 
-- **Make it your own**: Fragola is a library, not a framework. It gives you the building blocks: **Agents**, **Tools**, **Events**, **Hooks**.But leaves the architectural decisions to you.Using events and hooks, you compose the pieces to fit your specific system design.
-- **Zero Abstraction Overhead**: We use Openai SDK under the hood, an agent messages's type is stays `OpenAI.ChatCompletionMessageParam[]`. No custom message types to learn or convert.
-- **Event-Driven observability**: Hook into every stage of the agent loop—model invocation, tool execution, message updates—for deep observability and control.
-- **Extensible by Design**: Use the Hook system to add reusable capabilities and external integrations without rewriting your core logic.
+## What is ready
+
+- Agent creation and message loops.
+- Tool execution with Zod or JSON-schema-style definitions.
+- Event hooks around model invocation, tools, and state updates.
+- Typed metadata that stays in `state.messages` and is stripped only before the outbound API request.
+
+## What comes next
+
+- External hook packages live in this repository under `hook.presets/`, including guardrails, orchestration, and MCP tools.
 
 ## Installation
-<Tabs items={["npm", "bun", "pnpm", "yarn"]}>
-  <Tab value="npm">
-    ```bash
-    npm install @fragola-ai/agentic-sdk-core
-    ```
-  </Tab>
-  <Tab value="bun">
-    ```bash
-    bun add @fragola-ai/agentic-sdk-core
-    ```
-  </Tab>
-  <Tab value="pnpm">
-    ```bash
-    pnpm add @fragola-ai/agentic-sdk-core
-    ```
-  </Tab>
-  <Tab value="yarn">
-    ```bash
-    yarn add @fragola-ai/agentic-sdk-core
-    ```
-  </Tab>
-</Tabs>
 
-
-## Hello World
+```bash
+npm install @fragola-ai/agent
+```
 
 ```typescript
-import { Fragola } from "@fragola-ai/agentic-sdk-core";
+import { Fragola } from "@fragola-ai/agent";
 
 const fragola = new Fragola({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: process.env.OPENAI_API_KEY!,
   model: "gpt-4o-mini"
 });
 
 const agent = fragola.agent({
-  name: "HelloAgent",
-  description: "A simple greeting agent",
+  name: "docs-assistant",
+  description: "A simple starting point",
   instructions: "You are a friendly assistant."
 });
 
 const state = await agent.userMessage({
-  content: "You are my first agent, introduce yourself by saying hello world !"
+  content: "Give me three names for a docs rewrite project."
 });
 
-console.log(state.messages);
+console.log(state.messages.at(-1));
 ```
 
-- Ready to get productive? Head to the [Get Started](/docs/get-started) guide.
+Continue with [Quickstart](/get-started/quickstart).

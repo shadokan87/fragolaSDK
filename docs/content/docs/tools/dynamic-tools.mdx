@@ -1,0 +1,62 @@
+---
+title: Dynamic tools
+description: Plug in dynamic tool behavior when tool definitions are not fully static.
+---
+
+Dynamic tools are real tools in the model schema, but they do not execute a local handler.
+
+Use them when the model should see a tool definition, but the actual result must come from another system such as a remote service, a queue worker, or a custom integration.
+
+## Define a dynamic tool
+
+```ts
+import { tool } from "@fragola-ai/agent";
+import { z } from "zod";
+
+const searchDocs = tool({
+	name: "search_docs",
+	description: "Search the documentation index",
+	schema: z.object({ query: z.string() }),
+	handler: "dynamic",
+});
+```
+
+Setting `handler: "dynamic"` tells Fragola not to call a local function.
+
+## Inject the result in `onBeforeToolCall()`
+
+```ts
+agent.onBeforeToolCall(async (config, tool) => {
+	if (tool.name !== "search_docs" || !("params" in config)) return config;
+
+	const response = await fetch("https://example.com/search", {
+		method: "POST",
+		headers: { "content-type": "application/json" },
+		body: JSON.stringify(config.params),
+	});
+
+	const result = await response.json();
+	return { injectResult: result };
+});
+```
+
+This is the required execution path for a dynamic tool. If no `injectResult` is returned, Fragola throws a `BadUsage` error at runtime.
+
+## Moving parts
+
+| Piece | Required | Description |
+| --- | --- | --- |
+| `handler: "dynamic"` | Yes | Marks the tool as externally resolved. |
+| `onBeforeToolCall()` | Yes for execution | Intercepts the call before any local handler would run. |
+| `{ injectResult }` | Yes at runtime | Supplies the value that becomes the tool result. |
+| `config.params` | Usually | Contains the validated tool arguments when the model produced a tool call. |
+
+## When to use dynamic tools
+
+Dynamic tools are useful when:
+
+- the real executor lives outside the current process,
+- the tool result comes from a queue or another API boundary,
+- or the tool definition must exist before you know how the result will be produced.
+
+If the logic already lives in your current runtime, use a normal function handler instead. It is simpler to test and easier to follow.

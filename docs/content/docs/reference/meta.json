@@ -1,0 +1,11 @@
+{
+  "pages": [
+    "index",
+    "fragola",
+    "agent",
+    "agent-context",
+    "store",
+    "state-utils",
+    "errors"
+  ]
+}

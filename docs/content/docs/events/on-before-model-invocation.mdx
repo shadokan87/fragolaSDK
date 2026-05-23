@@ -1,0 +1,55 @@
+---
+title: onBeforeModelInvocation
+description: Override request config or bypass the model call entirely.
+---
+
+Runs before each model invocation. Return modified config, inject a message to skip the API call, or inject a custom response.
+
+## Parameters
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `config` | `ModelInvocationConfig` | Current config with `modelSettings` and `clientOptions`, or injection options. |
+| `context` | `AgentContext` | Agent context with state, stores, and controls. |
+
+## Returns
+
+Return one of:
+- `{ modelSettings, clientOptions }` - Override request settings
+- `{ injectMessage }` - Bypass API call with a final assistant message
+- `{ injectResponse }` - Provide a custom SDK response
+- `skip()` - Keep current config unchanged
+- `context.stop()` - Cancel the invocation
+
+## Examples
+
+Inject a cached message:
+
+```ts
+agent.onBeforeModelInvocation(() => ({
+  injectMessage: { content: "hello from cache" },
+}));
+```
+
+Override model settings:
+
+```ts
+agent.onBeforeModelInvocation((config) => ({
+  modelSettings: {
+    ...config.modelSettings,
+    temperature: 0.7,
+  },
+  clientOptions: config.clientOptions,
+}));
+```
+
+Stop invocation based on condition:
+
+```ts
+agent.onBeforeModelInvocation((config, context) => {
+  if (context.state.stepCount > 10) {
+    return context.stop();
+  }
+  return config;
+});
+```

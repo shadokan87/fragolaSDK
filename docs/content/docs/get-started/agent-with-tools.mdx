@@ -1,0 +1,142 @@
+---
+title: Agent with Tools
+description: Connect agents to functions, APIs, and external data with type-safe tool definitions.
+---
+
+Tools let agents call TypeScript functions. Define tools with Zod schemas for automatic validation and type inference.
+
+## Basic Tool Example
+
+```ts
+import { Fragola, tool } from "@fragola-ai/agent";
+import { z } from "zod";
+
+const getWeather = tool({
+  name: "get_weather",
+  description: "Fetch current weather for a city",
+  schema: z.object({
+    location: z.string().describe("City name, e.g., 'Paris'"),
+  }),
+  handler: async ({ location }) => {
+    // Call a real weather API in production
+    return {
+      location,
+      forecast: "sunny",
+      temperatureC: 24,
+      humidity: 45,
+    };
+  },
+});
+
+const fragola = new Fragola({
+  apiKey: process.env.OPENAI_API_KEY!,
+  model: "gpt-4o-mini",
+});
+
+const agent = fragola.agent({
+  name: "weather-agent",
+  description: "Answers weather questions",
+  instructions: "Use get_weather when users ask about weather.",
+  tools: [getWeather],
+});
+
+const state = await agent.userMessage({
+  content: "What's the weather in Paris?",
+});
+
+console.log(state.context.messageParser.finalOutput()?.content);
+// "The weather in Paris is currently sunny with a temperature of 24°C..."
+```
+
+When the model needs weather data, it calls `getWeather`. Fragola executes the handler, injects the result, and automatically re-invokes the model with the data.
+
+### Tool Parameters
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `name` | `string` | Unique identifier the model uses to call this tool. |
+| `description` | `string` | Tells the model when and why to use this tool. Be specific. |
+| `schema` | `ZodType \| string` | Zod schema for parameter validation, or JSON Schema string. |
+| `handler` | `(params, context) => any \| "dynamic"` | Function that executes when tool is called. Return structured data. |
+
+## Multiple Tools
+
+```ts
+import { Fragola, tool } from "@fragola-ai/agent";
+import { z } from "zod";
+
+const searchProducts = tool({
+  name: "search_products",
+  description: "Search for products in the database",
+  schema: z.object({ query: z.string() }),
+  handler: async ({ query }) => {
+    return [
+      { id: 1, name: "Laptop", price: 999, inStock: true },
+      { id: 2, name: "Mouse", price: 29, inStock: false },
+    ];
+  },
+});
+
+const checkInventory = tool({
+  name: "check_inventory",
+  description: "Check stock levels for a specific product ID",
+  schema: z.object({ productId: z.number() }),
+  handler: async ({ productId }) => {
+    return { productId, quantity: 15, warehouse: "US-WEST" };
+  },
+});
+
+const agent = fragola.agent({
+  name: "sales-assistant",
+  description: "Helps customers find products",
+  instructions: "Search products first, then check inventory if needed.",
+  tools: [searchProducts, checkInventory],
+});
+```
+
+## Tool Handler Patterns
+
+Return structured data for the model to process:
+
+```ts
+handler: async ({ city }) => {
+  try {
+    return await weatherAPI.fetch(city);
+  } catch (error) {
+    return {
+      error: true,
+      message: `Could not fetch weather for ${city}`,
+    };
+  }
+}
+```
+
+Access agent context in handlers:
+
+```ts
+handler: async ({ query }, context) => {
+  const results = await db.search(query);
+  context.store.update({ lastSearch: query });
+  return results;
+}
+```
+
+## Monitoring Tools
+
+Track tool execution with events:
+
+```ts
+agent.events.on("onToolCall", ({ call }) => {
+  console.log(`Calling: ${call.function.name}`);
+});
+
+agent.events.on("onToolResult", ({ call, result }) => {
+  console.log(`Result:`, result);
+});
+```
+
+## Next Steps
+
+- [Schemas](/tools/schemas) - Complex parameter validation
+- [Dynamic Tools](/tools/dynamic-tools) - Context-dependent tools
+- [Tool Results](/tools/tool-results) - Advanced result handling

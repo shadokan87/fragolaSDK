@@ -1,0 +1,49 @@
+---
+title: onAfterModelInvocation
+description: Observe the final assistant message after model invocation.
+---
+
+Runs after the model produces an assistant message. Use for analytics, logging, or side effects.
+
+## Parameters
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `message` | `ChatCompletionAssistantMessageParam` | The complete assistant message from the model. |
+| `context` | `AgentContext` | Agent context with state, stores, and controls. |
+
+## Returns
+
+`void` or `Promise<void>` - This is a side-effect only event.
+
+## Examples
+
+Log assistant messages:
+
+```ts
+agent.onAfterModelInvocation((message) => {
+  console.log("AI response:", message.content);
+});
+```
+
+Track token usage:
+
+```ts
+agent.onAfterModelInvocation((message, context) => {
+  console.log(`Step ${context.state.stepCount} completed`);
+  if (message.tool_calls) {
+    console.log(`Called ${message.tool_calls.length} tools`);
+  }
+});
+```
+
+Send metrics:
+
+```ts
+agent.onAfterModelInvocation(async (message, context) => {
+  await analytics.track("model_invocation", {
+    agentName: context.agent.name,
+    stepCount: context.state.stepCount,
+  });
+});
+```

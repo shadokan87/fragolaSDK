@@ -1,0 +1,53 @@
+---
+title: onAfterToolCall
+description: Observe tool execution results for side effects.
+---
+
+Runs after a tool handler executes. Use for logging, metrics, or async side effects.
+
+## Parameters
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `result` | `any` | The value returned by the tool handler (after onToolCall transforms). |
+| `params` | `Record<string, any>` | Validated parameters passed to the handler. |
+| `tool` | `Tool` | The tool definition object. |
+| `context` | `AgentContext` | Agent context with state, stores, and controls. |
+
+## Returns
+
+`void` or `Promise<void>` - This is a side-effect only event.
+
+## Examples
+
+Log tool execution:
+
+```ts
+agent.onAfterToolCall((result, params, tool) => {
+  console.log(`Tool ${tool.name} completed:`, result);
+});
+```
+
+Track tool usage:
+
+```ts
+agent.onAfterToolCall(async (result, params, tool, context) => {
+  await analytics.track("tool_call", {
+    toolName: tool.name,
+    params,
+    success: !result?.error,
+    stepCount: context.state.stepCount,
+  });
+});
+```
+
+Cache results:
+
+```ts
+const cache = new Map();
+
+agent.onAfterToolCall((result, params, tool) => {
+  const key = `${tool.name}:${JSON.stringify(params)}`;
+  cache.set(key, result);
+});
+```

@@ -1,0 +1,65 @@
+---
+title: Namespaced stores
+description: Register additional stores and retrieve them by namespace.
+---
+
+Namespaced stores are useful when you want multiple shared stores without collapsing them into one object.
+
+The namespace is the lookup key, so every namespaced store must be created with one.
+
+## Create a namespaced store
+
+```ts
+import { createStore } from "@fragola-ai/agent/store";
+
+const cacheStore = createStore({ hits: 0 }, "cache");
+```
+
+## Register a namespaced store on one agent
+
+```ts
+agent.context.addStore(cacheStore);
+
+agent.onAfterToolCall((_result, _params, _tool, context) => {
+	context.getStore<{ hits: number }>("cache")?.update((prev) => ({
+		...prev,
+		hits: prev.hits + 1,
+	}));
+});
+```
+
+This store belongs only to that agent instance.
+
+## Register a namespaced store on the Fragola instance
+
+```ts
+const featureFlags = createStore({ useFastPath: true }, "flags");
+
+fragola.addStore(featureFlags);
+
+agent.onAfterStateUpdate((context) => {
+	const flags = context.instance.getStore<{ useFastPath: boolean }>("flags");
+	console.log(flags?.value.useFastPath);
+});
+```
+
+This version is shared by every agent created from that `Fragola` instance.
+
+## API summary
+
+| Surface | Requirements | Description |
+| --- | --- | --- |
+| `createStore(value, namespace)` | Namespace required for namespaced use | Create a store that can be registered by name. |
+| `agent.context.addStore(store)` | `store.namespace` must exist and be unique per agent | Register an agent-scoped namespaced store. |
+| `agent.context.getStore(namespace)` | Namespace must match an agent-scoped store | Read one agent-scoped namespaced store. |
+| `agent.context.removeStore(namespace)` | none | Remove an agent-scoped namespaced store. |
+| `fragola.addStore(store)` | `store.namespace` must exist and be unique per Fragola instance | Register a shared namespaced store. |
+| `fragola.getStore(namespace)` | Namespace must match a Fragola-scoped store | Read one shared namespaced store. |
+| `fragola.removeStore(namespace)` | none | Remove a shared namespaced store. |
+
+## Rules to remember
+
+- A namespaced store without a namespace cannot be registered.
+- Namespaces must be unique within the registry you add them to.
+- Agent-scoped and Fragola-scoped registries are separate.
+- Removing a missing namespace does not crash, but it is still a sign that your wiring may be off.

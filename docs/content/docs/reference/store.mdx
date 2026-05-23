@@ -1,0 +1,42 @@
+---
+title: Store
+description: Mutable runtime storage separate from the conversation transcript.
+---
+
+Use a `Store` when you need mutable runtime state that should not live in `state.messages`.
+
+## Create a store
+
+```ts
+import { createStore } from "@fragola-ai/agent/store";
+
+const sessionStore = createStore({ count: 0 }, "session");
+```
+
+## API summary
+
+| Surface | Description |
+| --- | --- |
+| `createStore(value, namespace?)` | Create a new store instance. |
+| `store.value` | Read the current value. |
+| `store.set(data)` | Replace the value. |
+| `store.update(callback)` | Compute the next value from the previous value. |
+| `store.onChange(callback)` | Subscribe to changes. |
+| `store.namespace` | Read the namespace if one was assigned. |
+
+## Example
+
+```ts
+const store = createStore({ count: 0 }, "session");
+
+store.onChange((value) => {
+	console.log("new count", value.count);
+});
+
+store.update((prev) => ({
+	...prev,
+	count: prev.count + 1,
+}));
+```
+
+Namespaces matter only when you want to register the store on an agent or on the `Fragola` instance for lookup by name.

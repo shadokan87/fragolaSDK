@@ -1,0 +1,60 @@
+---
+title: onBeforeToolCall
+description: Modify parameters or inject results before tool execution.
+---
+
+Runs before a tool handler executes. Modify parameters or bypass the handler entirely.
+
+## Parameters
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `config` | `ToolCallConfig` | Either `{ params }` with validated args or `{ injectResult }` to bypass handler. |
+| `tool` | `Tool` | The tool definition object. |
+| `context` | `AgentContext` | Agent context with state, stores, and controls. |
+
+## Returns
+
+Return one of:
+- `{ params: newParams }` - Rewrite validated arguments
+- `{ injectResult }` - Bypass handler with a result
+- `skip()` - Keep current config unchanged
+- `context.stop()` - Abort the tool call
+
+## Examples
+
+Modify parameters:
+
+```ts
+agent.onBeforeToolCall((config, tool) => {
+  if (tool.name !== "search" || !("params" in config)) return config;
+  return { params: { ...config.params, limit: 5 } };
+});
+```
+
+Inject cached results:
+
+```ts
+const cache = new Map();
+
+agent.onBeforeToolCall((config, tool) => {
+  if (!("params" in config)) return config;
+  
+  const key = `${tool.name}:${JSON.stringify(config.params)}`;
+  if (cache.has(key)) {
+    return { injectResult: cache.get(key) };
+  }
+  return config;
+});
+```
+
+Rate limiting:
+
+```ts
+agent.onBeforeToolCall((config, tool, context) => {
+  if (tool.name === "api_call" && rateLimiter.isExceeded()) {
+    return { injectResult: { error: "Rate limit exceeded" } };
+  }
+  return config;
+});
+```

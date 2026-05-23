@@ -1,0 +1,14 @@
+---
+title: Lifecycle
+description: Understand where each event family fits into the agent loop.
+---
+
+At a high level, the lifecycle is split into a few phases:
+
+1. `onUserMessage()` receives user input as it enters the conversation.
+2. `onBeforeStep()` and `onBeforeModelInvocation()` can alter how the next model call runs.
+3. `onModelInvocation()` and `onAiMessage()` observe or rewrite model output.
+4. `onBeforeToolCall()`, `onToolCall()`, and `onAfterToolCall()` wrap tool execution.
+5. `onAfterModelInvocation()`, `onAfterStep()`, and `onAfterStateUpdate()` are for post-processing and side effects.
+
+Use the specific event pages for return types and examples.

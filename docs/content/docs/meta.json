@@ -1,0 +1,21 @@
+{
+  "pages": [
+    "---[Rocket] Get Started---",
+    "index",
+    "...get-started",
+    "---[Bot] Agents---",
+    "...agents",
+    "---[Wrench] Tools---",
+    "...tools",
+    "---[Zap] Events---",
+    "...events",
+    "---[Plug] Hooks---",
+    "...hooks",
+    "---[Database] Stores---",
+    "...stores",
+    "---[FlaskConical] Recipes---",
+    "...recipes",
+    "---[BookOpen] Reference---",
+    "...reference"
+  ]
+}

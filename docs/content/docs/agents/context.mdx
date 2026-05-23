@@ -1,0 +1,80 @@
+---
+title: Context
+description: Use agent context inside events, hooks, and tool handlers.
+---
+
+`agent.context` is the runtime surface you use inside hooks, events, and tool handlers.
+
+It gives you the current state, mutable stores, instruction controls, tool mutation utilities, and a few low-level escape hatches.
+
+## What is available on `agent.context`
+
+| Surface | What it gives you | Typical use |
+| --- | --- | --- |
+| `state` | The current in-memory agent state. | Read messages, status, and step count inside handlers. |
+| `options` | The current agent options. | Inspect the active configuration. |
+| `store` | The agent's default local store. | Keep per-agent mutable data such as counters or cached values. |
+| `messagesParser` | Helper methods bound to the current `state.messages`. | Find the final output, last message by role, or tool call origin. |
+| `raw.updateMessages(callback)` | A low-level message mutation API. | Make advanced state edits when higher-level APIs are not enough. |
+| `instance` | The parent `Fragola` instance. | Reach global stores or shared client-level resources. |
+| `getStore(namespace?)` | Local store lookup. | Read the default local store or an extra namespaced store. |
+| `addStore(store)` / `removeStore(namespace)` | Manage agent-scoped namespaced stores. | Attach additional runtime stores to one agent. |
+| `updateTools(callback)` | Replace or edit the current tool list. | Add, remove, or rewrite tools at runtime. |
+| `setInstructions(...)` / `getInstructions(...)` / `removeInstructions(...)` | Manage default or scoped instructions. | Add prompt overlays without rebuilding the agent. |
+| `setOptions(options)` | Update mutable agent options. | Adjust runtime configuration while the agent is idle. |
+| `stop()` / `stopSync()` | Request cancellation. | Stop the current pipeline from inside events or integrations. |
+
+## Read state inside handlers
+
+```ts
+agent.onAfterStateUpdate((context) => {
+	console.log("messages", context.state.messages.length);
+	console.log("steps", context.state.stepCount);
+});
+```
+
+Use `state` for reads. If you only need common message lookups, prefer `messagesParser` over manual array scans.
+
+## Use context inside tool handlers
+
+```ts
+import { createStore } from "@fragola-ai/agent/store";
+import { tool } from "@fragola-ai/agent";
+import { z } from "zod";
+
+const agent = fragola.agent({
+	name: "notes-agent",
+	description: "Keeps track of saved notes",
+	instructions: "Use tools when needed.",
+	store: createStore({ savedCount: 0 }, "session"),
+	tools: [
+		tool({
+			name: "save_note",
+			description: "Store a note title",
+			schema: z.object({ title: z.string() }),
+			handler: async ({ title }, context) => {
+				context.store.update((prev) => ({
+					...prev,
+					savedCount: prev.savedCount + 1,
+				}));
+
+				return { saved: true, title };
+			},
+		}),
+	],
+});
+```
+
+The tool handler receives the same live context as an event callback, so it can update stores, inspect state, or stop execution when needed.
+
+## Prefer high-level APIs before `raw.updateMessages()`
+
+`raw.updateMessages()` is powerful because it lets you replace the entire message array from a callback.
+
+```ts
+await agent.context.raw.updateMessages((prev) => prev.slice(-10));
+```
+
+Use it sparingly. In most cases, `userMessage()`, `step()`, events, stores, or metadata are a safer way to express the same behavior.
+
+If you do reach for `raw.updateMessages()`, make sure the new array still represents a valid conversation for your model and tools.

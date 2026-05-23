@@ -1,0 +1,82 @@
+---
+title: Instructions
+description: Write the initial system behavior clearly and update it when your workflow changes.
+---
+
+`instructions` are the base system prompt for an agent.
+
+Think of them as the durable operating contract for the model: what role it is playing, how it should use tools, what output shape it should prefer, and what rules it must not break.
+
+Start simple. If your prompt logic keeps growing, move the repeated pieces into hooks or helper functions and keep the base instructions focused on stable behavior.
+
+## Start with one clear default
+
+```ts
+const agent = fragola.agent({
+	name: "support-agent",
+	description: "Handles customer support requests",
+	instructions: [
+		"You are a careful support assistant.",
+		"Ask clarifying questions when the request is ambiguous.",
+		"Use tools when they provide a more reliable answer than guessing.",
+		"When you do not know, say so plainly.",
+	].join("\n"),
+});
+```
+
+Good default instructions usually cover four things:
+
+- the role the model should play,
+- the level of certainty or caution you expect,
+- how tools should be used,
+- and the output format you want most of the time.
+
+Keep transient state out of instructions. Request IDs, tenant settings, or per-message business data belong in metadata, stores, or events.
+
+## Update instructions at runtime
+
+Fragola lets you change instructions after the agent is created through `agent.context`.
+
+| Surface | Parameters | Use when |
+| --- | --- | --- |
+| `agent({ instructions })` | `instructions: string` | Set the default behavior when the agent is created. |
+| `context.setInstructions(instructions)` | `instructions: string` | Replace the default instruction block. |
+| `context.setInstructions(instructions, scope)` | `instructions: string`, `scope: string` | Add or replace a scoped instruction fragment without overwriting the default block. |
+| `context.getInstructions(scope?)` | `scope?: string` | Inspect the current default instructions or one scoped fragment. |
+| `context.removeInstructions(scope)` | `scope: string` | Remove a scoped fragment when it no longer applies. |
+
+## Use scopes for overlays, not for everything
+
+Scoped instructions are useful when you want to layer new behavior on top of the default prompt.
+
+```ts
+agent.context.setInstructions(
+	"Prefer markdown tables when comparing multiple options.",
+	"format"
+);
+
+agent.context.setInstructions(
+	"Use the billing team's vocabulary and escalation rules.",
+	"billing"
+);
+
+await agent.userMessage({
+	content: "Compare the Basic and Pro plans and tell me when to escalate.",
+});
+```
+
+Use scopes when the extra instruction is:
+
+- temporary,
+- owned by a hook or integration,
+- or tied to one capability such as formatting, billing, or moderation.
+
+Avoid creating dozens of tiny scopes for individual sentences. If a fragment always travels with the agent, it probably belongs in the default instructions.
+
+## Practical guidance
+
+- Be explicit about what the model should do before you tell it what to avoid.
+- Prefer short, testable rules over long prose paragraphs.
+- Put output requirements in instructions only when they should apply broadly; use `json()` plus a schema when you need strict structure.
+- If a hook changes behavior, give that hook its own scope so it can add and remove instructions cleanly.
+- Remember that changing instructions affects future model calls only. It does not rewrite existing messages.

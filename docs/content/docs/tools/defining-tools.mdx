@@ -1,0 +1,20 @@
+---
+title: Defining tools
+description: Create a typed tool with a name, description, schema, and handler.
+---
+
+```ts
+import { tool } from "@fragola-ai/agent";
+import { z } from "zod";
+
+const getWeather = tool({
+  name: "get_weather",
+  description: "Return the weather for a location",
+  schema: z.object({ location: z.string() }),
+  handler: async ({ location }) => {
+    return `Weather in ${location}`;
+  },
+});
+```
+
+Register tools on the agent with `tools: [getWeather]`.

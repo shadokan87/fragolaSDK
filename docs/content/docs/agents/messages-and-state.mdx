@@ -1,0 +1,178 @@
+---
+title: Messages and State
+description: Access conversation state and messages using messageParser helpers.
+---
+
+Agents maintain full conversation history in `state.messages` using OpenAI's message format. The messages array is fully compatible with OpenAI APIs and can be serialized or passed to other systems.
+
+## Message Types
+
+```ts
+type Message =
+  | { role: "user"; content: string }
+  | { role: "assistant"; content: string }
+  | { role: "assistant"; tool_calls: ToolCall[] }
+  | { role: "tool"; tool_call_id: string; content: string }
+  | { role: "system"; content: string };
+```
+
+Assistant messages contain either `content` (text) or `tool_calls` (function requests), never both. This makes `messages.at(-1)` unreliable when tools are involved.
+
+## messageParser: Type-Safe Access
+
+Use `context.messageParser` for safe message operations:
+
+```ts
+const state = await agent.userMessage({ content: "Hello" });
+
+// Safe - guaranteed assistant text message or undefined
+const response = state.context.messageParser.finalOutput();
+if (response) {
+  console.log(response.content); // Type-safe
+}
+```
+
+### API Methods
+
+### API Methods
+
+#### `finalOutput()`
+
+Returns the last assistant message only if it contains text content. Returns `undefined` if the last message is a user message, tool call, or tool result.
+
+```ts
+const response = state.context.messageParser.finalOutput();
+if (response) {
+  console.log("AI:", response.content);
+}
+```
+
+#### `messageByRole(role)`
+
+Finds the last message with the specified role.
+
+```ts
+const lastUser = state.context.messageParser.messageByRole("user");
+const lastAssistant = state.context.messageParser.messageByRole("assistant");
+const lastTool = state.context.messageParser.messageByRole("tool");
+```
+
+#### `toolCallOrigin(toolMessage)`
+
+Traces a tool result back to the assistant message that requested it.
+
+```ts
+const lastTool = state.context.messageParser.messageByRole("tool");
+if (lastTool?.role === "tool") {
+  const origin = state.context.messageParser.toolCallOrigin(lastTool);
+  console.log(`Called: ${origin?.function.name}`);
+  console.log(`Args: ${origin?.function.arguments}`);
+}
+```
+
+#### `messages`
+
+Read-only accessor to the messages array.
+
+```ts
+agent.events.on("onBeforeModelInvocation", ({ context }) => {
+  console.log(`Sending ${context.messageParser.messages.length} messages`);
+});
+```
+
+## Comparison Table
+
+| Approach | Type Safety | Use Case |
+| --- | --- | --- |
+| `messages.at(-1)` | No guarantee | When you need the absolute last message and will handle type checking |
+| `finalOutput()` | Guaranteed assistant text or undefined | **Recommended** for getting AI's text response |
+| `messageByRole(role)` | Guaranteed role match or undefined | Finding specific message types |
+| `toolCallOrigin()` | Guaranteed tool call object or undefined | Tracing tool execution |
+
+## Common Patterns
+
+Display AI response:
+
+```ts
+const state = await agent.userMessage({ content: "What's 2+2?" });
+
+const response = state.context.messageParser.finalOutput();
+if (response) {
+  return { text: response.content };
+} else {
+  return { text: "Processing..." };
+}
+```
+
+Trace tool execution:
+
+```ts
+agent.events.on("onToolResult", ({ context, result }) => {
+  const lastTool = context.messageParser.messageByRole("tool");
+  
+  if (lastTool?.role === "tool") {
+    const origin = context.messageParser.toolCallOrigin(lastTool);
+    console.log(`${origin?.function.name} returned:`, result);
+  }
+});
+```
+
+## Agent State
+
+The agent state includes execution tracking beyond messages:
+
+```ts
+const state = await agent.userMessage({ content: "Hello" });
+
+console.log({
+  messages: state.messages,      // Full message array
+  status: state.status,          // "idle" | "pending" | "stopped"
+  stepCount: state.stepCount,    // Model invocation count
+  context: state.context,        // AgentContext with messageParser
+});
+```
+
+### State Properties
+
+| Property | Type | Description |
+| --- | --- | --- |
+| `messages` | `ChatCompletionMessageParam[]` | Full conversation history in OpenAI format. |
+| `status` | `"idle" \| "pending" \| "stopped"` | Execution state. |
+| `stepCount` | `number` | Number of model invocations. |
+| `context` | `AgentContext` | Live context with messageParser, stores, and controls. |
+
+Agent state is immutable—each `userMessage()` call returns a new state object:
+
+```ts
+const state1 = await agent.userMessage({ content: "Hello" });
+const state2 = await agent.userMessage({ content: "How are you?" });
+
+console.log(state1.messages.length);  // 2
+console.log(state2.messages.length);  // 4
+// state1 is unchanged
+```
+
+## State Tracking Patterns
+
+Beyond awaiting each message, you can track state via events:
+
+```ts
+let state = agent.state;
+
+agent.onAfterStateUpdate((context) => {
+  state = context.state;
+  // Stream to frontend via SSE or WebSocket
+  sse.send({ messages: state.messages });
+  // or: socket.emit('state', state);
+});
+
+await agent.userMessage({ content: "Hello" });
+```
+
+This is useful for streaming responses or building real-time UIs where you don't want to await each interaction.
+
+## Next Steps
+
+- [Agent Context](/reference/agent-context) - Full AgentContext API
+- [State Utils Reference](/reference/state-utils) - Complete messagesParser docs
+- [Streaming](/agents/streaming) - Real-time message updates

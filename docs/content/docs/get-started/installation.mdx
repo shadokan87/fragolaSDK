@@ -1,0 +1,63 @@
+---
+title: Installation
+description: Install Fragola and configure the OpenAI client.
+---
+
+Fragola runs on Node.js 18+ compatible runtimes.
+
+## Install
+
+```bash
+npm install @fragola-ai/agent
+```
+
+## Configure
+
+Set your OpenAI API key:
+
+```bash
+export OPENAI_API_KEY=your-api-key-here
+```
+
+Create a Fragola instance:
+
+```ts
+import { Fragola } from "@fragola-ai/agent";
+
+export const fragola = new Fragola({
+  apiKey: process.env.OPENAI_API_KEY!,
+  model: "gpt-4o-mini",
+});
+```
+
+## Configuration Options
+
+| Option | Type | Description |
+| --- | --- | --- |
+| `apiKey` | `string` | OpenAI API key. **Required** unless providing custom `client`. |
+| `model` | `string?` | Default model for all agents (e.g., `"gpt-4o-mini"`). Can override per-agent. |
+| `baseURL` | `string?` | Custom API endpoint for OpenAI-compatible services. |
+| `client` | `OpenAI?` | Custom OpenAI client instance for advanced configuration. |
+| `defaultHeaders` | `Record<string, string>?` | Custom headers for all API requests. |
+| `timeout` | `number?` | Request timeout in milliseconds. Default: 60000. |
+
+## Verify Installation
+
+Test with a quick agent:
+
+```ts
+const agent = fragola.agent({
+  name: "test",
+  description: "Test agent",
+  instructions: "Be helpful.",
+});
+
+const state = await agent.userMessage({ content: "Say hello!" });
+console.log(state.context.messageParser.finalOutput()?.content);
+```
+
+## Next Steps
+
+- [Quickstart](/get-started/quickstart) - 20-line working example
+- [First Agent](/get-started/first-agent) - Core concepts
+- [Agent with Tools](/get-started/agent-with-tools) - Add capabilities

@@ -1,0 +1,144 @@
+---
+title: Basic Chat Agent
+description: Build a conversational agent that maintains context.
+---
+
+Build a stateful chat agent that remembers conversation history and responds to follow-up questions.
+
+## The Recipe
+
+```ts
+import { Fragola } from "@fragola-ai/agent";
+
+const fragola = new Fragola({
+  apiKey: process.env.OPENAI_API_KEY!,
+  model: "gpt-4o-mini",
+});
+
+const chatAgent = fragola.agent({
+  name: "helpful-assistant",
+  description: "A friendly conversational agent",
+  instructions: "Be concise and friendly. Reference previous context naturally.",
+});
+
+const state1 = await chatAgent.userMessage({
+  content: "What's the capital of France?",
+});
+
+const response1 = state1.context.messageParser.finalOutput();
+console.log("AI:", response1?.content);
+// "The capital of France is Paris."
+
+const state2 = await chatAgent.userMessage({
+  content: "What's the population?",
+});
+
+const response2 = state2.context.messageParser.finalOutput();
+console.log("AI:", response2?.content);
+// "Paris has a population of approximately 2.1 million..."
+
+console.log(`Messages: ${state2.messages.length}`);  // 4
+console.log(`Steps: ${state2.stepCount}`);            // 2
+```
+
+## How It Works
+
+`userMessage()` appends your message to the conversation history and sends the full context to the model. The agent remembers previous messages, so follow-up questions work naturally.
+
+Use `messageParser.finalOutput()` to safely access the AI's text response—it returns `undefined` if the last message isn't an assistant text message (e.g., during tool execution).
+
+## Interactive Chat
+
+```ts
+import * as readline from "readline/promises";
+
+async function interactiveChat() {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  console.log("Chat started. Type 'exit' to quit.\n");
+
+  while (true) {
+    const userInput = await rl.question("You: ");
+    
+    if (userInput.toLowerCase() === "exit") {
+      rl.close();
+      break;
+    }
+
+    const state = await chatAgent.userMessage({ content: userInput });
+    const response = state.context.messageParser.finalOutput();
+    
+    console.log(`AI: ${response?.content}\n`);
+  }
+}
+
+interactiveChat();
+```
+
+## Managing Context
+
+Trim old messages to avoid context limits:
+
+```ts
+chatAgent.events.on("onBeforeModelInvocation", ({ context }) => {
+  const messages = context.messageParser.messages;
+  
+  if (messages.length > 20) {
+    const systemMessages = messages.filter(m => m.role === "system");
+    const recentMessages = messages.slice(-18);
+    
+    context.raw.updateMessages([...systemMessages, ...recentMessages]);
+  }
+});
+```
+
+## Persisting Conversations
+
+Save and restore message history:
+
+```ts
+import fs from "fs/promises";
+
+// Save
+await fs.writeFile(
+  "chat.json",
+  JSON.stringify({ messages: state.messages })
+);
+
+// Restore
+const data = JSON.parse(await fs.readFile("chat.json", "utf-8"));
+const restored = fragola.agent({
+  name: "helpful-assistant",
+  description: "A friendly conversational agent",
+  instructions: "Be concise and friendly.",
+  messages: data.messages,
+});
+```
+
+## Real-Time State Updates
+
+For streaming UIs or WebSocket-based chats, track state via events:
+
+```ts
+let state = agent.state;
+
+agent.onAfterStateUpdate((context) => {
+  state = context.state;
+  // Send to frontend via SSE or WebSocket
+  socket.emit('message', {
+    messages: state.messages,
+    stepCount: state.stepCount,
+  });
+});
+
+await agent.userMessage({ content: "Hello" });
+```
+
+## Next Steps
+
+- [Tool Using Agent](/recipes/tool-using-agent) - Add capabilities
+- [Messages and State](/agents/messages-and-state) - Message handling guide
+- [Instructions](/agents/instructions) - System prompt best practices

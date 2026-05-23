@@ -1,0 +1,12 @@
+{
+  "pages": [
+    "index",
+    "creating-agents",
+    "instructions",
+    "messages-and-state",
+    "work-with-metadata",
+    "context",
+    "streaming",
+    "structured-output"
+  ]
+}

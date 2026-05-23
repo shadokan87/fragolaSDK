@@ -1,0 +1,21 @@
+---
+title: skip() and context.stop()
+description: Control how event pipelines continue when a handler does not want to rewrite the current value.
+---
+
+Most rewriting events support two control signals:
+
+- `skip()` keeps the current value and lets the pipeline continue.
+- `context.stop()` stops the current pipeline.
+
+```ts
+import { skip } from "@fragola-ai/agent/event";
+
+agent.onToolCall((result, _params, tool, context) => {
+  if (tool.name !== "search") return skip();
+  if (!result) return context.stop();
+  return result;
+});
+```
+
+Use `skip()` when you simply have nothing to change. Use `context.stop()` when continuing the current lifecycle would be wrong or wasteful.

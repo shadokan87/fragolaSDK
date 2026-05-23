@@ -45,6 +45,9 @@ export abstract class AgentContext<TMetaData extends DefineMetaData<any> = {}, T
      */
     abstract getStore<T extends StoreLike<any> = {}>(namespace?: string): Store<T> | undefined;
 
+    /** Returns the agent system prompt exactly as sent to the llm. The system prompt is the result of all the instructions scopes merged */
+    abstract get systemPrompt(): string;
+
     /**
      * Sets the current instructions for the agent.
      * @param instructions - The new instructions as a string.
@@ -52,13 +55,13 @@ export abstract class AgentContext<TMetaData extends DefineMetaData<any> = {}, T
     abstract setInstructions(instructions: string, scope?: string): void;
 
     /**
-     * Returns the system prompt for a given scope.
+     * Returns the instructions for a given scope.
      * @param scope - The instructions scope, leave empty to get the default scope (optional)
      */
     abstract getInstructions(scope?: string): string | undefined;
 
     /**
-     * Remove the system prompt for a given scope. 
+     * Remove the instructions for a given scope. 
      * @param scope - The instructions scope to remove
      * @returns a boolean, true = removed, false = scope do not exist
      */

@@ -1,4 +1,3 @@
-// TODO: dispose method
 // TODO: logger method
 import { createStore, Store } from "./store"
 import { Fragola, stripMessagesMeta, type ChatCompletionAssistantMessageParam, type ChatCompletionMessageParam, type ChatCompletionUserMessageParam, type DefineMetaData, type MessageMeta, type OpenaiClientOptions, type Tool } from "./fragola"
@@ -182,7 +181,8 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
     private registeredEvents = new EventMap<AgentEventId, registeredEvent<AgentEventId, TMetaData, TGlobalStore, TStore>[], TMetaData, TGlobalStore, TStore>()
     private abortController: AbortController | undefined = undefined;
     private stopRequested: boolean = false;
-    private hooks: Array<{ hook: FragolaHook, name?: string, sourceHookId: string }> = [];
+    //TODO: maybe replace with a map for better perf
+    private hooks: Array<{ hook: FragolaHook, name?: string, sourceHookId: string, dispose: FragolaHookDispose }> = [];
     private hookDisposeMap: Map<string, FragolaHookDispose> = new Map();
     private pendingHookNames: Set<string> = new Set();
     private activeHookSourceId: string | undefined = undefined;
@@ -273,6 +273,9 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
             }
             removeStore(namespace: string): void {
                 _this.removeStore(namespace);
+            }
+            get systemPrompt(): string {
+                return _this.mergedInstructions;
             }
             setInstructions(instructions: string, scope?: string): void {
                 // If a scope is provided, context scoped instructions, otherwise update the default instructions
@@ -479,7 +482,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
     }
 
     /** Return cached merged instructions, computing them if necessary. */
-    private getMergedInstructions(): string {
+    private get mergedInstructions(): string {
         if (this.mergedInstructionsCache === undefined) this.updateMergedInstructionsCache();
         return this.mergedInstructionsCache ?? "";
     }
@@ -541,6 +544,11 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
             if (maxStep <= 0)
                 throw new BadUsage(`Invalid StepOptions.maxStep value '${maxStep}'. maxStep controls how many steps the agent may execute, so it must be greater than 0. Provide a positive integer such as 1 or 10.`)
         }
+    }
+
+    /** Waits for all pending hook setup to finish without executing a step. */
+    async init() {
+        await this.hooksLoaded;
     }
 
     /**
@@ -753,7 +761,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
 
                         const requestBody: ChatCompletionCreateParamsBase = {
                             ...config.modelSettings as ChatCompletionCreateParamsBase,
-                            messages: [{ role: instructionsRole, content: this.getMergedInstructions() }, ...stripMessagesMeta(this.#state.messages)]
+                            messages: [{ role: instructionsRole, content: this.mergedInstructions }, ...stripMessagesMeta(this.#state.messages)]
                         };
                         if (this.paramsTools?.length)
                             requestBody["tools"] = this.paramsTools;
@@ -1320,7 +1328,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      *
      * @example
      * ```ts
-    * import { Hook } from "@fragola-ai/agentic-sdk-core/hook";
+    * import { Hook } from "@fragola-ai/agent/hook";
     *
     * const loggingHook = Hook((agent) => {
     *   agent.onAfterStateUpdate((context) => {
@@ -1355,7 +1363,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                 }
             })
             .then((dispose) => {
-                this.hooks.push({ hook, name, sourceHookId });
+                this.hooks.push({ hook, name, sourceHookId, dispose: dispose ?? NOOP_HOOK_DISPOSE });
 
                 if (!name) {
                     return;
@@ -1398,6 +1406,23 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
 
         await dispose();
         return true;
+    }
+
+    /**
+     * Removes every hook currently registered on the agent.
+     */
+    async dispose(): Promise<void> {
+        await this.hooksLoaded;
+
+        for (const hookEntry of [...this.hooks].reverse()) {
+            if (hookEntry.name) {
+                await this.removeHook(hookEntry.name);
+                continue;
+            }
+
+            await hookEntry.dispose();
+            this.hooks = this.hooks.filter((entry) => entry.sourceHookId !== hookEntry.sourceHookId);
+        }
     }
 }
 

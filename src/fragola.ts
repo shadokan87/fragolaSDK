@@ -57,6 +57,34 @@ export interface Tool<T extends z.ZodType<any, any> | string = any> {
     schema?: T;
 }
 
+/**
+ * Create a tool for your agent using Zod schema or JSON schema.
+ *
+ * @example
+ * // Example: Weather tool using Zod schema
+ * import z from "zod";
+ * import { tool } from "./fragola";
+ *
+ * const getWeather = tool({
+ *   name: "getWeather",
+ *   description: "Get the current weather for a city.",
+ *   schema: z.object({ city: z.string() }),
+ *   handler: async ({ city }) => {
+ *     // Replace with real API call
+ *     return { city, temperature: 22, unit: "C" };
+ *   },
+ * });
+ *
+ * // Example: Weather tool using JSON schema string
+ * const getWeatherStringSchema = tool({
+ *   name: "getWeather",
+ *   description: "Get the current weather for a city.",
+ *   schema: '{ "type": "object", "properties": { "city": { "type": "string" } }, "required": ["city"] }',
+ *   handler: async ({ city }: { city: string }) => {
+ *     return { city, temperature: 22, unit: "C" };
+ *   },
+ * });
+ */
 export const tool = <T extends z.ZodType<any, any> | string>(params: Tool<T>) => params;
 
 export function stripMeta<T extends object>(data: (T & { meta?: any }) | Array<T & { meta?: any }>) {

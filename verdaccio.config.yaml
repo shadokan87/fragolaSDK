@@ -18,7 +18,7 @@ uplinks:
 
 # Packages configuration
 packages:
-  '@fragola-ai/agentic-sdk-core':
+  '@fragola-ai/agent':
     access: $all
     publish: $all
     unpublish: $all

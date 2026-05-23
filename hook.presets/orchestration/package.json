@@ -1,0 +1,50 @@
+{
+  "name": "@fragola-ai/hook-orchestration",
+  "version": "0.1.0",
+  "description": "Orchestration hook preset for Fragola agents.",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "type": "module",
+  "files": [
+    "dist/**/*",
+    "README.md"
+  ],
+  "keywords": [
+    "fragola",
+    "hook",
+    "orchestration",
+    "agent",
+    "multi-agent"
+  ],
+  "author": "Fragola AI",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@fragola-ai/agent": "^0.1.0",
+    "zod": "^3.25.67"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "esbuild": "^0.25.9",
+    "typescript": "^5.9.2",
+    "vitest": "^4.0.1"
+  },
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build": "bun run build.ts",
+    "test:build": "bun run build && cd tests && rm -rf node_modules && bun i && bunx vitest --run",
+    "test": "cd tests && bunx vitest --run",
+    "test:watch": "cd tests && bunx vitest",
+    "test:local": "cd tests && rm -rf node_modules && bun i --verbose --registry http://localhost:4873 && bunx vitest --run",
+    "publish:local": "npm publish --registry http://localhost:4873",
+    "publish:prod": "bun scripts/publish-prod.ts",
+    "test:release": "bash scripts/test-release.sh",
+    "prepublishOnly": "bun run build"
+  }
+}

@@ -109,7 +109,7 @@ export async function createAgentWithSkills(options: SkillsOptions, agentName = 
     //@ts-ignore
   }).use(skills(options), "skills");
 
-  await agent.step();
+  await agent.init();
   return agent;
 }
 

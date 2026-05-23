@@ -1,0 +1,18 @@
+{
+  "name": "@fragola-ai/hook-guardrail-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "bunx vitest --run",
+    "test:watch": "bunx vitest"
+  },
+  "dependencies": {
+    "@fragola-ai/agent": "file:../../..",
+    "@fragola-ai/hook-guardrail": "file:.."
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.9.2",
+    "vitest": "^4.0.1"
+  }
+}

@@ -67,7 +67,7 @@ export const guardrail = (
       if (lastMessage?.role == "user") {
           const meta = lastMessage.meta as GuardRailMeta | undefined;
           if (meta?.guardrail.rejected) {
-              await context.raw.updateMessages((prev) => prev.slice(0, -1))
+              await context.raw.updateMessages((prev) => ([...prev, {role: "assistant", content: ""}]))
           }
       }
       // We test the user message against the guardrail array

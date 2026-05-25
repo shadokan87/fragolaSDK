@@ -6,17 +6,18 @@ import Ajv, { type Options as AjvOptions } from "ajv";
 
 type MaybePromise<T> = Promise<T> | T;
 
-export type McpClientOptions = {
+export type McpClientConfig = {
   name: string;
   url: string;
+  headers?: RequestInit["headers"];
 };
 
-export type McpToolsCallback = (tools: Tool<any>[]) => MaybePromise<Tool<any>[]>;
+export type McpClientCallback = (tools: Tool<any>[]) => MaybePromise<Tool<any>[]>;
 
-export type McpToolsOptions = {
-  client: McpClientOptions | Client;
+export type McpClientOptions = {
+  client: McpClientConfig | Client;
   schemaValidation?: AjvOptions;
-  tools?: McpToolsCallback;
+  tools?: McpClientCallback;
 };
 
 type LoadedClient = {
@@ -60,7 +61,7 @@ function normalizeToolContent(content: unknown[]): string | unknown {
   });
 }
 
-async function connectClient(clientOrOptions: McpClientOptions | Client): Promise<LoadedClient> {
+async function connectClient(clientOrOptions: McpClientConfig | Client): Promise<LoadedClient> {
   if (clientOrOptions instanceof Client) {
     return {
       client: clientOrOptions,
@@ -68,7 +69,11 @@ async function connectClient(clientOrOptions: McpClientOptions | Client): Promis
     };
   }
 
-  const transport = new StreamableHTTPClientTransport(new URL(clientOrOptions.url));
+  const transport = new StreamableHTTPClientTransport(new URL(clientOrOptions.url), {
+    requestInit: clientOrOptions.headers
+      ? { headers: clientOrOptions.headers }
+      : undefined,
+  });
   const client = new Client({
     name: clientOrOptions.name,
     version: "1.0",
@@ -105,7 +110,7 @@ function createAjv(options: AjvOptions | undefined) {
   });
 }
 
-export const mcpTools = (options: McpToolsOptions[] | McpToolsOptions): FragolaHook => {
+export const mcpClient = (options: McpClientOptions[] | McpClientOptions): FragolaHook => {
   return async (agent: Parameters<FragolaHook>[0]) => {
     const configuredOptions = Array.isArray(options) ? options : [options];
     const loadedClients: LoadedClient[] = [];
@@ -171,6 +176,5 @@ export const mcpTools = (options: McpToolsOptions[] | McpToolsOptions): FragolaH
   };
 };
 
-export const mcpClient = mcpTools;
 
-export default mcpTools;
+export default mcpClient;

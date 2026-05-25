@@ -1,5 +1,5 @@
 {
-  "name": "@fragola-ai/hook-mcp-tools-tests",
+  "name": "@fragola-ai/hook-mcp-client-tests",
   "private": true,
   "type": "module",
   "scripts": {
@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "@fragola-ai/agent": "file:../../..",
-    "@fragola-ai/hook-mcp-tools": "file:.."
+    "@fragola-ai/hook-mcp-client": "file:.."
   },
   "devDependencies": {
     "@types/bun": "latest",

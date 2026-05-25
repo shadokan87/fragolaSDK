@@ -1,6 +1,6 @@
 {
   "name": "@fragola-ai/agent",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "An event-driven SDK for building AI agents. Interoperable with OpenAI SDK.",
   "main": "./dist/package/fragola.index.js",
   "module": "./dist/package/fragola.index.js",
@@ -59,6 +59,9 @@
   "publishConfig": {
     "access": "public"
   },
+  "workspaces": [
+    "hook.presets/*"
+  ],
   "engines": {
     "node": ">=18"
   },
@@ -98,6 +101,7 @@
     "lint": "bunx eslint .",
     "clean": "rm -rf dist",
     "build": "bun run build.ts",
+    "hook-preset": "bun run scripts/create-hook-preset/create.ts",
     "test:build": "bun run build && cd tests && rm -rf node_modules && bun i && bunx vitest --run",
     "test": "cd tests && bunx vitest --run",
     "test:watch": "cd tests && bunx vitest",

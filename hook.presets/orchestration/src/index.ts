@@ -10,6 +10,7 @@ export namespace OrchestrationType {
   export type flowValue = {
     to: participants[0] | "*";
     bidirectional?: boolean;
+    replyLength?: number;
   };
   export type flow = [Agent, flowValue][];
   export type config = {

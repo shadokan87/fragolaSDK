@@ -1,7 +1,7 @@
 {
-  "name": "@fragola-ai/hook-skills",
+  "name": "skills",
   "version": "0.1.0",
-  "description": "Agent Skills hook preset for Fragola agents.",
+  "description": "Hook preset for Fragola agents.",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -14,9 +14,7 @@
     "fragola",
     "hook",
     "skills",
-    "agent",
-    "agent-skills",
-    "github"
+    "agent"
   ],
   "author": "Fragola AI",
   "license": "MIT",
@@ -28,9 +26,7 @@
   },
   "dependencies": {
     "@fragola-ai/agent": "^0.1.0",
-    "nanoid": "^5.1.5",
-    "simple-git": "^3.36.0",
-    "zod": "^3.25.67"
+    "nanoid": "^5.1.11"
   },
   "devDependencies": {
     "@types/bun": "latest",
@@ -41,9 +37,6 @@
   "scripts": {
     "clean": "rm -rf dist",
     "build": "bun run build.ts",
-    "test:build": "bun run build && cd tests && rm -rf node_modules && bun i && bunx vitest --run",
-    "test": "cd tests && bunx vitest --run",
-    "test:watch": "cd tests && bunx vitest",
     "prepublishOnly": "bun run build"
   }
 }

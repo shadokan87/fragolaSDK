@@ -43,13 +43,15 @@ const getErrorResult = (error: unknown): BashToolResult => {
     return { exitCode: -1, stdin: "", stdout: "", stderr: getErrorString(error) };
 };
 
+const bashSchema = z.object({
+    command: z.string().min(1).describe("The executable to run, for example `git`, `ls`, or `node`."),
+    args: z.array(z.string()).max(50).optional().describe("Arguments passed to the command, one array element per argument.")
+});
+
 export const bashTool = tool({
     name: "bash-command",
     description: "Run a local bash command from command and args. Supports shell operators and returns exitCode, stdout, stderr, and an empty stdin field.",
-    schema: z.object({
-        command: z.string().min(1).describe("The executable to run, for example `git`, `ls`, or `node`."),
-        args: z.array(z.string()).max(50).optional().describe("Arguments passed to the command, one array element per argument.")
-    }),
+    schema: bashSchema,
     async handler(params): Promise<BashToolResult> {
         const { command, args = [] } = params;
         const commandLine = [command, ...args].join(" ");
@@ -72,8 +74,13 @@ export const bashTool = tool({
     }
 });
 
-export const bashHook: FragolaHook = (agent: AgentAny) => {
+export type BashHookOptions = {
+    execute?: (params: z.infer<typeof bashSchema>) => Promise<BashToolResult> | BashToolResult;
+}
+
+export const bashHook = (options?: BashHookOptions): FragolaHook => (agent: AgentAny) => {
     agent.context.setInstructions(bashInstructions, bashInstructionName);
+    // const _bashTool = 
     agent.context.updateTools((prev) => {
         return [...prev, bashTool];
     });

@@ -210,9 +210,8 @@ export type SkillsStore = {
 
 export const skills = (options: TemplateOptions): FragolaHook => {
   return async (agent) => {
-    if (options?.debug) {
-      console.log("[hook-skills] installed");
-    }
+    const debugLog = (...args: any[]) => { if (options?.debug) console.log("[hook-skills]", ...args); };
+    debugLog("installed");
     const getId: IdGenerator = options.idGenerator ?? defaultIdGenerator;
     const sandbox = options.sandbox ?? defaultSandbox;
     const storeName = options.storeName ?? "skills";
@@ -258,6 +257,7 @@ When calling \`execute_script\`, follow these guidelines:
       activated_skills: "No skills activated"
     } as PromptVariables);
 
+    debugLog("set initial prompt instructions");
     setInstructions(prompt.value);
 
     //@ts-expect-error - utility functions will be added to the store below
@@ -266,9 +266,10 @@ When calling \`execute_script\`, follow these guidelines:
       ids: [],
       activated: [],
     }, storeName);
+    debugLog("created skills store", storeName);
 
     const buildSkillsVariable = () => {
-      let res: string = "No skills are available";
+      let res: string = "";
       for (const id of store.value.ids) {
         const skill = store.value.skills[id];
         if (skill.status != "loaded" || skill.exclude)
@@ -280,6 +281,8 @@ description: ${skill.description}
 
 `
       }
+      if (!res.length)
+        return "No skills are available";
       return res.trim();
     }
 
@@ -314,10 +317,12 @@ ${skill.body}
         ...prompt.variables,
         skills: buildSkillsVariable()
       } as PromptVariables);
+      debugLog("added skill", skill.id, (skill as any).name);
       setInstructions(prompt.value);
     }
 
     const setCurrentError = (current: processingSkill, error: unknown, isZodError: boolean = false) => {
+      debugLog("skill parse/error", current.id, error);
       addSkill({
         id: current.id,
         source: current.source,
@@ -330,6 +335,7 @@ ${skill.body}
 
     const processSources = async (sources: SkillSource[]) => {
       for (const source of sources) {
+        debugLog("processing source", source.path);
         if (!source.kind)
           source["kind"] = "fs"
 
@@ -350,7 +356,9 @@ ${skill.body}
           case "fs": {
             try {
               content = await sandbox.readFile(skillPath, "utf-8", store);
+              debugLog("read content for", skillPath, "length", content ? content.length : 0);
             } catch (e) {
+              debugLog("readFile error for", skillPath, e);
               setCurrentError(current, e);
               if (options.throwReadErrors) {
                 throw e;
@@ -391,11 +399,13 @@ ${skill.body}
           yamlParsed = YAML.parse(frontMatterRaw);
           const zodParsed = options.enforceFrontmatterGrammar ? SkillFrontmatterGrammarSchema.safeParse(yamlParsed) : SkillFrontmatterSchema.safeParse(yamlParsed);
           if (zodParsed.error) {
+            debugLog("frontmatter zod error for", current.id, zodParsed.error);
             setCurrentError(current, zodParsed.error, true);
             continue;
           }
         } catch (error) {
-          setCurrentError
+          debugLog("frontmatter parse error for", current.id, error);
+          setCurrentError(current, error);
           if (options.throwParsingErrors)
             throw error;
           continue;
@@ -408,6 +418,7 @@ ${skill.body}
           status: "loaded",
           body: content.slice(frontMatterEnd + 3).trim()
         }
+        debugLog("loaded skill", loaded.id, (loaded as any).name);
         addSkill(loaded);
       }
     }
@@ -512,10 +523,10 @@ ${skill.body}
           } catch(e) {
             if (e instanceof SandBoxOperationError) {
               return e.message;
-            } else
-              console.log(JSON.stringify(e, null, 2));
+            } else {
+              debugLog("execute_script unexpected error", e);
               process.exit(1);
-              return "An internal error occured while running the script"
+            }
           }
         }
       })
@@ -528,5 +539,8 @@ ${skill.body}
     }
   };
 };
+
+export { default as workspaceHook, workspaceInstructionName, workspaceToolName } from "./workspace";
+export type { WorkspaceHookOptions, WorkspaceToolResult, WorkspaceVolume } from "./workspace";
 
 export default skills;

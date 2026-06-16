@@ -146,6 +146,7 @@ export interface FragolaEvents {
 
 export type ClientOptions = OpenaiClientOptions & PreferedModel & {events?: FragolaEvents};
 
+/** Creates a fragola instance */
 export class Fragola<TGlobalStore extends StoreLike<any> = {}> {
     #sdk: typeof OpenAI;
     #sdkInstance: OpenAI;

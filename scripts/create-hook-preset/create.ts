@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 import { $ } from "bun";
+import { existsSync } from "fs";
 import { join } from "path";
 
 const TEMPLATE_DIR = join(import.meta.dir, "template");
@@ -9,6 +10,11 @@ async function createHookPreset(name: string, packageName: string) {
   const targetDir = join(HOOK_PRESETS_DIR, name);
 
   console.log(`Creating hook preset: ${name}`);
+
+  if (existsSync(targetDir)) {
+    console.error(`Cannot create hook preset '${name}' because '${targetDir}' already exists.`);
+    process.exit(1);
+  }
 
   // Create the target directory
   await $`mkdir -p ${targetDir}`;

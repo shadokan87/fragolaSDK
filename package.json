@@ -75,7 +75,6 @@
     "@types/bun": "latest",
     "@types/puppeteer": "^7.0.4",
     "esbuild": "^0.25.9",
-    "portkey-ai": "^3.0.1",
     "tsc-alias": "^1.8.10",
     "typescript": "^5.9.2",
     "vitest": "^4.0.1"
@@ -93,6 +92,7 @@
     "json-schema-to-zod": "^2.6.1",
     "nanoid": "^5.1.5",
     "openai": "6.9.0",
+    "portkey-ai": "^3.1.0",
     "puppeteer": "^24.27.0",
     "typescript-eslint": "^8.42.0",
     "zod": "^3.25.67"

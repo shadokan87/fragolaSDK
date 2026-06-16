@@ -1,5 +1,5 @@
 import type { maybePromise } from "@src/types";
-import {Agent} from "../agent";
+import {Agent, type AgentAny} from "../agent";
 
 /**
  * Cleanup function returned by a hook.
@@ -15,7 +15,7 @@ export type FragolaHookDispose = () => maybePromise<void>;
  * A hook receives the agent during initialization and may optionally return a
  * disposer for later cleanup.
  */
-export type FragolaHook = (agent: Agent) => maybePromise<void | FragolaHookDispose>;
+export type FragolaHook = (agent: AgentAny) => maybePromise<void | FragolaHookDispose>;
 
 /**
  * Identity helper for : Reusable agent extension function.

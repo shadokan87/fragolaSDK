@@ -78,7 +78,7 @@ describe("fork", () => {
         expect(fork.forkOf).toBe(agent.id);
         expect(fork.context.getStore()?.namespace).toBe("local");
         expect(fork.context.getStore("extra")?.namespace).toBe("extra");
-        expect(fork.context.getInstructions("scope:a")).toBe("scoped instruction");
+        expect(fork.context.instructions("scope:a")).toBe("scoped instruction");
         expect(fork.context.getStore()).not.toBe(agent.context.getStore());
         expect(fork.context.getStore("extra")).not.toBe(agent.context.getStore("extra"));
 
@@ -88,7 +88,7 @@ describe("fork", () => {
 
         expect(fork.context.getStore<{ nested: { count: number } }>()!.value).toEqual({ nested: { count: 1 } });
         expect(fork.context.getStore<{ nested: { count: number } }>("extra")!.value).toEqual({ nested: { count: 2 } });
-        expect(fork.context.getInstructions("scope:a")).toBe("scoped instruction");
+        expect(fork.context.instructions("scope:a")).toBe("scoped instruction");
 
         fork.context.getStore<{ nested: { count: number } }>()!.update(() => ({ nested: { count: 100 } }));
         fork.context.getStore<{ nested: { count: number } }>("extra")!.update(() => ({ nested: { count: 200 } }));
@@ -96,7 +96,7 @@ describe("fork", () => {
 
         expect(agent.context.getStore<{ nested: { count: number } }>()!.value).toEqual({ nested: { count: 10 } });
         expect(agent.context.getStore<{ nested: { count: number } }>("extra")!.value).toEqual({ nested: { count: 20 } });
-        expect(agent.context.getInstructions("scope:a")).toBe("original only");
+        expect(agent.context.instructions("scope:a")).toBe("original only");
     });
 
     it("forks the current state instead of resetting to the initial messages option", async () => {
@@ -225,7 +225,7 @@ describe("fork", () => {
 
         expect(handlerSpy).toHaveBeenCalledWith({ input: "original" }, expect.anything());
         expect(handlerSpy).toHaveBeenCalledWith({ input: "forked" }, expect.anything());
-        expect(agent.state.messages.some((message) => message.role === "tool" && message.content === "handled:original")).toBe(true);
-        expect(fork.state.messages.some((message) => message.role === "tool" && message.content === "handled:forked")).toBe(true);
+        expect(agent.state.messages.some((message) => message.role === "tool" && message.content === JSON.stringify({ success: true, data: "handled:original" }))).toBe(true);
+        expect(fork.state.messages.some((message) => message.role === "tool" && message.content === JSON.stringify({ success: true, data: "handled:forked" }))).toBe(true);
     });
 });

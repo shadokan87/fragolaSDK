@@ -12,7 +12,7 @@ const createDeferred = () => {
 };
 
 describe("Agent.dispose()", () => {
-  it("calls disposers for named and unnamed hooks and unregisters named hooks", async () => {
+  it("calls disposers for hooks that have already finished loading and unregisters named hooks", async () => {
     const namedDispose = vi.fn(async () => {});
     const unnamedDispose = vi.fn(async () => {});
 
@@ -25,35 +25,59 @@ describe("Agent.dispose()", () => {
     agent.use(() => namedDispose, "named-hook");
     agent.use(() => unnamedDispose);
 
-    await agent.dispose();
+    await agent.init();
+
+    await (agent as Record<string, any>)["dispose"]();
 
     expect(namedDispose).toHaveBeenCalledTimes(1);
     expect(unnamedDispose).toHaveBeenCalledTimes(1);
     expect(agent.hasHook("named-hook")).toBe(false);
   });
 
-  it("waits for pending hook initialization and disposes them", async () => {
+  it("cancels pending hook initialization without waiting for it to load", async () => {
     const gate = createDeferred();
-    const disposed: string[] = [];
+    const disposed = vi.fn(async () => {});
 
     const agent = fragola.agent({ name: "dispose-agent-2", instructions: "", description: "" });
 
     agent.use(async () => {
       await gate.promise;
-      return async () => {
-        disposed.push("disposed");
-      };
+      return disposed;
     }, "delayed");
 
-    const disposing = agent.dispose();
-    // allow microtasks to run; dispose should be waiting for hook init
+    await expect((agent as Record<string, any>)["dispose"]()).resolves.toBeUndefined();
+    expect(agent.hasHook("delayed")).toBe(false);
+
+    gate.resolve();
+    await Promise.resolve();
     await Promise.resolve();
 
-    // now resolve initialization
-    gate.resolve();
-    await disposing;
-
-    expect(disposed).toEqual(["disposed"]);
+    expect(disposed).not.toHaveBeenCalled();
     expect(agent.hasHook("delayed")).toBe(false);
+  });
+
+  it("does not re-register or dispose a hook that was still initializing when dispose is called", async () => {
+    const gate = createDeferred();
+    const disposed = vi.fn(async () => {});
+
+    const agent = fragola.agent({ name: "dispose-agent-3", instructions: "", description: "" });
+
+    agent.use(async () => {
+      await Promise.resolve();
+      await gate.promise;
+      return disposed;
+    }, "in-flight");
+
+    await Promise.resolve();
+
+    await expect((agent as Record<string, any>)["dispose"]()).resolves.toBeUndefined();
+    expect(agent.hasHook("in-flight")).toBe(false);
+
+    gate.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(disposed).not.toHaveBeenCalled();
+    expect(agent.hasHook("in-flight")).toBe(false);
   });
 });

@@ -58,7 +58,7 @@ export abstract class AgentContext<TMetaData extends DefineMetaData<any> = {}, T
      * Returns the instructions for a given scope.
      * @param scope - The instructions scope, leave empty to get the default scope (optional)
      */
-    abstract getInstructions(scope?: string): string | undefined;
+    abstract instructions(scope?: string): string | undefined;
 
     /**
      * Remove the instructions for a given scope. 

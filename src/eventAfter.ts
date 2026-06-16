@@ -1,7 +1,8 @@
 import type { maybePromise, StoreLike } from "./types";
 import type { AgentDefaultEventId, EventDefaultCallback } from "./event";
 import type { AgentContext } from "@src/agentContext";
-import type { ChatCompletionAssistantMessageParam, ChatCompletionMessageParam, DefineMetaData, Tool, ToolHandlerReturnTypeNonAsync } from "./fragola";
+import type { ChatCompletionAssistantMessageParam, ChatCompletionMessageParam, DefineMetaData, Tool } from "./fragola";
+import type { ToolCallPayload } from "./eventDefault";
 import type { StepOptions } from "./agent";
 
 export type AgentAfterEventExclusive = "after:stateUpdate" | "after:step";
@@ -23,7 +24,7 @@ export type EventAfterModelInvocation<TMetaData extends DefineMetaData<any>, TGl
 ) => maybePromise<void>;
 
 export type EventAfterToolCall<TParams = Record<any, any>, TMetaData extends DefineMetaData<any> = {}, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> = (
-    result: ToolHandlerReturnTypeNonAsync,
+    result: ToolCallPayload,
     params: TParams,
     tool: Tool<any>,
     context: AgentContext<TMetaData, TGlobalStore, TStore>

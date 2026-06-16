@@ -1,14 +1,14 @@
 // TODO: logger method
 import { createStore, Store } from "./store"
-import { Fragola, stripMessagesMeta, type ChatCompletionAssistantMessageParam, type ChatCompletionMessageParam, type ChatCompletionUserMessageParam, type DefineMetaData, type MessageMeta, type OpenaiClientOptions, type Tool } from "./fragola"
+import { Fragola, stripMessagesMeta, type ChatCompletionAssistantMessageParam, type ChatCompletionMessageParam, type ChatCompletionUserMessageParam, type DefineMetaData, type MessageMeta, type OpenaiClientOptions, type Tool, type ToolHandlerReturnTypeNonAsync } from "./fragola"
 import type { ChatCompletionCreateParamsBase } from "openai/resources/chat/completions.js"
-import { streamChunkToMessage, isAsyncFunction, isSkipEvent, isStopEvent, isChunkPartial } from "./utils"
+import { streamChunkToMessage, isSkipEvent, isStopEvent, isChunkPartial } from "./utils"
 import { BadUsage, FragolaError, JsonModeError, MaxStepHitError } from "./exceptions"
 import type z from "zod";
 import type { Prettify, StoreLike } from "./types"
 import OpenAI from "openai/index.js"
 import { type AgentEventId } from "./event"
-import type { EventToolCall, EventUserMessage, EventModelInvocation, EventAiMessage, ModelInvocationPayload } from "./eventDefault";
+import type { EventToolCall, EventUserMessage, EventModelInvocation, EventAiMessage, ModelInvocationPayload, ToolCallPayload } from "./eventDefault";
 import { nanoid } from "nanoid"
 import type { EventAfterStateUpdate, EventAfterStep, EventAfterModelInvocation, EventAfterToolCall } from "./eventAfter"
 import type { EventBeforeStep, EventBeforeModelInvocation, EventBeforeToolCall, ModelInvocationConfig, ToolCallConfig } from "./eventBefore"
@@ -137,9 +137,9 @@ export type applyEventParams<K extends AgentEventId, TMetaData extends DefineMet
     K extends "after:step" ? { options: Required<StepOptions>, newMessages: ChatCompletionMessageParam<TMetaData>[], stepsTaken: number } :
     K extends "before:modelInvocation" ? { config: ModelInvocationConfig<TMetaData> } :
     K extends "after:modelInvocation" ? { message: ChatCompletionAssistantMessageParam<TMetaData> } :
-    K extends "toolCall" ? { result: any, params: any, tool: Tool<any> } :
+    K extends "toolCall" ? { result: ToolCallPayload, params: any, tool: Tool<any> } :
     K extends "before:toolCall" ? { config: ToolCallConfig<any>, tool: Tool<any> } :
-    K extends "after:toolCall" ? { result: any, params: any, tool: Tool<any> } :
+    K extends "after:toolCall" ? { result: ToolCallPayload, params: any, tool: Tool<any> } :
     K extends "after:stateUpdate" ? null :
     never;
 
@@ -160,6 +160,7 @@ export type appliedEvent<K extends AgentEventId, TMetaData extends DefineMetaDat
 
 const FORK_FRIEND = Symbol("fork_friend");
 const NOOP_HOOK_DISPOSE: FragolaHookDispose = () => { };
+const CANCELLED_HOOK_INIT = Symbol("cancelled_hook_init");
 
 const formatIssuePath = (path: Array<string | number>) => path.length ? path.map(String).join(".") : "<root>";
 
@@ -168,6 +169,40 @@ const formatZodIssues = (issues: z.ZodIssue[]) => issues
     .join("; ");
 
 const formatUnknownError = (error: unknown) => error instanceof Error ? error.message : String(error);
+
+const createToolCallSuccessPayload = (data: ToolHandlerReturnTypeNonAsync): ToolCallPayload => ({
+    success: true,
+    data,
+});
+
+const defaultToolCallErrorData = (isValidationError: boolean): ToolHandlerReturnTypeNonAsync => {
+    return isValidationError
+        ? "Tool parameters invalid"
+        : "Arguments valid but tool call execution failed";
+};
+
+const createToolCallErrorPayload = (error: unknown, isValidationError: boolean = false): ToolCallPayload => ({
+    success: false,
+    ...(isValidationError ? { isValidationError: true } : {}),
+    error,
+    data: defaultToolCallErrorData(isValidationError),
+});
+
+const stringifyToolValue = (value: unknown): string => {
+    return JSON.stringify(value, (_key, nestedValue) => {
+        if (typeof nestedValue === "function")
+            return nestedValue.toString();
+        if (typeof nestedValue === "bigint")
+            return nestedValue.toString();
+        if (nestedValue instanceof Error) {
+            const nestedWithIssues = nestedValue as Error & { issues?: unknown };
+            return Array.isArray(nestedWithIssues.issues)
+                ? { name: nestedValue.name, message: nestedValue.message, issues: nestedWithIssues.issues }
+                : { name: nestedValue.name, message: nestedValue.message };
+        }
+        return nestedValue;
+    });
+};
 
 export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> {
     public static defaultAgentState: AgentState = {
@@ -185,6 +220,8 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
     private hooks: Array<{ hook: FragolaHook, name?: string, sourceHookId: string, dispose: FragolaHookDispose }> = [];
     private hookDisposeMap: Map<string, FragolaHookDispose> = new Map();
     private pendingHookNames: Set<string> = new Set();
+    private pendingHookSourceIds: Set<string> = new Set();
+    private cancelledHookSourceIds: Set<string> = new Set();
     private activeHookSourceId: string | undefined = undefined;
     /** serialized async initialization of hooks (ensures tools are ready before generation) */
     private hooksLoaded: Promise<void> = Promise.resolve();
@@ -280,6 +317,8 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
             setInstructions(instructions: string, scope?: string): void {
                 // If a scope is provided, context scoped instructions, otherwise update the default instructions
                 if (scope) {
+                    if (scope == '*')
+                        throw new BadUsage("'*' is a reserved instructions scope and cannot be used.");
                     _this.instructionScopes.set(scope, instructions);
                 } else {
                     _this.opts.instructions = instructions;
@@ -287,12 +326,17 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                 // Refresh cached merged instructions
                 _this.updateMergedInstructionsCache();
             }
-            getInstructions(scope?: string): string | undefined {
-                if (scope)
+            instructions(scope?: string): string | undefined {
+                if (scope) {
+                    if (scope == '*')
+                        return _this.mergedInstructions;
                     return _this.instructionScopes.get(scope);
+                }
                 return _this.opts.instructions ?? undefined;
             }
             removeInstructions(scope: string): boolean {
+                if (scope == '*')
+                    throw new BadUsage("'*' is a reserved instructions scope and cannot be removed.");
                 const existed = _this.instructionScopes.delete(scope);
                 if (existed)
                     _this.updateMergedInstructionsCache();
@@ -324,6 +368,17 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
 
     private setRegisteredEvents = (map: typeof this.registeredEvents) => {
         this.registeredEvents = map;
+    }
+
+    private removeHookScopedEvents(sourceHookId: string): void {
+        for (const [eventId, events] of this.registeredEvents.entries()) {
+            const remainingEvents = events.filter((event) => event.sourceHookId !== sourceHookId);
+            if (remainingEvents.length) {
+                this.registeredEvents.set(eventId, remainingEvents);
+                continue;
+            }
+            this.registeredEvents.delete(eventId);
+        }
     }
 
     [FORK_FRIEND] = {
@@ -861,61 +916,57 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
 
                 let paramsParsed: z.SafeParseReturnType<any, any> | undefined;
                 let rawParams: any;
-                //TODO: for the errors, indicate if it is zod or schema string
-                if (tool.schema) {
-                    if (typeof tool.schema === 'string') {
-                        // If schema is a string, no validation - we just parse the arguments
-                        try {
-                            rawParams = JSON.parse(toolCall.function.arguments);
-                        } catch {
-                            throw new FragolaError(`Cannot execute tool '${tool.name}' because the model produced arguments that are not valid JSON. Tool arguments are expected to be a JSON string, and JSON.parse failed for the generated payload. Tighten the tool schema or description, inspect toolCall.function.arguments, or rewrite the params in 'before:toolCall'.`);
-                        }
-                    } else {
-                        // If schema is a Zod schema, validate
-                        paramsParsed = (tool.schema as z.Schema).safeParse(JSON.parse(toolCall.function.arguments));
-                        if (!paramsParsed.success) {
-                            throw new FragolaError(`Cannot execute tool '${tool.name}' because the model produced arguments that do not match the tool schema. Validation failed for ${formatZodIssues(paramsParsed.error.issues)}. Update the tool schema or description so the model can produce the expected shape, or rewrite the params in 'before:toolCall'.`);
-                        }
-                    }
+                let effectiveParams: any;
+                let toolCallPayload: ToolCallPayload | undefined;
+
+                try {
+                    rawParams = JSON.parse(toolCall.function.arguments);
+                } catch (error) {
+                    toolCallPayload = createToolCallErrorPayload(
+                        new FragolaError(`Cannot execute tool '${tool.name}' because the model produced arguments that are not valid JSON. Tool arguments are expected to be a JSON string, and JSON.parse failed for the generated payload: ${formatUnknownError(error)}. Tighten the tool schema or description, inspect toolCall.function.arguments, or rewrite the params in 'before:toolCall'.`)
+                    );
+                }
+
+                if (!toolCallPayload && tool.schema && typeof tool.schema !== 'string') {
+                    paramsParsed = (tool.schema as z.Schema).safeParse(rawParams);
+                    if (!paramsParsed.success)
+                        toolCallPayload = createToolCallErrorPayload(paramsParsed.error, true);
                 }
 
                 const params = paramsParsed?.data ?? rawParams;
-                const beforeToolCallResult = await this.applyEvents("before:toolCall", { config: { params }, tool: tool as any });
-                if (isStopEvent(beforeToolCallResult.signal))
-                    break;
+                effectiveParams = params;
 
-                const beforeConfig = beforeToolCallResult.value;
-                const injectedResult = beforeConfig && "injectResult" in beforeConfig ? beforeConfig.injectResult : undefined;
-                const effectiveParams = injectedResult !== undefined ? params : (beforeConfig as { params: any })?.params ?? params;
+                if (!toolCallPayload) {
+                    const beforeToolCallResult = await this.applyEvents("before:toolCall", { config: { params }, tool: tool as any });
+                    if (isStopEvent(beforeToolCallResult.signal))
+                        break;
 
-                const rawResult = await (async () => {
-                    if (injectedResult !== undefined)
-                        return injectedResult;
-                    if (tool.handler == "dynamic")
-                        throw new BadUsage(`Cannot execute tool '${tool.name}' because it uses handler: 'dynamic' but no result was injected. Dynamic tools do not run a local handler and must receive { injectResult } from a 'before:toolCall' event. Register that event or replace the dynamic handler with a concrete function.`);
-                    return isAsyncFunction(tool.handler) ? await tool.handler(effectiveParams, this.context as any) : tool.handler(effectiveParams, this.context as any);
-                })();
+                    const beforeConfig = beforeToolCallResult.value;
+                    const injectedConfig = beforeConfig && "injectConfig" in beforeConfig ? beforeConfig.injectConfig : undefined;
+                    effectiveParams = injectedConfig !== undefined ? params : (beforeConfig as { params: any })?.params ?? params;
 
-                const eventToolResult = await this.applyEvents("toolCall", { result: rawResult, params: effectiveParams, tool: tool as any });
+                    toolCallPayload = await (async () => {
+                        if (injectedConfig !== undefined)
+                            return injectedConfig;
+                        if (tool.handler == "dynamic")
+                            throw new BadUsage(`Cannot execute tool '${tool.name}' because it uses handler: 'dynamic' but no result was injected. Dynamic tools do not run a local handler and must receive { injectConfig } from a 'before:toolCall' event. Register that event or replace the dynamic handler with a concrete function.`);
+                        try {
+                            const rawResult = await tool.handler(effectiveParams, this.context as any);
+                            return createToolCallSuccessPayload(rawResult);
+                        } catch (error) {
+                            return createToolCallErrorPayload(error);
+                        }
+                    })();
+                }
+
+                const eventToolResult = await this.applyEvents("toolCall", { result: toolCallPayload, params: effectiveParams, tool: tool as any });
                 if (isStopEvent(eventToolResult.signal))
                     break;
                 const content = eventToolResult.value;
                 const afterToolCallResult = await this.applyEvents("after:toolCall", { result: content, params: effectiveParams, tool: tool as any });
 
-                const contentToString = (content: unknown) => {
-                    switch (typeof content) {
-                        case "string":
-                            return content;
-                        case "function":
-                            return (content as Function).toString();
-                        case "undefined":
-                        case "number":
-                        case "boolean":
-                        case "bigint":
-                            return String(content);
-                        default:
-                            return JSON.stringify(content);
-                    }
+                const contentToString = (content: ToolCallPayload) => {
+                    return stringifyToolValue(content);
                 }
 
                 const message: OpenAI.ChatCompletionMessageParam = {
@@ -1122,7 +1173,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      * Register a tool result handler.
      *
      * This event runs after `before:toolCall` resolves the current config and after the tool
-     * handler (or an injected result) produces a value. Each callback receives the current result
+        * handler (or an injected result) produces a payload. Each callback receives the current payload
      * and may transform it before it is exposed to later `toolCall` handlers, `after:toolCall`,
      * and the tool message appended to state.
      *
@@ -1130,11 +1181,15 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      * remaining `toolCall` / `after:toolCall` pipeline for the current tool call.
      *
      * @example
-     * agent.onToolCall((result, params, tool) => {
+    * agent.onToolCall((result, params, tool) => {
      *   if (tool.name !== "getWeather") return result;
+    *   if (!result.success) return result;
      *   return {
-     *     requestedLocation: params.location,
-     *     data: result,
+    *     success: true,
+    *     data: {
+    *       requestedLocation: params.location,
+    *       data: result.data,
+    *     },
      *   };
      * });
      */
@@ -1232,9 +1287,9 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
       * Register a handler that can alter a tool call before execution.
       *
       * The callback receives `{ params }` before the tool handler runs. It may return a new
-      * `{ params }` object to rewrite validated arguments or `{ injectResult }` to bypass the
-      * handler entirely. `skip()` preserves the current config, and `context.stop()` aborts the
-      * current tool call.
+        * `{ params }` object to rewrite validated arguments or `{ injectConfig }` with a full
+        * `ToolCallPayload` to bypass the handler entirely. `skip()` preserves the current config,
+        * and `context.stop()` aborts the current tool call.
       *
       * @example
       * agent.onBeforeToolCall((config, tool) => {
@@ -1247,7 +1302,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
     /**
      * Register an after tool call event handler.
      *
-     * Called after a tool is executed.
+        * Called after a tool payload is finalized.
      *
      * @example
      * agent.onAfterToolCall((result, params, tool, context) => {
@@ -1317,6 +1372,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      */
     onAfterStateUpdate(callback: EventAfterStateUpdate<TMetaData, TGlobalStore, TStore>) { return this.on("after:stateUpdate", callback) };
 
+    //TODO: check dispose logic might be overengineered
     /**
      * Attach a hook to this agent.
      *
@@ -1346,6 +1402,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         }
 
         const sourceHookId = nanoid();
+        this.pendingHookSourceIds.add(sourceHookId);
 
         if (name) {
             this.pendingHookNames.add(name);
@@ -1355,6 +1412,8 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         // Accepts both sync and async hooks.
         this.hooksLoaded = this.hooksLoaded
             .then(async () => {
+                if (this.cancelledHookSourceIds.has(sourceHookId))
+                    return CANCELLED_HOOK_INIT;
                 this.activeHookSourceId = sourceHookId;
                 try {
                     return await Promise.resolve(hook(this as AgentAny));
@@ -1362,17 +1421,39 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                     this.activeHookSourceId = undefined;
                 }
             })
-            .then((dispose) => {
-                this.hooks.push({ hook, name, sourceHookId, dispose: dispose ?? NOOP_HOOK_DISPOSE });
+            .then(async (dispose) => {
+                const wasCancelled = this.cancelledHookSourceIds.has(sourceHookId);
+                this.pendingHookSourceIds.delete(sourceHookId);
+                this.cancelledHookSourceIds.delete(sourceHookId);
+
+                if (dispose === CANCELLED_HOOK_INIT) {
+                    if (name)
+                        this.pendingHookNames.delete(name);
+                    return;
+                }
+
+                if (wasCancelled) {
+                    if (name)
+                        this.pendingHookNames.delete(name);
+                    this.removeHookScopedEvents(sourceHookId);
+                    if (dispose)
+                        await dispose();
+                    return;
+                }
+
+                const hookDispose = dispose ?? NOOP_HOOK_DISPOSE;
+                this.hooks.push({ hook, name, sourceHookId, dispose: hookDispose });
 
                 if (!name) {
                     return;
                 }
 
                 this.pendingHookNames.delete(name);
-                this.hookDisposeMap.set(name, dispose ?? NOOP_HOOK_DISPOSE);
+                this.hookDisposeMap.set(name, hookDispose);
             })
             .catch((err) => {
+                this.pendingHookSourceIds.delete(sourceHookId);
+                this.cancelledHookSourceIds.delete(sourceHookId);
                 if (name) {
                     this.pendingHookNames.delete(name);
                 }
@@ -1401,8 +1482,12 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
             return false;
 
         this.hookDisposeMap.delete(name);
+        const hookEntry = this.hooks.find((entry) => entry.name === name);
         //TODO: maybe use a faster way than an array for the hooks. to avoid using filter
         this.hooks = this.hooks.filter((entry) => entry.name !== name);
+
+        if (hookEntry)
+            this.removeHookScopedEvents(hookEntry.sourceHookId);
 
         await dispose();
         return true;
@@ -1412,7 +1497,10 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      * Removes every hook currently registered on the agent.
      */
     async dispose(): Promise<void> {
-        await this.hooksLoaded;
+        this.hooksLoaded = Promise.resolve();
+        for (const sourceHookId of this.pendingHookSourceIds)
+            this.cancelledHookSourceIds.add(sourceHookId);
+        this.pendingHookNames.clear();
 
         for (const hookEntry of [...this.hooks].reverse()) {
             if (hookEntry.name) {
@@ -1420,6 +1508,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                 continue;
             }
 
+            this.removeHookScopedEvents(hookEntry.sourceHookId);
             await hookEntry.dispose();
             this.hooks = this.hooks.filter((entry) => entry.sourceHookId !== hookEntry.sourceHookId);
         }

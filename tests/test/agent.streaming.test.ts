@@ -20,7 +20,7 @@ describe("Agent streaming behavior (real model via stream: true)", () => {
                 model: fragola.options.model,
                 tool_choice: "auto",
                 max_tokens: 1000,
-                // stream: true,
+                stream: true,
             }
         });
 
@@ -67,34 +67,29 @@ describe("Agent streaming behavior (real model via stream: true)", () => {
         if (toolMsg) {
             expect(typeof toolMsg.content).toBe("string");
             const parsed = JSON.parse(String(toolMsg.content));
-            expect(parsed.created).toBeDefined();
+            expect(parsed.success).toBe(true);
+            expect(parsed.data?.created).toBeDefined();
         }
     });
 
-    // it("streams JSON response (agent.json) and parses it", async () => {
-    //     const assistant = fragola.agent({
-    //         name: "assistant",
-    //         description: "",
-    //         instructions: "you are a helpful assistant",
-    //         modelSettings: {
-    //             model: fragola.options.model,
-    //             tool_choice: "auto",
-    //             max_tokens: 1000,
-    //             stream: true,
-    //         }
-    //     });
+    it("streams JSON response (agent.json) and parses it", async () => {
+        const assistant = fragola.agent({
+            name: "assistant",
+            description: "",
+            instructions: "you are a helpful assistant",
+            modelSettings: {
+                model: fragola.options.model,
+                tool_choice: "auto",
+                max_tokens: 1000,
+                stream: true,
+            }
+        });
 
-    //     const schema = z.object({ name: z.string() });
-    //     const result = await assistant.json({ content: "my name is shadokan", description: "extract the name of the person", name: "extract_infos", schema });
-    //     expect(result.success).toBeDefined();
-    //     // if parse succeeded, data should be present
-    //     if (result.success)
-    //         expect(result.data?.name).toBeDefined();
-    // });
-
-    // it("fragola.boolean returns parsed boolean from json preset", async () => {
-    //     const res = await fragola.boolean("is this a test?");
-    //     // boolean returns true/false
-    //     expect(typeof res).toBe("boolean");
-    // });
+        const schema = z.object({ name: z.string() });
+        const result = await assistant.json({ content: "my name is shadokan", description: "extract the name of the person", name: "extract_infos", schema });
+        expect(result.success).toBeDefined();
+        // if parse succeeded, data should be present
+        if (result.success)
+            expect(result.data?.name).toBeDefined();
+    });
 });

@@ -60,34 +60,42 @@ function makeTestTool(name = "myTool") {
     return { tool: t, handlerSpy };
 }
 
+const successPayload = (data: unknown) => ({ success: true as const, data });
+
+const asPayload = (value: unknown) => value as {
+    success: boolean;
+    data?: unknown;
+    error?: unknown;
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // before:toolCall
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("before:toolCall — injectResult", () => {
-    it("injectResult bypasses the handler entirely", async () => {
+describe("before:toolCall — injectConfig", () => {
+    it("injectConfig bypasses the handler entirely", async () => {
         const { tool: t, handlerSpy } = makeTestTool();
         const agent = fragola.agent({ name: "a", instructions: "", description: "", tools: [t] });
         injectToolCall(agent, "myTool");
 
-        agent.onBeforeToolCall(() => ({ injectResult: "injected-result" }));
+        agent.onBeforeToolCall(() => ({ injectConfig: successPayload("injected-result") }));
 
         await agent.userMessage({ content: "hi" });
         expect(handlerSpy).not.toHaveBeenCalled();
     });
 
-    it("injectResult is what after:toolCall receives", async () => {
+    it("injectConfig is what after:toolCall receives", async () => {
         const { tool: t } = makeTestTool();
         const agent = fragola.agent({ name: "a", instructions: "", description: "", tools: [t] });
         injectToolCall(agent, "myTool");
 
-        agent.onBeforeToolCall(() => ({ injectResult: "from-before" }));
+        agent.onBeforeToolCall(() => ({ injectConfig: successPayload("from-before") }));
 
         let afterResult: unknown;
         agent.onAfterToolCall((result) => { afterResult = result; });
 
         await agent.userMessage({ content: "hi" });
-        expect(afterResult).toBe("from-before");
+        expect(afterResult).toEqual({ success: true, data: "from-before" });
     });
 
     it("multiple before:toolCall handlers: last non-skip wins", async () => {
@@ -95,14 +103,14 @@ describe("before:toolCall — injectResult", () => {
         const agent = fragola.agent({ name: "a", instructions: "", description: "", tools: [t] });
         injectToolCall(agent, "myTool");
 
-        agent.onBeforeToolCall(() => ({ injectResult: "first" }));
-        agent.onBeforeToolCall(() => ({ injectResult: "second" }));
+        agent.onBeforeToolCall(() => ({ injectConfig: successPayload("first") }));
+        agent.onBeforeToolCall(() => ({ injectConfig: successPayload("second") }));
 
         let afterResult: unknown;
         agent.onAfterToolCall((result) => { afterResult = result; });
 
         await agent.userMessage({ content: "hi" });
-        expect(afterResult).toBe("second");
+        expect(afterResult).toEqual({ success: true, data: "second" });
     });
 
     it("skip in before:toolCall keeps current config and passes to next handler", async () => {
@@ -112,7 +120,7 @@ describe("before:toolCall — injectResult", () => {
         injectToolCall(agent, "myTool");
 
         agent.onBeforeToolCall(() => { order.push(1); return skip() as any; });
-        agent.onBeforeToolCall(() => { order.push(2); return { injectResult: "skipped-then-injected" }; });
+        agent.onBeforeToolCall(() => { order.push(2); return { injectConfig: successPayload("skipped-then-injected") }; });
 
         await agent.userMessage({ content: "hi" });
         expect(order).toEqual([1, 2]);
@@ -156,7 +164,7 @@ describe("before:toolCall — stop", () => {
         injectToolCall(agent, "myTool");
 
         agent.onBeforeToolCall((_config, _tool, ctx) => ctx.stop() as any);
-        agent.onBeforeToolCall(() => { secondCalled(); return { injectResult: "never" }; });
+        agent.onBeforeToolCall(() => { secondCalled(); return { injectConfig: successPayload("never") }; });
 
         await agent.userMessage({ content: "hi" });
         expect(secondCalled).not.toHaveBeenCalled();
@@ -178,7 +186,7 @@ describe("toolCall — handler runs automatically, event transforms result", () 
 
         await agent.userMessage({ content: "hi" });
         expect(handlerSpy).toHaveBeenCalledWith({ input: "x" }, expect.anything());
-        expect(receivedResult).toBe("handler-result:x");
+        expect(receivedResult).toEqual({ success: true, data: "handler-result:x" });
     });
 
     it("toolCall can transform the result", async () => {
@@ -186,13 +194,13 @@ describe("toolCall — handler runs automatically, event transforms result", () 
         const agent = fragola.agent({ name: "a", instructions: "", description: "", tools: [t] });
         injectToolCall(agent, "myTool", { input: "x" });
 
-        agent.onToolCall(() => "transformed-result");
+        agent.onToolCall(() => ({ success: true, data: "transformed-result" }));
 
         let afterResult: unknown;
         agent.onAfterToolCall((result) => { afterResult = result; });
 
         await agent.userMessage({ content: "hi" });
-        expect(afterResult).toBe("transformed-result");
+        expect(afterResult).toEqual({ success: true, data: "transformed-result" });
     });
 
     it("skip in toolCall preserves the handler result unchanged", async () => {
@@ -206,7 +214,7 @@ describe("toolCall — handler runs automatically, event transforms result", () 
         agent.onAfterToolCall((result) => { afterResult = result; });
 
         await agent.userMessage({ content: "hi" });
-        expect(afterResult).toBe("handler-result:x");
+        expect(afterResult).toEqual({ success: true, data: "handler-result:x" });
     });
 
     it("multiple toolCall handlers chain: each receives the previous result", async () => {
@@ -214,15 +222,56 @@ describe("toolCall — handler runs automatically, event transforms result", () 
         const agent = fragola.agent({ name: "a", instructions: "", description: "", tools: [t] });
         injectToolCall(agent, "myTool", { input: "x" });
 
-        agent.onToolCall((result) => `${result}+A`);
-        agent.onToolCall((result) => `${result}+B`);
-        agent.onToolCall((result) => `${result}+C`);
+        agent.onToolCall((result) => {
+            const payload = asPayload(result);
+            return payload.success ? { ...payload, data: `${payload.data}+A` } : payload;
+        });
+        agent.onToolCall((result) => {
+            const payload = asPayload(result);
+            return payload.success ? { ...payload, data: `${payload.data}+B` } : payload;
+        });
+        agent.onToolCall((result) => {
+            const payload = asPayload(result);
+            return payload.success ? { ...payload, data: `${payload.data}+C` } : payload;
+        });
 
         let afterResult: unknown;
         agent.onAfterToolCall((result) => { afterResult = result; });
 
         await agent.userMessage({ content: "hi" });
-        expect(afterResult).toBe("handler-result:x+A+B+C");
+        expect(afterResult).toEqual({ success: true, data: "handler-result:x+A+B+C" });
+    });
+
+    it("handler errors become failure payloads and do not reject the agent", async () => {
+        const handlerSpy = vi.fn(() => {
+            throw new Error("boom");
+        });
+        const failingTool = tool({
+            name: "myTool",
+            description: "test tool",
+            schema: z.object({ input: z.string() }),
+            handler: handlerSpy,
+        });
+        const agent = fragola.agent({ name: "a", instructions: "", description: "", tools: [failingTool] });
+        injectToolCall(agent, "myTool", { input: "x" });
+
+        let receivedResult: unknown;
+        let afterResult: unknown;
+        agent.onToolCall((result) => { receivedResult = result; return result; });
+        agent.onAfterToolCall((result) => { afterResult = result; });
+
+        await expect(agent.userMessage({ content: "hi" })).resolves.toBeDefined();
+
+        expect(handlerSpy).toHaveBeenCalledWith({ input: "x" }, expect.anything());
+        expect(receivedResult).toMatchObject({ success: false, error: expect.any(Error), data: "Arguments valid but tool call execution failed" });
+        expect((receivedResult as { error: Error }).error.message).toBe("boom");
+        expect(afterResult).toMatchObject({ success: false, error: expect.any(Error), data: "Arguments valid but tool call execution failed" });
+
+        const toolMsg = agent.state.messages.find((m) => m.role === "tool");
+        expect(toolMsg).toBeDefined();
+        expect(String(toolMsg?.content)).toContain('"success":false');
+        expect(String(toolMsg?.content)).toContain('"data":"Arguments valid but tool call execution failed"');
+        expect(String(toolMsg?.content)).toContain('"message":"boom"');
     });
 
     it("stop in toolCall prevents further toolCall handlers and after:toolCall", async () => {
@@ -246,12 +295,12 @@ describe("toolCall — handler runs automatically, event transforms result", () 
         const agent = fragola.agent({ name: "a", instructions: "", description: "", tools: [t] });
         injectToolCall(agent, "myTool", { input: "x" });
 
-        agent.onToolCall(() => "overridden-content");
+        agent.onToolCall(() => ({ success: true, data: "overridden-content" }));
 
         await agent.userMessage({ content: "hi" });
         const toolMsg = agent.state.messages.find((m) => m.role === "tool");
         expect(toolMsg).toBeDefined();
-        expect(toolMsg?.content).toBe("overridden-content");
+        expect(toolMsg?.content).toBe(JSON.stringify({ success: true, data: "overridden-content" }));
     });
 });
 
@@ -270,7 +319,7 @@ describe("after:toolCall — callback behavior", () => {
 
         await agent.userMessage({ content: "hi" });
         expect(results).toHaveLength(1);
-        expect(results[0]).toBe("handler-result:z");
+        expect(results[0]).toEqual({ success: true, data: "handler-result:z" });
     });
 
     it("multiple after:toolCall handlers are all called in order", async () => {
@@ -323,19 +372,19 @@ describe("after:toolCall — callback behavior", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("before:toolCall → toolCall → after:toolCall connections", () => {
-    it("injectResult in before means handler is not called and toolCall receives injected value", async () => {
+    it("injectConfig in before means handler is not called and toolCall receives injected value", async () => {
         const { tool: t, handlerSpy } = makeTestTool();
         const agent = fragola.agent({ name: "a", instructions: "", description: "", tools: [t] });
         injectToolCall(agent, "myTool");
 
-        agent.onBeforeToolCall(() => ({ injectResult: "injected" }));
+        agent.onBeforeToolCall(() => ({ injectConfig: successPayload("injected") }));
 
         let toolCallReceivedResult: unknown;
         agent.onToolCall((result) => { toolCallReceivedResult = result; return result; });
 
         await agent.userMessage({ content: "hi" });
         expect(handlerSpy).not.toHaveBeenCalled();
-        expect(toolCallReceivedResult).toBe("injected");
+        expect(toolCallReceivedResult).toEqual({ success: true, data: "injected" });
     });
 
     it("handler result flows through toolCall transform into after:toolCall", async () => {
@@ -343,13 +392,16 @@ describe("before:toolCall → toolCall → after:toolCall connections", () => {
         const agent = fragola.agent({ name: "a", instructions: "", description: "", tools: [t] });
         injectToolCall(agent, "myTool", { input: "flow" });
 
-        agent.onToolCall((result) => `${result}:transformed`);
+        agent.onToolCall((result) => {
+            const payload = asPayload(result);
+            return payload.success ? { ...payload, data: `${payload.data}:transformed` } : payload;
+        });
 
         let afterResult: unknown;
         agent.onAfterToolCall((result) => { afterResult = result; });
 
         await agent.userMessage({ content: "hi" });
-        expect(afterResult).toBe("handler-result:flow:transformed");
+        expect(afterResult).toEqual({ success: true, data: "handler-result:flow:transformed" });
     });
 
     it("stop in before:toolCall means toolCall and after:toolCall never fire", async () => {
@@ -373,12 +425,12 @@ describe("before:toolCall → toolCall → after:toolCall connections", () => {
         const agent = fragola.agent({ name: "a", instructions: "", description: "", tools: [t] });
         injectToolCall(agent, "myTool", { input: "state-test" });
 
-        agent.onToolCall(() => ({ serialized: "yes" }));
+        agent.onToolCall(() => ({ success: true, data: { serialized: "yes" } }));
 
         await agent.userMessage({ content: "hi" });
         const toolMsg = agent.state.messages.find((m) => m.role === "tool");
         expect(toolMsg).toBeDefined();
-        expect(toolMsg?.content).toBe(JSON.stringify({ serialized: "yes" }));
+        expect(toolMsg?.content).toBe(JSON.stringify({ success: true, data: { serialized: "yes" } }));
     });
 
     it("default handler result (when toolCall skips) also propagates to after:toolCall", async () => {
@@ -391,6 +443,6 @@ describe("before:toolCall → toolCall → after:toolCall connections", () => {
         agent.onAfterToolCall((result) => { afterResult = result; });
 
         await agent.userMessage({ content: "hi" });
-        expect(afterResult).toBe("handler-result:passthrough");
+        expect(afterResult).toEqual({ success: true, data: "handler-result:passthrough" });
     });
 });

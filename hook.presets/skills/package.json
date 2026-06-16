@@ -1,5 +1,5 @@
 {
-  "name": "skill",
+  "name": "skills",
   "version": "0.1.0",
   "description": "Hook preset for Fragola agents.",
   "main": "./dist/index.js",
@@ -25,7 +25,8 @@
     "node": ">=18"
   },
   "dependencies": {
-    "@fragola-ai/agent": "^0.1.0"
+    "@fragola-ai/agent": "^0.1.0",
+    "nanoid": "^5.1.11"
   },
   "devDependencies": {
     "@types/bun": "latest",

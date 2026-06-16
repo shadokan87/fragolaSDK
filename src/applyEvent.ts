@@ -2,9 +2,9 @@ import type OpenAI from "openai/index.js";
 import { skip, SKIP_EVENT, stop } from "./event"
 import type { EventAfterStateUpdate, EventAfterStep, EventAfterModelInvocation, EventAfterToolCall } from "./eventAfter"
 import type { EventBeforeStep, EventBeforeModelInvocation, EventBeforeToolCall, ModelInvocationConfig, ToolCallConfig } from "./eventBefore"
-import type { EventAiMessage, EventModelInvocation, EventToolCall, EventUserMessage, MergePatch, ModelInvocationChunk, ModelInvocationChunkInjection, ModelInvocationDelta, ModelInvocationPrimaryChoice } from "./eventDefault"
+import type { EventAiMessage, EventModelInvocation, EventToolCall, EventUserMessage, MergePatch, ModelInvocationChunk, ModelInvocationChunkInjection, ModelInvocationDelta, ModelInvocationPrimaryChoice, ToolCallPayload } from "./eventDefault"
 import type { registeredEvent } from "./extendedJS/events/EventMap"
-import type { ChatCompletionAssistantMessageParam, ChatCompletionUserMessageParam, DefineMetaData, ToolHandlerReturnTypeNonAsync } from "./fragola"
+import type { ChatCompletionAssistantMessageParam, ChatCompletionUserMessageParam, DefineMetaData } from "./fragola"
 import type { maybePromise, StoreLike } from "./types"
 import type { AgentContext, STOP } from "./agentContext"
 import { type applyEventParams } from "./agent"
@@ -409,7 +409,7 @@ export async function applyToolCall<TMetaData extends DefineMetaData<any>, TGlob
             result.signal = res as any;
             continue;
         }
-        result.value = res as ToolHandlerReturnTypeNonAsync;
+        result.value = res as ToolCallPayload;
     }
     return result;
 }

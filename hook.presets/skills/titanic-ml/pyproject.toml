@@ -1,0 +1,10 @@
+[project]
+name = "titanic-ml"
+version = "0.1.0"
+description = "Titanic survival prediction using machine learning"
+authors = [{name = "Titanic ML Team"}]
+requires-python = ">=3.11"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"

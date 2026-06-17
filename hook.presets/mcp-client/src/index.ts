@@ -111,7 +111,7 @@ function createAjv(options: AjvOptions | undefined) {
 }
 
 export const mcpClient = (options: McpClientOptions[] | McpClientOptions): FragolaHook => {
-  return async (agent: Parameters<FragolaHook>[0]) => {
+  return async (agent) => {
     const configuredOptions = Array.isArray(options) ? options : [options];
     const loadedClients: LoadedClient[] = [];
     const addedTools: Tool<any>[] = [];

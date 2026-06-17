@@ -26,7 +26,7 @@
     "node": ">=18"
   },
   "dependencies": {
-    "@fragola-ai/agent": "^0.1.0",
+    "@fragola-ai/agent": "^0.1.1",
     "@modelcontextprotocol/sdk": "^1.21.1",
     "ajv": "^8.17.1"
   },

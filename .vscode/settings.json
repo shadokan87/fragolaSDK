@@ -1,2 +1,53 @@
 {
+	"files.watcherExclude": {
+		"**/.git/objects/**": true,
+		"**/.git/subtree-cache/**": true,
+		"**/node_modules/**": true,
+		"**/dist/**": true,
+		"**/coverage/**": true,
+		"**/.next/**": true,
+		"**/.turbo/**": true,
+		"**/.cache/**": true,
+		"**/verdaccioStorage/**": true,
+	},
+	"search.exclude": {
+		"**/node_modules": true,
+		"**/dist": true,
+		"**/coverage": true,
+		"**/.next": true,
+		"**/.turbo": true,
+		"**/.cache": true,
+		"**/verdaccioStorage": true,
+	},
+	"files.exclude": {
+		"**/dist": true,
+		"**/coverage": true,
+		"**/.turbo": true,
+		"**/.cache": true
+	},
+	"js/ts.tsserver.automaticTypeAcquisition.enabled": false,
+	"js/ts.preferences.includePackageJsonAutoImports": "off",
+	"js/ts.preferences.autoImportFileExcludePatterns": [
+		"**/node_modules/**",
+		"**/dist/**",
+		"**/package/**",
+		"**/verdaccioStorage/**",
+	],
+	"js/ts.tsserver.maxMemory": 2024,
+	"js/ts.tsserver.watchOptions": {
+		"watchFile": "useFsEventsOnParentDirectory",
+		"watchDirectory": "useFsEvents",
+		"fallbackPolling": "dynamicPriorityPolling",
+		"excludeDirectories": [
+			"**/node_modules",
+			"**/dist",
+			"**/coverage",
+			"**/.next",
+			"**/.turbo",
+			"**/.cache",
+			"**/verdaccioStorage",
+		]
+	},
+	"js/ts.updateImportsOnFileMove.enabled": "never",
+	"search.followSymlinks": false
 }

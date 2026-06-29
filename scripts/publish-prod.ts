@@ -1,11 +1,13 @@
 #!/usr/bin/env bun
 import path from "node:path";
 import bun from "bun";
+import * as readline from "node:readline/promises";
 
 const PROD_REGISTRY = "https://registry.npmjs.org";
 
 const ANSI = {
     reset: "\u001b[0m",
+    red: "\u001b[31m",
     green: "\u001b[32m",
     yellow: "\u001b[33m",
     cyan: "\u001b[36m",
@@ -31,14 +33,9 @@ const projectRoot = path.resolve(import.meta.dir, "..");
 const checkScriptPath = path.join(projectRoot, "scripts", "check-public-method-comments.ts");
 const bunBinary = bun.which("bun") ?? "bun";
 
-const args = process.argv.slice(2);
-const dryRun = args.includes("--dry");
-const publishArgs = args.filter((arg) => arg !== "--dry");
-
-if (publishArgs.some((arg) => arg === "--registry" || arg.startsWith("--registry="))) {
-    console.error(color("Do not pass --registry to publish-prod.ts. This script always publishes to the npm registry.", "yellow"));
-    process.exit(1);
-}
+const dryRun = process.env.npm_config_dry_run === "true";
+const registry = process.env.npm_config_registry || PROD_REGISTRY;
+const tag = process.env.npm_config_tag || "latest";
 
 const runCommand = (commandArgs: string[], label: string) => {
     console.log(`\n${color(label, "bold")}`);
@@ -53,7 +50,7 @@ const runCommand = (commandArgs: string[], label: string) => {
 };
 
 console.log(color("Preparing production publish", "cyan"));
-console.log(`${color("Registry", "cyan")}: ${PROD_REGISTRY}`);
+console.log(`${color("Registry", "cyan")}: ${registry}`);
 console.log(`${color("Mode", "cyan")}: ${dryRun ? "dry run" : "publish"}`);
 
 for (const target of documentationChecks) {
@@ -74,19 +71,38 @@ if (documentationFailures.length > 0) {
     process.exit(1);
 }
 
-const prepublishExitCode = runCommand(["npm", "run", "prepublishOnly"], "Running prepublishOnly");
-if (prepublishExitCode !== 0)
-    process.exit(prepublishExitCode);
-
 if (dryRun) {
-    console.log(`\n${color("Dry run complete. Skipped npm publish.", "green")}`);
+    console.log(`\n${color("Dry run complete. NPM will proceed with dry run publish.", "green")}`);
     process.exit(0);
 }
 
-const publishExitCode = runCommand(
-    ["npm", "publish", "--ignore-scripts", "--registry", PROD_REGISTRY, ...publishArgs],
-    "Publishing package to npm",
-);
+const pkg = await Bun.file(path.join(projectRoot, "package.json")).json();
+const packageName = pkg.name;
+const packageVersion = pkg.version;
 
-if (publishExitCode !== 0)
-    process.exit(publishExitCode);
+const npmShowResult = bun.spawnSync(["npm", "show", `${packageName}@${tag}`, "version", "--registry", registry]);
+const currentNpmVersion = npmShowResult.exitCode === 0
+    ? npmShowResult.stdout.toString().trim() || "none"
+    : "none (or package not found)";
+
+console.log(`\n${color("Publish Confirmation", "cyan")}`);
+console.log(`${color("Package:", "bold")} ${packageName}`);
+console.log(`${color("Release Mode (Tag):", "bold")} ${tag}`);
+console.log(`${color(`Current NPM Version (${tag}):`, "bold")} ${currentNpmVersion}`);
+console.log(`${color("Version to Publish:", "bold")} ${packageVersion}`);
+
+const expectedConfirmation = `${packageName}@${tag}@${packageVersion}`;
+const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+});
+
+const answer = await rl.question(`\nTo confirm publish, please type exactly:\n${color(expectedConfirmation, "green")}\n> `);
+rl.close();
+
+if (answer.trim() !== expectedConfirmation) {
+    console.error(color("\nConfirmation failed. Aborting publish.", "red"));
+    process.exit(1);
+}
+
+console.log(`\n${color("Confirmation successful. Continuing with npm publish...", "green")}`);

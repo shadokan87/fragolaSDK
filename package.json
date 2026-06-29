@@ -108,8 +108,7 @@
     "test:local": "cd tests && rm -rf node_modules && bun i --verbose --registry http://localhost:4873 && bunx vitest --run",
     "proxy:start": "bunx verdaccio --config verdaccio.config.yaml",
     "publish:local": "npm publish --registry http://localhost:4873",
-    "publish:prod": "bun scripts/publish-prod.ts",
     "test:release": "bash scripts/test-release.sh",
-    "prepublishOnly": "bun run build"
+    "prepublishOnly": "bun run build && bun scripts/publish-prod.ts"
   }
 }

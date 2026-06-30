@@ -1,6 +1,6 @@
 {
   "name": "@fragola-ai/agent",
-  "version": "0.1.1",
+  "version": "0.1.2-alpha.4",
   "description": "An event-driven SDK for building AI agents. Interoperable with OpenAI SDK.",
   "main": "./dist/package/fragola.index.js",
   "module": "./dist/package/fragola.index.js",
@@ -13,19 +13,19 @@
     },
     "./store": {
       "import": "./dist/package/store.index.js",
-      "types": "./dist/src/store.d.ts"
+      "types": "./dist/package/store.index.d.ts"
     },
     "./agent": {
       "import": "./dist/package/agent.index.js",
-      "types": "./dist/src/agent.d.ts"
+      "types": "./dist/package/agent.index.d.ts"
     },
     "./event": {
       "import": "./dist/package/event.index.js",
-      "types": "./dist/src/event.d.ts"
+      "types": "./dist/package/event.index.d.ts"
     },
     "./hook": {
       "import": "./dist/package/hook.index.js",
-      "types": "./dist/src/hook/index.d.ts"
+      "types": "./dist/package/hook.index.d.ts"
     }
   },
   "files": [

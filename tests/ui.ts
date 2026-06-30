@@ -1,7 +1,7 @@
 import { type ChatCompletionMessageParam } from "@fragola-ai/agent";
 import { type FragolaHook } from "@fragola-ai/agent/hook";
 import { type AgentAny } from "@fragola-ai/agent/agent";
-import type { GuardRailMeta } from "../hook.presets/guardrail";
+import type { GuardRailMeta } from "../hook.presets/guardrail/src";
 import chalk from "chalk";
 import * as readline from "readline";
 

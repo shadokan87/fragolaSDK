@@ -210,3 +210,51 @@ describe("Agent Store - updateTools", () => {
     expect(tools?.map((t) => t.name)).toEqual(["tool1", "tool3", "tool4"]);
   });
 });
+
+describe("AgentContext completion", () => {
+  let fragola: ReturnType<typeof createTestClient>;
+
+  beforeEach(() => {
+    fragola = createTestClient();
+  });
+
+  it("should contain all expected properties and methods from AgentContext", () => {
+    const store = getTestContext("main");
+    const agent = fragola.agent({
+      name: "testAgent",
+      instructions: "Test instructions",
+      description: "Test description",
+      store,
+    });
+
+    const context = agent.context;
+
+    // Check getters and properties
+    expect(context).toHaveProperty("state");
+    expect(context).toHaveProperty("options");
+    expect(context).toHaveProperty("raw");
+    expect(context).toHaveProperty("store");
+    expect(context).toHaveProperty("messagesParser");
+    expect(context).toHaveProperty("instance");
+    expect(context).toHaveProperty("systemPrompt");
+
+    // Check methods (typeof should be function)
+    expect(typeof context.addStore).toBe("function");
+    expect(typeof context.updateTools).toBe("function");
+    expect(typeof context.removeStore).toBe("function");
+    expect(typeof context.getStore).toBe("function");
+    expect(typeof context.setInstructions).toBe("function");
+    expect(typeof context.instructions).toBe("function");
+    expect(typeof context.removeInstructions).toBe("function");
+    expect(typeof context.setOptions).toBe("function");
+    expect(typeof context.stop).toBe("function");
+    expect(typeof context.stopSync).toBe("function");
+
+    // Verify values match between agent and agentContext where applicable
+    expect(context.state).toBe(agent.state);
+    expect(context.options).toBe(agent.options);
+    expect(context.instance).toBe(fragola);
+    expect(context.systemPrompt).toBe(agent.options.instructions);
+    expect(context.store).toBe(store);
+  });
+});

@@ -5,7 +5,7 @@
     "": {
       "name": "fragolasdk-test",
       "dependencies": {
-        "@fragola-ai/agent": "^0.1.2-alpha.13",
+        "@fragola-ai/agent": "^0.1.2-alpha.1",
         "ajv": "^8.17.1",
         "nanoid": "^5.1.9",
         "portkey-ai": "^3.0.1",
@@ -38,7 +38,7 @@
 
     "@eslint/plugin-kit": ["@eslint/plugin-kit@0.4.1", "http://localhost:4873/@eslint/plugin-kit/-/plugin-kit-0.4.1.tgz", { "dependencies": { "@eslint/core": "^0.17.0", "levn": "^0.4.1" } }, "sha512-43/qtrDUokr7LJqoF2c3+RInu/t4zfrpYdoSDfYyhg52rwLV6TnOvdG4fXm7IkSB3wErkcmJS9iEhjVtOSEjjA=="],
 
-    "@fragola-ai/agent": ["@fragola-ai/agent@0.1.2-alpha.13", "http://localhost:4873/@fragola-ai/agent/-/agent-0.1.2-alpha.13.tgz", { "dependencies": { "@eslint/js": "^9.34.0", "@fragola-ai/prompt": "^1.0.4", "@modelcontextprotocol/sdk": "^1.21.1", "@opentelemetry/sdk-node": "^0.208.0", "ajv": "^8.17.1", "eslint": "^9.34.0", "json-schema-to-zod": "^2.6.1", "nanoid": "^5.1.5", "openai": "6.9.0", "puppeteer": "^24.27.0", "typescript-eslint": "^8.42.0", "zod": "^3.25.67" }, "peerDependencies": { "typescript": "^5.9.2" } }, "sha512-McsqncN4aZpdTCIqewvIkWGDViXY4jgQz35h+bD8vpEbFJQa1bYnFQj5KPh7mJ9jgliDVwoWvxeMsGhoTZFEJA=="],
+    "@fragola-ai/agent": ["@fragola-ai/agent@0.1.2-alpha.1", "http://localhost:4873/@fragola-ai/agent/-/agent-0.1.2-alpha.1.tgz", { "dependencies": { "@eslint/js": "^9.34.0", "@fragola-ai/prompt": "^1.0.1", "@modelcontextprotocol/sdk": "^1.21.1", "@opentelemetry/sdk-node": "^0.208.0", "ajv": "^8.17.1", "eslint": "^9.34.0", "json-schema-to-zod": "^2.6.1", "nanoid": "^5.1.5", "openai": "6.9.0", "portkey-ai": "^3.1.0", "puppeteer": "^24.27.0", "typescript-eslint": "^8.42.0", "zod": "^3.25.67" }, "peerDependencies": { "typescript": "^5.9.2" } }, "sha512-HRkxgYAOS8fdi6Tq4DpYscRpTF+VupzsQ9nAB7GbZfR6CK01SBCIC8uKqa6ik0BUd+r2qssD8LvI6a6mOq0Xhg=="],
 
     "@fragola-ai/prompt": ["@fragola-ai/prompt@1.1.0", "http://localhost:4873/@fragola-ai/prompt/-/prompt-1.1.0.tgz", { "peerDependencies": { "typescript": "^5.0.0" } }, "sha512-fvmNqVqf8j5Eq5vr/Zk4BlUeLt4gy2N0Z0N8jAG18Ng49YQpUrSgPUQKPpF9+bikDeoUELkk/TJiWnV2ZHor7A=="],
 
@@ -666,6 +666,8 @@
 
     "@eslint/eslintrc/ajv": ["ajv@6.14.0", "http://localhost:4873/ajv/-/ajv-6.14.0.tgz", { "dependencies": { "fast-deep-equal": "^3.1.1", "fast-json-stable-stringify": "^2.0.0", "json-schema-traverse": "^0.4.1", "uri-js": "^4.2.2" } }, "sha512-IWrosm/yrn43eiKqkfkHis7QioDleaXQHdDVPKg0FSwwd/DuvyX79TZnFOnYpB7dcsFAMmtFztZuXPDvSePkFw=="],
 
+    "@fragola-ai/agent/portkey-ai": ["portkey-ai@3.1.0", "http://localhost:4873/portkey-ai/-/portkey-ai-3.1.0.tgz", { "dependencies": { "agentkeepalive": "^4.6.0", "dotenv": "^16.5.0", "openai": "6.8.1", "ws": "^8.18.2" } }, "sha512-ER6N6TBVAvil/BLBLOWzBEzWeBn9N1St5snG+m2mDxpP1lKdvUbbsog3c6xoLML5AxZkMlt3oDv3nUqeT5x62g=="],
+
     "@typescript-eslint/eslint-plugin/ignore": ["ignore@7.0.5", "http://localhost:4873/ignore/-/ignore-7.0.5.tgz", {}, "sha512-Hs59xBNfUIunMFgWAbGX5cq6893IbWg4KnrjbYwX3tx0ztorVgTDA6B2sxf8ejHJ4wz8BqGUMYlnzNBer5NvGg=="],
 
     "@typescript-eslint/typescript-estree/minimatch": ["minimatch@10.2.4", "http://localhost:4873/minimatch/-/minimatch-10.2.4.tgz", { "dependencies": { "brace-expansion": "^5.0.2" } }, "sha512-oRjTw/97aTBN0RHbYCdtF1MQfvusSIBQM0IZEgzl6426+8jSC0nF1a/GmnVLpfB9yyr6g6FTqWqiZVbxrtaCIg=="],
@@ -681,6 +683,10 @@
     "portkey-ai/openai": ["openai@6.3.0", "http://localhost:4873/openai/-/openai-6.3.0.tgz", { "peerDependencies": { "ws": "^8.18.0", "zod": "^3.25 || ^4.0" }, "optionalPeers": ["ws", "zod"], "bin": { "openai": "bin/cli" } }, "sha512-E6vOGtZvdcb4yXQ5jXvDlUG599OhIkb/GjBLZXS+qk0HF+PJReIldEc9hM8Ft81vn+N6dRdFRb7BZNK8bbvXrw=="],
 
     "@eslint/eslintrc/ajv/json-schema-traverse": ["json-schema-traverse@0.4.1", "http://localhost:4873/json-schema-traverse/-/json-schema-traverse-0.4.1.tgz", {}, "sha512-xbbCH5dCYU5T8LcEhhuh7HJ88HXuW3qsI3Y0zOZFKfZEHcpWiHU/Jxzk629Brsab/mMiHQti9wMP+845RPe3Vg=="],
+
+    "@fragola-ai/agent/portkey-ai/dotenv": ["dotenv@16.6.1", "http://localhost:4873/dotenv/-/dotenv-16.6.1.tgz", {}, "sha512-uBq4egWHTcTt33a72vpSG0z3HnPuIl6NqYcTrKEg2azoEyl2hpW0zqlxysq2pK9HlDIHyHyakeYaYnSAwd8bow=="],
+
+    "@fragola-ai/agent/portkey-ai/openai": ["openai@6.8.1", "http://localhost:4873/openai/-/openai-6.8.1.tgz", { "peerDependencies": { "ws": "^8.18.0", "zod": "^3.25 || ^4.0" }, "optionalPeers": ["ws", "zod"], "bin": { "openai": "bin/cli" } }, "sha512-ACifslrVgf+maMz9vqwMP4+v9qvx5Yzssydizks8n+YUJ6YwUoxj51sKRQ8HYMfR6wgKLSIlaI108ZwCk+8yig=="],
 
     "@typescript-eslint/typescript-estree/minimatch/brace-expansion": ["brace-expansion@5.0.4", "http://localhost:4873/brace-expansion/-/brace-expansion-5.0.4.tgz", { "dependencies": { "balanced-match": "^4.0.2" } }, "sha512-h+DEnpVvxmfVefa4jFbCf5HdH5YMDXRsmKflpf1pILZWRFlTbJpxeU55nJl4Smt5HQaGzg1o6RHFPJaOqnmBDg=="],
 

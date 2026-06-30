@@ -269,9 +269,7 @@ describe("toolCall — handler runs automatically, event transforms result", () 
 
         const toolMsg = agent.state.messages.find((m) => m.role === "tool");
         expect(toolMsg).toBeDefined();
-        expect(String(toolMsg?.content)).toContain('"success":false');
-        expect(String(toolMsg?.content)).toContain('"data":"Arguments valid but tool call execution failed"');
-        expect(String(toolMsg?.content)).toContain('"message":"boom"');
+        expect(String(toolMsg?.content)).toContain("Arguments valid but tool call execution failed");
     });
 
     it("stop in toolCall prevents further toolCall handlers and after:toolCall", async () => {
@@ -300,7 +298,7 @@ describe("toolCall — handler runs automatically, event transforms result", () 
         await agent.userMessage({ content: "hi" });
         const toolMsg = agent.state.messages.find((m) => m.role === "tool");
         expect(toolMsg).toBeDefined();
-        expect(toolMsg?.content).toBe(JSON.stringify({ success: true, data: "overridden-content" }));
+        expect(toolMsg?.content).toBe(JSON.stringify("overridden-content"));
     });
 });
 
@@ -430,7 +428,7 @@ describe("before:toolCall → toolCall → after:toolCall connections", () => {
         await agent.userMessage({ content: "hi" });
         const toolMsg = agent.state.messages.find((m) => m.role === "tool");
         expect(toolMsg).toBeDefined();
-        expect(toolMsg?.content).toBe(JSON.stringify({ success: true, data: { serialized: "yes" } }));
+        expect(toolMsg?.content).toBe(JSON.stringify({ serialized: "yes" }));
     });
 
     it("default handler result (when toolCall skips) also propagates to after:toolCall", async () => {

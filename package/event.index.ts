@@ -12,5 +12,13 @@ export type {
 } from "@src/event";
 
 export type {
+    ToolCallPayload
+} from "@src/eventDefault";
+
+export type {
     AgentAfterEventId
 } from "@src/eventAfter";
+
+export type {
+    AgentBeforeEventId
+} from "@src/eventBefore";

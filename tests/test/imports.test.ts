@@ -43,7 +43,7 @@ import type {
 
 // exports from `context.index.ts`
 import { Store } from '@fragola-ai/agent/store';
-import type { ContextChangeCallback } from '@fragola-ai/agent/store';
+import type { StoreChangeCallback } from '@fragola-ai/agent/store';
 
 // exports from `event.index.ts`
 import { SKIP_EVENT, skip as skipFromEvent } from '@fragola-ai/agent/event';

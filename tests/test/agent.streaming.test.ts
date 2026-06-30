@@ -67,8 +67,7 @@ describe("Agent streaming behavior (real model via stream: true)", () => {
         if (toolMsg) {
             expect(typeof toolMsg.content).toBe("string");
             const parsed = JSON.parse(String(toolMsg.content));
-            expect(parsed.success).toBe(true);
-            expect(parsed.data?.created).toBeDefined();
+            expect(parsed.created).toBeDefined();
         }
     });
 

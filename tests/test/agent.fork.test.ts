@@ -225,7 +225,7 @@ describe("fork", () => {
 
         expect(handlerSpy).toHaveBeenCalledWith({ input: "original" }, expect.anything());
         expect(handlerSpy).toHaveBeenCalledWith({ input: "forked" }, expect.anything());
-        expect(agent.state.messages.some((message) => message.role === "tool" && message.content === JSON.stringify({ success: true, data: "handled:original" }))).toBe(true);
-        expect(fork.state.messages.some((message) => message.role === "tool" && message.content === JSON.stringify({ success: true, data: "handled:forked" }))).toBe(true);
+        expect(agent.state.messages.some((message) => message.role === "tool" && message.content === JSON.stringify("handled:original"))).toBe(true);
+        expect(fork.state.messages.some((message) => message.role === "tool" && message.content === JSON.stringify("handled:forked"))).toBe(true);
     });
 });

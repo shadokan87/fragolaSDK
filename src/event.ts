@@ -21,6 +21,10 @@ export type eventResult<T> = T | ReturnType<typeof skip> | ReturnType<typeof sto
 
 export type AgentEventId = AgentDefaultEventId | AgentAfterEventId | AgentBeforeEventId;
 
+export type {
+    ToolCallPayload
+} from "./eventDefault";
+
 export type EventDefaultCallback<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = (
   context: AgentContext<TMetaData, TGlobalStore, TStore>
 ) => maybePromise<void>;

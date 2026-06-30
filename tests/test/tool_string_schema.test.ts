@@ -57,8 +57,7 @@ describe("Tool schema parsing in step()", () => {
         const last = state.messages.at(-2)!;
         expect(last.role).toBe("tool");
         const payload = JSON.parse(String((last as any).content));
-        expect(payload).toMatchObject({ success: false, isValidationError: true, data: "Tool parameters invalid" });
-        expect(payload.error).toMatchObject({ name: "ZodError", issues: expect.any(Array) });
+        expect(payload).toBe("Tool parameters invalid");
     });
 
     it("Zod schema: valid args should succeed and append tool message", async () => {
@@ -85,7 +84,7 @@ describe("Tool schema parsing in step()", () => {
         expect(last.role).toBe("tool");
         expect(typeof (last as any).tool_call_id).toBe("string");
         const payload = JSON.parse(String((last as any).content));
-        expect(payload).toEqual({ success: true, data: "OK:Paris" });
+        expect(payload).toBe("OK:Paris");
     });
 
     it("String schema: Ajv 1 valid, 1 invalid.", async () => {
@@ -126,7 +125,7 @@ describe("Tool schema parsing in step()", () => {
         const lastInvalid = stateInvalid.messages.at(-2)!;
         expect(lastInvalid.role).toBe("tool");
         const payloadInvalid = JSON.parse(String((lastInvalid as any).content));
-        expect(payloadInvalid).toEqual({ success: true, data: expect.stringContaining("INVALID") });
+        expect(payloadInvalid).toEqual(expect.stringContaining("INVALID"));
 
         // Test with valid args
         const agentValid = fragola.agent({
@@ -143,6 +142,6 @@ describe("Tool schema parsing in step()", () => {
         const lastValid = stateValid.messages.at(-2)!;
         expect(lastValid.role).toBe("tool");
         const payloadValid = JSON.parse(String((lastValid as any).content));
-        expect(payloadValid).toEqual({ success: true, data: "RAW:Paris" });
+        expect(payloadValid).toBe("RAW:Paris");
     });
 });

@@ -36,6 +36,8 @@ import {
     type ApplyEventResult
 } from "./applyEvent"
 
+export { AgentContext } from "./agentContext";
+
 export type AgentState<TMetaData extends DefineMetaData<any> = {}> = {
     messages: ChatCompletionMessageParam<TMetaData>[],
     stepCount: number,
@@ -966,7 +968,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                 const afterToolCallResult = await this.applyEvents("after:toolCall", { result: content, params: effectiveParams, tool: tool as any });
 
                 const contentToString = (content: ToolCallPayload) => {
-                    return stringifyToolValue(content);
+                    return stringifyToolValue(content.data);
                 }
 
                 const message: OpenAI.ChatCompletionMessageParam = {

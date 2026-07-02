@@ -12,10 +12,10 @@
   },
   "include": [
     "fragola.index.ts",
-    "store.index.ts", 
-    "agent.index.ts",
-    "event.index.ts",
-    "hook.index.ts",
+    "package/store.index.ts",
+    "package/agent.index.ts",
+    "package/event.index.ts",
+    "package/hook.index.ts",
     "src/**/*"
   ],
   "exclude": [

@@ -1,6 +1,6 @@
 {
   "name": "@fragola-ai/agent",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "An event-driven SDK for building AI agents. Interoperable with OpenAI SDK.",
   "main": "./dist/package/fragola.index.js",
   "module": "./dist/package/fragola.index.js",

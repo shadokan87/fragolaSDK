@@ -1,4 +1,4 @@
-import z from "zod";
+import {z} from "zod";
 import { Agent, type AgentOptions, type CreateAgentOptions, type JsonQuery } from "./agent";
 import type { maybePromise, StoreLike } from "./types";
 import type { ClientOptions as OpenaiClientOptions } from "openai/index.js";
@@ -7,6 +7,8 @@ import type { Store } from "@src/store";
 import { BadUsage } from "./exceptions";
 import type { AgentContext } from "@src/agentContext";
 import { type AgentAny } from "./agent";
+import * as z3 from "zod/v3";
+import * as z4 from "zod/v4";
 
 export type ToolHandlerReturnTypeNonAsync = any[] | Record<any, any> | Function | number | bigint | boolean | string;
 export type ToolHandlerReturnType = maybePromise<ToolHandlerReturnTypeNonAsync>;
@@ -36,7 +38,11 @@ export type ChatCompletionMessageParam<TMetaData extends DefineMetaData<any> = {
     | OpenAI.Chat.Completions.ChatCompletionFunctionMessageParam
     ;
 
-export interface Tool<T extends z.ZodType<any, any> | string = any> {
+export type ZodSchema<T = any> = z3.Schema<T, z3.ZodTypeDef, any> | z4.core.$ZodType<T, any>;
+
+export type Schema = ZodSchema | string;
+
+export interface Tool<TSCHEMA extends Schema = any> {
     /**
      * The name of the tool.
      */
@@ -48,13 +54,13 @@ export interface Tool<T extends z.ZodType<any, any> | string = any> {
     /**
      * The function that handles the tool's logic, or the string "dynamic" for dynamic handlers.
      */
-    handler: ((parameters: T extends z.ZodType<any, any> ? z.infer<T> : any, context: AgentContext<any, any>) => ToolHandlerReturnType) | "dynamic";
+    handler: ((parameters: TSCHEMA extends z.ZodType<any, any> ? z.infer<TSCHEMA> : any, context: AgentContext<any, any>) => ToolHandlerReturnType) | "dynamic";
     /**
      * The Zod schema or JSON Schema string that validates/describes the parameters for the tool.
      * - Zod schema: Automatic validation will be performed
      * - String: No validation, you handle validation in the tool handler. The string is passed as-is to the model.
      */
-    schema?: T;
+    schema?: TSCHEMA;
 }
 
 /**
@@ -85,7 +91,7 @@ export interface Tool<T extends z.ZodType<any, any> | string = any> {
  *   },
  * });
  */
-export const tool = <T extends z.ZodType<any, any> | string>(params: Tool<T>) => params;
+export const tool = <TSCHEMA extends Schema>(params: Tool<TSCHEMA>) => params;
 
 export function stripMeta<T extends object>(data: (T & { meta?: any }) | Array<T & { meta?: any }>) {
     const _strip = (message: T & { meta?: any }) => {

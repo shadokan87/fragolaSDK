@@ -1,10 +1,12 @@
 // TODO: logger method
 import { createStore, Store } from "./store"
-import { Fragola, stripMessagesMeta, type ChatCompletionAssistantMessageParam, type ChatCompletionMessageParam, type ChatCompletionUserMessageParam, type DefineMetaData, type MessageMeta, type OpenaiClientOptions, type Tool, type ToolHandlerReturnTypeNonAsync } from "./fragola"
+import { Fragola, stripMessagesMeta, type ChatCompletionAssistantMessageParam, type ChatCompletionMessageParam, type ChatCompletionUserMessageParam, type DefineMetaData, type MessageMeta, type OpenaiClientOptions, type Schema, type Tool, type ToolHandlerReturnTypeNonAsync } from "./fragola"
 import type { ChatCompletionCreateParamsBase } from "openai/resources/chat/completions.js"
 import { streamChunkToMessage, isSkipEvent, isStopEvent, isChunkPartial } from "./utils"
 import { BadUsage, FragolaError, JsonModeError, MaxStepHitError } from "./exceptions"
 import type z from "zod";
+import type * as z3 from "zod/v3";
+import * as z4 from "zod/v4";
 import type { Prettify, StoreLike } from "./types"
 import OpenAI from "openai/index.js"
 import { type AgentEventId } from "./event"
@@ -14,7 +16,7 @@ import type { EventAfterStateUpdate, EventAfterStep, EventAfterModelInvocation, 
 import type { EventBeforeStep, EventBeforeModelInvocation, EventBeforeToolCall, ModelInvocationConfig, ToolCallConfig } from "./eventBefore"
 import { type registeredEvent, type eventIdToCallback, EventMap } from "./extendedJS/events/EventMap"
 import type { FragolaHook, FragolaHookDispose } from "@src/hook/index";
-import { zodToJsonSchema } from "openai/_vendor/zod-to-json-schema/zodToJsonSchema.js"
+import { zodToJsonSchema as _zodToJsonSchema } from "zod-to-json-schema"
 import type { ChatCompletionChunk, ResponseFormatJSONSchema } from "openai/resources"
 import { AgentContext } from "@src/agentContext";
 import { STOP } from "@src/agentContext"
@@ -31,7 +33,6 @@ import {
     applyAfterToolCall,
     applyModelInvocation,
     applyToolCall,
-    type EventResult,
     type AccumulateCallback,
     type ApplyEventResult
 } from "./applyEvent"
@@ -205,6 +206,19 @@ const stringifyToolValue = (value: unknown): string => {
         return nestedValue;
     });
 };
+
+const isZodV4Schema = (schema: Exclude<Schema, string>): schema is z4.ZodType => "_zod" in schema;
+
+const zodToJsonSchema = <TSCHEMA extends Schema>(schema: TSCHEMA) => {
+    if (typeof schema === "string") {
+        throw new BadUsage("Cannot convert a string schema to JSON schema. Pass a Zod schema instead.");
+    }
+
+    if (isZodV4Schema(schema))
+        return z4.toJSONSchema(schema);
+
+    return _zodToJsonSchema(schema as z3.ZodType);
+}
 
 export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> {
     public static defaultAgentState: AgentState = {

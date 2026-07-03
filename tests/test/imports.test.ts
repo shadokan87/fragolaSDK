@@ -8,7 +8,7 @@ import {
 	stripAiMessageMeta,
 	stripUserMessageMeta,
 	stripToolMessageMeta,
-	Fragola
+	Fragola,
 } from '@fragola-ai/agent';
 
 import type {
@@ -21,7 +21,8 @@ import type {
 	ChatCompletionToolMessageParam,
 	MessageMeta,
 	ChatCompletionMessageParam,
-	Tool as ToolType
+	Tool as ToolType,
+	Schema
 } from '@fragola-ai/agent';
 
 // exports from `agent.index.ts`

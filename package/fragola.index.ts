@@ -18,7 +18,14 @@ export type {
     ChatCompletionToolMessageParam,
     MessageMeta,
     ChatCompletionMessageParam,
+    ZodSchema,
+    JsonOptions,
+    FragolaEvents,
+    AgentCreatedCallback,
     Tool,
+    Schema,
+    ClientOptions,
+    OpenaiClientOptions
 } from "@src/fragola";
 
 export * from "@src/stateUtils";

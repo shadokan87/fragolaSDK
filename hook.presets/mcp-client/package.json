@@ -1,7 +1,7 @@
 {
   "name": "@fragola-ai/hook-mcp-client",
   "version": "0.1.0",
-  "description": "MCP tools hook preset for Fragola agents.",
+  "description": "MCP client hook for Fragola agents.",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",

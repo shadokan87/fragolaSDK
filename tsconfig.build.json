@@ -11,11 +11,7 @@
     }
   },
   "include": [
-    "fragola.index.ts",
-    "package/store.index.ts",
-    "package/agent.index.ts",
-    "package/event.index.ts",
-    "package/hook.index.ts",
+    "package/*",
     "src/**/*"
   ],
   "exclude": [

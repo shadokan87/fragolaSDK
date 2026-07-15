@@ -139,11 +139,15 @@ async function listRemoteResources(client: Client) {
 }
 
 function createAjv(options: AjvOptions | undefined) {
-  return new Ajv(options ?? {
+  const ajv = new Ajv(options ?? {
     strict: false,
     removeAdditional: true,
     useDefaults: true,
+    validateSchema: false, // Disable meta-schema validation to avoid HTTPS schema ref issues
+    allErrors: true,
   });
+  
+  return ajv;
 }
 
 export const mcpClient = (options: McpClientOptions[] | McpClientOptions): FragolaHook => {
@@ -187,8 +191,14 @@ export const mcpClient = (options: McpClientOptions[] | McpClientOptions): Frago
       let mappedTools = remoteTools.map((remoteTool) => {
         let validator: ReturnType<typeof ajv.compile> | undefined;
 
-        if (remoteTool.inputSchema)
-          validator = ajv.compile(remoteTool.inputSchema);
+        if (remoteTool.inputSchema) {
+          try {
+            validator = ajv.compile(remoteTool.inputSchema);
+          } catch (error) {
+            console.warn(`Failed to compile schema for tool ${remoteTool.name}:`, error instanceof Error ? error.message : error);
+            // Continue without validation if schema compilation fails
+          }
+        }
 
         return tool({
           name: remoteTool.name,

@@ -5,13 +5,15 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import {type CallToolResult} from "@modelcontextprotocol/sdk/types.js";
 
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import Ajv, { type Options as AjvOptions } from "ajv";
 
 type MaybePromise<T> = Promise<T> | T;
 
 export type McpClientFastConfig = {
   name: string;
-  url: string;
+  transport?: "Http" | "Stdio"
+  connectionString: string;
   headers?: RequestInit["headers"];
 };
 
@@ -37,7 +39,7 @@ export type McpClientOptions = {
   | { client: Client; name: string }
   );
 
-type LoadedClient = {
+export type LoadedClient = {
   client: Client;
   closeOnDispose: boolean;
 };
@@ -81,15 +83,22 @@ async function connectClient(clientOrOptions: McpClientFastConfig | Client): Pro
     };
   }
 
-  const transport = new StreamableHTTPClientTransport(new URL(clientOrOptions.url), {
-    requestInit: clientOrOptions.headers
-      ? { headers: clientOrOptions.headers }
-      : undefined,
-  });
+  const resolvedTransport = clientOrOptions.transport ?? "Http";
   const client = new Client({
     name: clientOrOptions.name,
     version: "1.0",
   });
+
+  const transport = resolvedTransport === "Stdio"
+    ? new StdioClientTransport({
+      command: clientOrOptions.connectionString,
+      args: [],
+    })
+    : new StreamableHTTPClientTransport(new URL(clientOrOptions.connectionString), {
+      requestInit: clientOrOptions.headers
+        ? { headers: clientOrOptions.headers }
+        : undefined,
+    });
 
   await client.connect(transport);
 
@@ -156,16 +165,24 @@ export const mcpClient = (options: McpClientOptions[] | McpClientOptions): Frago
           return option.client;
         return {
           name: option.name,
-          url: option.url,
-          headers: option.headers
-        } as McpClientFastConfig
+          connectionString: option.connectionString,
+          transport: option.transport,
+          headers: option.headers,
+        } as McpClientFastConfig;
       })();
       const loadedClient = await connectClient(client);
       loadedClients.push(loadedClient);
 
       const ajv = createAjv(option.schemaValidation);
-      const remoteTools = await listRemoteTools(loadedClient.client);
-      const remoteResources = await listRemoteResources(loadedClient.client);
+      const remoteTools = await listRemoteTools(loadedClient.client).catch((e) => {
+        console.warn(`Failed to list tools for ${clientName}:`, e.message);
+        return [];
+      });
+      const remoteResources = await listRemoteResources(loadedClient.client).catch((e) => {
+        console.warn(`Failed to list resources for ${clientName}:`, e.message);
+        return [];
+      });
+
 
       let mappedTools = remoteTools.map((remoteTool) => {
         let validator: ReturnType<typeof ajv.compile> | undefined;

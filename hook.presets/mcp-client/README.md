@@ -11,12 +11,11 @@ npm install @fragola-ai/agent @fragola-ai/hook-mcp-client
 ## Usage
 
 ```ts
-import { mcpTools } from "@fragola-ai/hook-mcp-client";
+import { mcpClient } from "@fragola-ai/hook-mcp-client";
 
-agent.use(mcpTools({
-  client: {
-    name: "docs-mcp",
-    url: "http://localhost:3000/mcp"
-  }
+agent.use(mcpClient({
+  name: "docs-mcp",
+  connectionString: "http://localhost:3000/mcp",
+  transport: "Http"
 }), "mcp-client");
 ```

@@ -1,11 +1,18 @@
 {
   "name": "@fragola-ai/hook-mcp-client",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "MCP client hook for Fragola agents.",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
   "files": [
     "dist/**/*",
     "README.md"
@@ -28,7 +35,8 @@
   "dependencies": {
     "@fragola-ai/agent": "^0.1.1",
     "@modelcontextprotocol/sdk": "^1.21.1",
-    "ajv": "^8.17.1"
+    "ajv": "^8.17.1",
+    "nanoid": "^5.1.16"
   },
   "devDependencies": {
     "@types/bun": "latest",

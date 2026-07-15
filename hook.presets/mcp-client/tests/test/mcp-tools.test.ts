@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeAll, afterAll } from "vitest";
-import { mcpClient, type McpClientStoreType } from "@fragola-ai/hook-mcp-client";
+import { mcpClient, type McpClientStoreType } from "../../src/index";
 import { Fragola } from "@fragola-ai/agent";
 
 describe("hook-mcp-client", () => {
@@ -11,8 +11,8 @@ describe("hook-mcp-client", () => {
       name: "test",
       description: "",
       instructions: "test"
-    }).use(mcpClient({ url: "http://localhost:3000/mcp", name: "test_mcp",
-      toolResultProcessor: (result) => {
+    }).use(mcpClient({ connectionString: "http://localhost:3000/mcp", name: "test_mcp",
+      toolResultProcessor: (result: any) => {
         if (result.isError) {
           throw new Error("");
         } else {

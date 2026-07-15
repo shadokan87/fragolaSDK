@@ -1,0 +1,48 @@
+[
+  {
+    "role": "user",
+    "content": "search for custom t shirt printing in paris and click on the first result"
+  },
+  {
+    "role": "assistant",
+    "content": "I'll help you search for custom t shirt printing in Paris and click on the first result. Let me start by taking a snapshot to see the current state of the page.",
+    "tool_calls": [
+      {
+        "id": "toolu_vrtx_01TTupkYHuF9tuNEgd2hLM7T",
+        "type": "function",
+        "function": {
+          "name": "browser_snapshot",
+          "arguments": "{}"
+        }
+      }
+    ]
+  },
+  {
+    "role": "tool",
+    "content": "{\"success\":false,\"error\":{\"name\":\"Error\",\"message\":\"Tool browser_snapshot returned error: [{\\\"type\\\":\\\"text\\\",\\\"text\\\":\\\"### Error\\\\nError: async initializeServer: Chromium distribution 'chrome' is not found at /opt/google/chrome/chrome\\\\nRun \\\\\\\"npx playwright install chrome\\\\\\\"\\\"}]\"},\"data\":\"Arguments valid but tool call execution failed\"}",
+    "tool_call_id": "toolu_vrtx_01TTupkYHuF9tuNEgd2hLM7T"
+  },
+  {
+    "role": "assistant",
+    "content": "Let me navigate to Google and perform the search:",
+    "tool_calls": [
+      {
+        "id": "toolu_vrtx_01JbxxeCadgMLiA9mwW8iZVD",
+        "type": "function",
+        "function": {
+          "name": "browser_navigate",
+          "arguments": "{\"url\":\"https://www.google.com\"}"
+        }
+      }
+    ]
+  },
+  {
+    "role": "tool",
+    "content": "{\"success\":false,\"error\":{\"name\":\"Error\",\"message\":\"Tool browser_navigate returned error: [{\\\"type\\\":\\\"text\\\",\\\"text\\\":\\\"### Error\\\\nError: async initializeServer: Chromium distribution 'chrome' is not found at /opt/google/chrome/chrome\\\\nRun \\\\\\\"npx playwright install chrome\\\\\\\"\\\"}]\"},\"data\":\"Arguments valid but tool call execution failed\"}",
+    "tool_call_id": "toolu_vrtx_01JbxxeCadgMLiA9mwW8iZVD"
+  },
+  {
+    "role": "assistant",
+    "content": "I apologize, but I'm encountering a technical issue with the browser initialization. The Chromium browser required to perform web navigation isn't properly installed in the environment. The system needs to run \"npx playwright install chrome\" to set up the browser properly.\n\nUnfortunately, I'm unable to complete your request to search for custom t shirt printing in Paris at this moment due to this browser setup issue. You would need to either:\n\n1. Have a system administrator install the required Chromium distribution, or\n2. Perform the search manually by:\n   - Going to https://www.google.com\n   - Searching for \"custom t shirt printing in paris\"\n   - Clicking on the first result\n\nI apologize for the inconvenience!"
+  }
+]

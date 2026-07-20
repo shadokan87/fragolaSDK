@@ -91,18 +91,24 @@ console.log(`${color("Release Mode (Tag):", "bold")} ${tag}`);
 console.log(`${color(`Current NPM Version (${tag}):`, "bold")} ${currentNpmVersion}`);
 console.log(`${color("Version to Publish:", "bold")} ${packageVersion}`);
 
-const expectedConfirmation = `${packageName}@${tag}@${packageVersion}`;
-const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-});
+if (registry.includes("localhost") || registry.includes("127.0.0.1")) {
+    console.log(`\n${color("Localhost registry detected. Skipping CLI confirmation check.", "yellow")}`);
+} else {
+    const expectedConfirmation = `${packageName}@${tag}@${packageVersion}`;
+    const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout,
+    });
 
-const answer = await rl.question(`\nTo confirm publish, please type exactly:\n${color(expectedConfirmation, "green")}\n> `);
-rl.close();
+    const answer = await rl.question(`\nTo confirm publish, please type exactly:\n${color(expectedConfirmation, "green")}\n> `);
+    rl.close();
 
-if (answer.trim() !== expectedConfirmation) {
-    console.error(color("\nConfirmation failed. Aborting publish.", "red"));
-    process.exit(1);
+    if (answer.trim() !== expectedConfirmation) {
+        console.error(color("\nConfirmation failed. Aborting publish.", "red"));
+        process.exit(1);
+    }
+    
+    console.log(`\n${color("Confirmation successful.", "green")}`);
 }
 
-console.log(`\n${color("Confirmation successful. Continuing with npm publish...", "green")}`);
+console.log(`\n${color("Continuing with npm publish...", "green")}`);

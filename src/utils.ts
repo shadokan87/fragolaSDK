@@ -22,7 +22,7 @@ export const isChunkPartial = (chunk: OpenAI.Chat.Completions.ChatCompletionChun
 
 export const streamChunkToMessage = (chunk: OpenAI.Chat.Completions.ChatCompletionChunk, message: Partial<OpenAI.Chat.ChatCompletionMessageParam> = {} as Partial<OpenAI.Chat.ChatCompletionMessageParam>) => {
     const updatedMessage = structuredClone(message);
-    if (chunk.usage || !chunk["choices"] || chunk.choices.length == 0)
+    if (!chunk["choices"] || chunk.choices.length == 0)
         return updatedMessage;
     // Handle role if present in delta
     if (chunk.choices[0].delta?.role) {

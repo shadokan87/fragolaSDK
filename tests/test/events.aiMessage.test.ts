@@ -15,6 +15,37 @@ const fragola = createTestClient();
 // aiMessage — non-streaming completions
 // ─────────────────────────────────────────────────────────────────────────────
 
+describe("aiMessage — non-streaming completions (real API)", () => {
+    it("receives a final reply from the AI without streaming", async () => {
+        const agent = fragola.agent({
+            name: "a",
+            instructions: "You are a helpful assistant.",
+            description: "",
+            modelSettings: { max_tokens: 1000 },
+        });
+
+        let eventFired = false;
+        let finalFinishReason: string | null | undefined;
+
+        agent.onAiMessage((message, finishReason) => {
+            eventFired = true;
+            finalFinishReason = finishReason;
+            return message;
+        });
+
+        const { messages } = await agent.userMessage({ content: "say \"hello, how can I help you today ?\"" });
+        
+        // Check that the state contains the user message and the assistant's reply
+        expect(messages.length).toBe(2);
+        expect(messages.at(-1)?.role).toBe("assistant");
+        expect((messages.at(-1)?.content as string).length).toBeGreaterThan(0);
+        
+        // Verify the event fired correctly for a non-streamed response
+        expect(eventFired).toBe(true);
+        expect(finalFinishReason).toBeTruthy();
+    });
+});
+
 describe("aiMessage — non-streaming completions", () => {
     it("is called once with the final message, finish_reason, and usage", async () => {
         let callCount = 0;
@@ -144,7 +175,7 @@ describe("aiMessage — streaming partial messages (real API)", () => {
             name: "a",
             instructions: "You are a helpful assistant.",
             description: "",
-            modelSettings: { stream: true, max_tokens: 50 },
+            modelSettings: { stream: true, max_tokens: 1000, model: fragola.options.model },
         });
 
         let partialCount = 0;
@@ -157,7 +188,10 @@ describe("aiMessage — streaming partial messages (real API)", () => {
             return message;
         });
 
-        await agent.userMessage({ content: "say hi" });
+        const {messages} = await agent.userMessage({ content: "say \"hello, how can I help you today ?\"" });
+        expect(messages.length).toBe(2);
+        expect(messages.at(-1)?.role).toBe("assistant");
+        expect(messages.at(-1)?.content?.length).toBeGreaterThan(1);
         expect(partialCount).toBeGreaterThan(0);
         expect(finalFinishReason).toBeTruthy();
     });

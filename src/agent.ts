@@ -137,7 +137,7 @@ export type applyEventParams<K extends AgentEventId, TMetaData extends DefineMet
     K extends "userMessage" ? { message: Omit<ChatCompletionUserMessageParam<TMetaData>, "role"> } :
     K extends "step" ? { options: Required<StepOptions>, lastMessageRole: OpenAI.ChatCompletionMessageParam["role"] | undefined, lastMessageIndex: number } :
     K extends "before:step" ? { options: StepOptions } :
-    K extends "after:step" ? { options: Required<StepOptions>, newMessages: ChatCompletionMessageParam<TMetaData>[], stepsTaken: number } :
+    K extends "after:step" ? { options: Required<StepOptions>, newMessages: ChatCompletionMessageParam<TMetaData>[], stepsTaken: number, error?: any } :
     K extends "before:modelInvocation" ? { config: ModelInvocationConfig<TMetaData> } :
     K extends "after:modelInvocation" ? { message: ChatCompletionAssistantMessageParam<TMetaData> } :
     K extends "toolCall" ? { result: ToolCallPayload, params: any, tool: Tool<any> } :
@@ -866,7 +866,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                     }
                     const processchunk = createProcesschunk();
                     for await (const chunk of response) {
-                        let _chunk = await processchunk(chunk);
+                        let _chunk = await processchunk(chunk); console.log("CHUNK:", JSON.stringify(_chunk));
                         if (isStopEvent(_chunk))
                             break;
                         if (_chunk.choices.length > 0)

@@ -1,15 +1,10 @@
-import { createHeaders, PORTKEY_GATEWAY_URL } from 'portkey-ai';
+import { PORTKEY_BASE_URL } from "portkey-ai/dist/src/constants";
 import { Fragola, type ClientOptions } from "@fragola-ai/agent";
 import 'dotenv/config';
 export const defaultOpts: ClientOptions = {
-  baseURL: PORTKEY_GATEWAY_URL,
-  apiKey: "xxx",
-  defaultHeaders: createHeaders({
-    virtualKey: "google-966377",
+    model: "@chainbridge/gemini-3-flash-preview",
     apiKey: process.env["TEST_API_KEY"],
-    Authorization: `Bearer ${process.env["TEST_GCLOUD_AUTH_TOKEN"]}`
-  }),
-  model: process.env["TEST_MODEL_MEDIUM"]!,
+    baseURL: PORTKEY_BASE_URL
 }
 export const createTestClient = (opts?: ClientOptions) => {
 

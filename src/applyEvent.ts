@@ -180,7 +180,7 @@ export async function applyAfterStep<TMetaData extends DefineMetaData<any>, TGlo
     }
     for (let i = 0; i < events.length; i++) {
         const callback = events[i].callback as EventAfterStep<TMetaData, TGlobalStore, TStore>;
-        const params: Parameters<typeof callback> = [_params.options, _params.newMessages, _params.stepsTaken, context];
+        const params: Parameters<typeof callback> = [_params.options, _params.newMessages, _params.stepsTaken, _params.error, context];
         const res = await callback(...params) as any;
         if (accumulate)
             await accumulate(res);

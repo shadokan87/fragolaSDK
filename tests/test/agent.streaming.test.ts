@@ -31,7 +31,7 @@ describe("Agent streaming behavior (real model via stream: true)", () => {
         const lastAssistant = assistant.state.messages.filter((m) => m.role === "assistant").pop();
         expect(lastAssistant).toBeDefined();
         if (lastAssistant)
-            expect(lastAssistant.content).toBeDefined();
+            expect(lastAssistant.content).toBeDefined(); expect(lastAssistant.content.length).toBeGreaterThan(0);
     });
 
     it("streams assistant that triggers a tool call and the tool is executed", async () => {

@@ -15,6 +15,7 @@ export type EventAfterStep<TMetaData extends DefineMetaData<any>, TGlobalStore e
     options: Required<StepOptions>,
     newMessages: ChatCompletionMessageParam<TMetaData>[],
     stepsTaken: number,
+    error: any | undefined,
     context: AgentContext<TMetaData, TGlobalStore, TStore>
 ) => maybePromise<void>;
 

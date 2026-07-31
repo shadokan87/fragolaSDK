@@ -40,6 +40,8 @@ export type ChatCompletionMessageParam<TMetaData extends DefineMetaData<any> = {
 
 export type ZodSchema<T = any> = z3.Schema<T, z3.ZodTypeDef, any> | z4.core.$ZodType<T, any>;
 
+export type Infer<T> = T extends ZodSchema<infer R> ? R : never;
+
 export type Schema = ZodSchema | string;
 
 export interface Tool<TSCHEMA extends Schema = any> {
@@ -114,7 +116,7 @@ export const stripToolMessageMeta = (toolMessage: ChatCompletionToolMessageParam
 
 const presetBadUsageMessage = `Cannot create a preset agent because no model was configured. Presets need either 'model' on the Fragola client options or 'modelSettings.model' on the preset call so the endpoint request knows which model to use. Set one of those values and retry.`;
 
-export type JsonOptions<T extends z.ZodTypeAny = z.ZodTypeAny> = {
+export type JsonOptions<T extends ZodSchema = ZodSchema> = {
     message: string;
     /** A Zod schema describing the expected JSON shape returned by the AI/tool */
     schema: T;
@@ -276,7 +278,7 @@ export class Fragola<TGlobalStore extends StoreLike<any> = {}> {
      * }
      * ```
      */
-    async json<S extends z.ZodTypeAny = z.ZodTypeAny>(query: JsonQuery<S>, options: CreateAgentOptions | undefined = undefined): Promise<z.SafeParseReturnType<unknown, z.infer<S>>> {
+    async json<S extends ZodSchema = ZodSchema>(query: JsonQuery<S>, options: CreateAgentOptions | undefined = undefined): Promise<z.SafeParseReturnType<unknown, Infer<S>>> {
         if (!this.clientOptions?.model) {
             throw new BadUsage(presetBadUsageMessage);
         }

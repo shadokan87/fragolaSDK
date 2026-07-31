@@ -1,6 +1,6 @@
 // TODO: logger method
 import { createStore, Store } from "./store"
-import { Fragola, stripMessagesMeta, type ChatCompletionAssistantMessageParam, type ChatCompletionMessageParam, type ChatCompletionUserMessageParam, type DefineMetaData, type MessageMeta, type OpenaiClientOptions, type Schema, type Tool, type ToolHandlerReturnTypeNonAsync } from "./fragola"
+import { Fragola, stripMessagesMeta, type ChatCompletionAssistantMessageParam, type ChatCompletionMessageParam, type ChatCompletionUserMessageParam, type DefineMetaData, type Infer, type MessageMeta, type OpenaiClientOptions, type Schema, type Tool, type ToolHandlerReturnTypeNonAsync, type ZodSchema } from "./fragola"
 import type { ChatCompletionCreateParamsBase } from "openai/resources/chat/completions.js"
 import { streamChunkToMessage, isSkipEvent, isStopEvent, isChunkPartial } from "./utils"
 import { BadUsage, FragolaError, JsonModeError, MaxStepHitError } from "./exceptions"
@@ -117,7 +117,7 @@ export type StepParams = StepBy & StepOptions;
 
 export type UserMessageQuery<TMetaData extends DefineMetaData<any> = {}> = Prettify<Omit<OpenAI.Chat.ChatCompletionUserMessageParam, "role">> & { step?: StepParams, meta?: MessageMeta<TMetaData, "user"> };
 
-export type JsonQuery<S extends z.ZodTypeAny = z.ZodTypeAny> = Prettify<UserMessageQuery & {
+export type JsonQuery<S extends ZodSchema = ZodSchema> = Prettify<UserMessageQuery & {
     /** Set to true to use tool calling to extract json instead of classic 'response_format' */
     // preferToolCalling?: boolean //TODO: for next versions
     /** Zod schema describing the expected JSON shape for the response */
@@ -126,9 +126,9 @@ export type JsonQuery<S extends z.ZodTypeAny = z.ZodTypeAny> = Prettify<UserMess
     ignoreUserMessageEvents?: boolean,
 } & Omit<ResponseFormatJSONSchema.JSONSchema, "schema">>;
 
-export type JsonResult<S extends z.ZodTypeAny = z.ZodTypeAny, TMetaData extends DefineMetaData<any> = {}> = {
+export type JsonResult<S extends ZodSchema = ZodSchema, TMetaData extends DefineMetaData<any> = {}> = {
     state: AgentState<TMetaData>
-} & z.SafeParseReturnType<unknown, z.infer<S>>;
+} & z.SafeParseReturnType<unknown, Infer<S>>;
 
 
 export type applyEventParams<K extends AgentEventId, TMetaData extends DefineMetaData<any>> =
@@ -1029,7 +1029,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      * }
      * ```
      */
-    async json<S extends z.ZodTypeAny = z.ZodTypeAny>(query: JsonQuery<S>): Promise<JsonResult<S, TMetaData>> {
+    async json<S extends ZodSchema = ZodSchema>(query: JsonQuery<S>): Promise<JsonResult<S, TMetaData>> {
         const { step, name, schema, strict, description, ignoreUserMessageEvents, ...message } = query;
         let _step = { ...step };
         let _message: Omit<ChatCompletionUserMessageParam<TMetaData>, "role">;
@@ -1063,7 +1063,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         }
         try {
             const jsonParsed = JSON.parse(lastAiMessage.content);
-            const parsed = schema.safeParse(jsonParsed);
+            const parsed = (schema as any).safeParse(jsonParsed) as z.SafeParseReturnType<unknown, Infer<S>>;
             return { ...parsed, state };
         } catch (error) {
             const preview = lastAiMessage.content.replace(/\s+/g, " ").slice(0, 200);

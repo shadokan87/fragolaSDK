@@ -19,6 +19,7 @@ export type {
     MessageMeta,
     ChatCompletionMessageParam,
     ZodSchema,
+    Infer,
     JsonOptions,
     FragolaEvents,
     AgentCreatedCallback,

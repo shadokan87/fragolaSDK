@@ -5,7 +5,7 @@
     "": {
       "name": "fragolasdk-test",
       "dependencies": {
-        "@fragola-ai/agent": "^0.1.6-alpha.10",
+        "@fragola-ai/agent": "^0.1.7-alpha.1",
         "ajv": "^8.17.1",
         "nanoid": "^5.1.9",
         "portkey-ai": "^3.0.1",
@@ -38,7 +38,7 @@
 
     "@eslint/plugin-kit": ["@eslint/plugin-kit@0.4.1", "http://localhost:4873/@eslint/plugin-kit/-/plugin-kit-0.4.1.tgz", { "dependencies": { "@eslint/core": "^0.17.0", "levn": "^0.4.1" } }, "sha512-43/qtrDUokr7LJqoF2c3+RInu/t4zfrpYdoSDfYyhg52rwLV6TnOvdG4fXm7IkSB3wErkcmJS9iEhjVtOSEjjA=="],
 
-    "@fragola-ai/agent": ["@fragola-ai/agent@0.1.6-alpha.10", "http://localhost:4873/@fragola-ai/agent/-/agent-0.1.6-alpha.10.tgz", { "dependencies": { "@eslint/js": "^9.34.0", "@fragola-ai/prompt": "^1.0.1", "@modelcontextprotocol/sdk": "^1.21.1", "@opentelemetry/sdk-node": "^0.208.0", "ajv": "^8.17.1", "eslint": "^9.34.0", "json-schema-to-zod": "^2.6.1", "nanoid": "^5.1.5", "openai": "6.45.0", "portkey-ai": "^3.1.0", "puppeteer": "^24.27.0", "typescript-eslint": "^8.42.0", "zod": "^3.25.67", "zod-to-json-schema": "^3.25.2" }, "peerDependencies": { "typescript": "^5.9.2" } }, "sha512-0T0Xx+ktIGjx7GiweJBYcx7c8GK1XVVqpwQ8lQtrvESZNMbuGAZ2mvpddfnocT81kLa2QVStQVI0RWpiyGNAZA=="],
+    "@fragola-ai/agent": ["@fragola-ai/agent@0.1.7-alpha.1", "http://localhost:4873/@fragola-ai/agent/-/agent-0.1.7-alpha.1.tgz", { "dependencies": { "@eslint/js": "^9.34.0", "@fragola-ai/prompt": "^1.0.1", "@modelcontextprotocol/sdk": "^1.21.1", "@opentelemetry/sdk-node": "^0.208.0", "ajv": "^8.17.1", "eslint": "^9.34.0", "json-schema-to-zod": "^2.6.1", "nanoid": "^5.1.5", "openai": "6.45.0", "portkey-ai": "^3.1.0", "puppeteer": "^24.27.0", "typescript-eslint": "^8.42.0", "zod": "^3.25.67", "zod-to-json-schema": "^3.25.2" }, "peerDependencies": { "typescript": "^5.9.2" } }, "sha512-AIXcOdYGJzGsJK7hd9rn9rvOenxOWOL9s0XM9o46wEXamnzt+0aDCtk52xZqZXufrsLuFWCG1/rRc5BDBSgqig=="],
 
     "@fragola-ai/prompt": ["@fragola-ai/prompt@1.1.0", "http://localhost:4873/@fragola-ai/prompt/-/prompt-1.1.0.tgz", { "peerDependencies": { "typescript": "^5.0.0" } }, "sha512-fvmNqVqf8j5Eq5vr/Zk4BlUeLt4gy2N0Z0N8jAG18Ng49YQpUrSgPUQKPpF9+bikDeoUELkk/TJiWnV2ZHor7A=="],
 

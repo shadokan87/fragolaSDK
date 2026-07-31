@@ -39,7 +39,7 @@ export type ToolCallConfig<TParams = Record<any, any>> =
 
 export type EventBeforeToolCall<TParams = Record<any, any>, TMetaData extends DefineMetaData<any> = {}, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> = (
     config: ToolCallConfig<TParams>,
-    tool: Tool<any>,
+    tool: Tool<any> | undefined,
     context: AgentContext<TMetaData, TGlobalStore, TStore>
 ) => maybePromise<ToolCallConfig<TParams>>;
 

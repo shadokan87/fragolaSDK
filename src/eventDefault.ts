@@ -58,7 +58,7 @@ export type EventModelInvocation<TMetaData extends DefineMetaData<any>, TGlobalS
 ) => maybePromise<eventResult<ModelInvocationChunkResult | ChatCompletionAssistantMessageParam<TMetaData>>>;
 
 export type EventToolCall<TParams = Record<any, any>, TMetaData extends DefineMetaData<any> = {}, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}>
-  = (result: ToolCallPayload, params: TParams, tool: Tool<any>, context: AgentContext<TMetaData, TGlobalStore, TStore>)
+  = (result: ToolCallPayload, params: TParams, tool: Tool<any> | undefined, context: AgentContext<TMetaData, TGlobalStore, TStore>)
     => maybePromise<eventResult<ToolCallPayload>>
 
 export type EventAiMessage<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> = (message: ChatCompletionAssistantMessageParam<TMetaData>, finish_reason: OpenAI.Chat.Completions.ChatCompletionChunk.Choice['finish_reason'], usage: OpenAI.Chat.Completions.ChatCompletionChunk['usage'], context: AgentContext<TMetaData, TGlobalStore, TStore>) => maybePromise<eventResult<ChatCompletionAssistantMessageParam>>;

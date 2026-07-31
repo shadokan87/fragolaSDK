@@ -140,9 +140,9 @@ export type applyEventParams<K extends AgentEventId, TMetaData extends DefineMet
     K extends "after:step" ? { options: Required<StepOptions>, newMessages: ChatCompletionMessageParam<TMetaData>[], stepsTaken: number, error?: any } :
     K extends "before:modelInvocation" ? { config: ModelInvocationConfig<TMetaData> } :
     K extends "after:modelInvocation" ? { message: ChatCompletionAssistantMessageParam<TMetaData> } :
-    K extends "toolCall" ? { result: ToolCallPayload, params: any, tool: Tool<any> } :
-    K extends "before:toolCall" ? { config: ToolCallConfig<any>, tool: Tool<any> } :
-    K extends "after:toolCall" ? { result: ToolCallPayload, params: any, tool: Tool<any> } :
+    K extends "toolCall" ? { result: ToolCallPayload, params: any, tool: Tool<any> | undefined } :
+    K extends "before:toolCall" ? { config: ToolCallConfig<any>, tool: Tool<any> | undefined } :
+    K extends "after:toolCall" ? { result: ToolCallPayload, params: any, tool: Tool<any> | undefined } :
     K extends "after:stateUpdate" ? null :
     never;
 
@@ -927,8 +927,6 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
 
                 // Find tool in options that matches the tool requested by last ai message
                 const tool = this.opts.tools?.find(tool => tool.name == toolCall.function.name);
-                if (!tool)
-                    throw new FragolaError(`Cannot execute tool call '${toolCall.function.name}' because no tool with that name is registered on this agent. The model asked for a tool that is unavailable in opts.tools. Register the tool, rename it to match the exposed tool name, or remove the stale tool call from the message history.`);
 
                 let paramsParsed: z.SafeParseReturnType<any, any> | undefined;
                 let rawParams: any;
@@ -939,11 +937,11 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                     rawParams = JSON.parse(toolCall.function.arguments);
                 } catch (error) {
                     toolCallPayload = createToolCallErrorPayload(
-                        new FragolaError(`Cannot execute tool '${tool.name}' because the model produced arguments that are not valid JSON. Tool arguments are expected to be a JSON string, and JSON.parse failed for the generated payload: ${formatUnknownError(error)}. Tighten the tool schema or description, inspect toolCall.function.arguments, or rewrite the params in 'before:toolCall'.`)
+                        new FragolaError(`Cannot execute tool '${tool?.name ?? toolCall.function.name}' because the model produced arguments that are not valid JSON. Tool arguments are expected to be a JSON string, and JSON.parse failed for the generated payload: ${formatUnknownError(error)}. Tighten the tool schema or description, inspect toolCall.function.arguments, or rewrite the params in 'before:toolCall'.`)
                     );
                 }
 
-                if (!toolCallPayload && tool.schema && typeof tool.schema !== 'string') {
+                if (!toolCallPayload && tool?.schema && typeof tool.schema !== 'string') {
                     paramsParsed = (tool.schema as z.Schema).safeParse(rawParams);
                     if (!paramsParsed.success)
                         toolCallPayload = createToolCallErrorPayload(paramsParsed.error, true);
@@ -964,6 +962,8 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                     toolCallPayload = await (async () => {
                         if (injectedConfig !== undefined)
                             return injectedConfig;
+                        if (!tool)
+                            return createToolCallSuccessPayload(`(tool with name ${toolCall.function.name} do not or no longer exist)`);
                         if (tool.handler == "dynamic")
                             throw new BadUsage(`Cannot execute tool '${tool.name}' because it uses handler: 'dynamic' but no result was injected. Dynamic tools do not run a local handler and must receive { injectConfig } from a 'before:toolCall' event. Register that event or replace the dynamic handler with a concrete function.`);
                         try {

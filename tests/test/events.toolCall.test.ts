@@ -444,3 +444,39 @@ describe("before:toolCall → toolCall → after:toolCall connections", () => {
         expect(afterResult).toEqual({ success: true, data: "handler-result:passthrough" });
     });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// missing tools handling
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("missing tools behavior", () => {
+    it("before:toolCall fires and allows injecting result when a tool does not exist", async () => {
+        const agent = fragola.agent({ name: "a", instructions: "", description: "", tools: [] });
+        injectToolCall(agent, "nonExistingTool", { input: "x" });
+
+        let capturedTool: any = "was-not-undefined";
+        agent.onBeforeToolCall((config, tool) => {
+            capturedTool = tool;
+            return { injectConfig: successPayload("injected-for-missing-tool") };
+        });
+
+        await agent.userMessage({ content: "hi" });
+
+        expect(capturedTool).toBeUndefined();
+        
+        const toolMsg = agent.state.messages.find((m) => m.role === "tool");
+        expect(toolMsg).toBeDefined();
+        expect(toolMsg?.content).toContain("injected-for-missing-tool");
+    });
+
+    it("by default missing tool receives generated string instead of throwing", async () => {
+        const agent = fragola.agent({ name: "a", instructions: "", description: "", tools: [] });
+        injectToolCall(agent, "nonExistingTool", { input: "x" });
+
+        await expect(agent.userMessage({ content: "hi" })).resolves.toBeDefined();
+
+        const toolMsg = agent.state.messages.find((m) => m.role === "tool");
+        expect(toolMsg).toBeDefined();
+        expect(toolMsg?.content).toContain("(tool with name nonExistingTool do not or no longer exist)");
+    });
+});

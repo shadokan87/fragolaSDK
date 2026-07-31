@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@fragola-ai/agent": "^0.1.6-alpha.10",
+    "@fragola-ai/agent": "^0.1.7-alpha.1",
     "ajv": "^8.17.1",
     "nanoid": "^5.1.9",
     "portkey-ai": "^3.0.1"

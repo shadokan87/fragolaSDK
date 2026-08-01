@@ -370,7 +370,7 @@ export async function applyBeforeToolCall<TMetaData extends DefineMetaData<any>,
     let configTmp: ToolCallConfig<any>;
     for (let i = 0; i < events.length; i++) {
         const callback = events[i].callback as EventBeforeToolCall<any, TMetaData, TGlobalStore, TStore>;
-        configTmp = await callback(result.value, _params.tool, context) as any;
+        configTmp = await callback(_params.toolCall, result.value, _params.tool, context) as any;
         if (accumulate)
             await accumulate(configTmp);
         if (isStopEvent(configTmp)) {
@@ -398,7 +398,7 @@ export async function applyToolCall<TMetaData extends DefineMetaData<any>, TGlob
     }
     for (let i = 0; i < events.length; i++) {
         const callback = events[i].callback as EventToolCall<any, TMetaData, TGlobalStore, TStore>;
-        const res = await callback(result.value, _params.params, _params.tool, context) as any;
+        const res = await callback(_params.toolCall, result.value, _params.params, _params.tool, context) as any;
         if (accumulate)
             await accumulate(res);
         if (isStopEvent(res)) {
@@ -426,7 +426,7 @@ export async function applyAfterToolCall<TMetaData extends DefineMetaData<any>, 
     }
     for (let i = 0; i < events.length; i++) {
         const callback = events[i].callback as EventAfterToolCall<any, TMetaData, TGlobalStore, TStore>;
-        const params: Parameters<typeof callback> = [_params.result, _params.params, _params.tool, context];
+        const params: Parameters<typeof callback> = [_params.toolCall, _params.result, _params.params, _params.tool, context];
         const res = await callback(...params) as any;
         if (accumulate)
             await accumulate(res);

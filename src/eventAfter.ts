@@ -25,6 +25,7 @@ export type EventAfterModelInvocation<TMetaData extends DefineMetaData<any>, TGl
 ) => maybePromise<void>;
 
 export type EventAfterToolCall<TParams = Record<any, any>, TMetaData extends DefineMetaData<any> = {}, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> = (
+    toolCall: { readonly name: string, readonly id: string },
     result: ToolCallPayload,
     params: TParams,
     tool: Tool<any> | undefined,

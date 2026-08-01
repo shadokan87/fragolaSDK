@@ -5,6 +5,7 @@ import type { ChatCompletionCreateParamsBase } from "openai/resources/chat/compl
 import { streamChunkToMessage, isSkipEvent, isStopEvent, isChunkPartial } from "./utils"
 import { BadUsage, FragolaError, JsonModeError, MaxStepHitError } from "./exceptions"
 import type z from "zod";
+import type { SafeParseReturnType } from "zod";
 import type * as z3 from "zod/v3";
 import * as z4 from "zod/v4";
 import type { Prettify, StoreLike } from "./types"
@@ -128,7 +129,7 @@ export type JsonQuery<S extends ZodSchema = ZodSchema> = Prettify<UserMessageQue
 
 export type JsonResult<S extends ZodSchema = ZodSchema, TMetaData extends DefineMetaData<any> = {}> = {
     state: AgentState<TMetaData>
-} & z.SafeParseReturnType<unknown, Infer<S>>;
+} & SafeParseReturnType<unknown, Infer<S>>;
 
 
 export type applyEventParams<K extends AgentEventId, TMetaData extends DefineMetaData<any>> =
@@ -140,9 +141,9 @@ export type applyEventParams<K extends AgentEventId, TMetaData extends DefineMet
     K extends "after:step" ? { options: Required<StepOptions>, newMessages: ChatCompletionMessageParam<TMetaData>[], stepsTaken: number, error?: any } :
     K extends "before:modelInvocation" ? { config: ModelInvocationConfig<TMetaData> } :
     K extends "after:modelInvocation" ? { message: ChatCompletionAssistantMessageParam<TMetaData> } :
-    K extends "toolCall" ? { result: ToolCallPayload, params: any, tool: Tool<any> | undefined } :
-    K extends "before:toolCall" ? { config: ToolCallConfig<any>, tool: Tool<any> | undefined } :
-    K extends "after:toolCall" ? { result: ToolCallPayload, params: any, tool: Tool<any> | undefined } :
+    K extends "toolCall" ? { toolCall: { readonly name: string, readonly id: string }, result: ToolCallPayload, params: any, tool: Tool<any> | undefined } :
+    K extends "before:toolCall" ? { toolCall: { readonly name: string, readonly id: string }, config: ToolCallConfig<any>, tool: Tool<any> | undefined } :
+    K extends "after:toolCall" ? { toolCall: { readonly name: string, readonly id: string }, result: ToolCallPayload, params: any, tool: Tool<any> | undefined } :
     K extends "after:stateUpdate" ? null :
     never;
 
@@ -928,7 +929,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                 // Find tool in options that matches the tool requested by last ai message
                 const tool = this.opts.tools?.find(tool => tool.name == toolCall.function.name);
 
-                let paramsParsed: z.SafeParseReturnType<any, any> | undefined;
+                let paramsParsed: SafeParseReturnType<any, any> | undefined;
                 let rawParams: any;
                 let effectiveParams: any;
                 let toolCallPayload: ToolCallPayload | undefined;
@@ -951,7 +952,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                 effectiveParams = params;
 
                 if (!toolCallPayload) {
-                    const beforeToolCallResult = await this.applyEvents("before:toolCall", { config: { params }, tool: tool as any });
+                    const beforeToolCallResult = await this.applyEvents("before:toolCall", { toolCall: { name: toolCall.function.name, id: toolCall.id }, config: { params }, tool: tool as any });
                     if (isStopEvent(beforeToolCallResult.signal))
                         break;
 
@@ -975,11 +976,11 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                     })();
                 }
 
-                const eventToolResult = await this.applyEvents("toolCall", { result: toolCallPayload, params: effectiveParams, tool: tool as any });
+                const eventToolResult = await this.applyEvents("toolCall", { toolCall: { name: toolCall.function.name, id: toolCall.id }, result: toolCallPayload, params: effectiveParams, tool: tool as any });
                 if (isStopEvent(eventToolResult.signal))
                     break;
                 const content = eventToolResult.value;
-                const afterToolCallResult = await this.applyEvents("after:toolCall", { result: content, params: effectiveParams, tool: tool as any });
+                const afterToolCallResult = await this.applyEvents("after:toolCall", { toolCall: { name: toolCall.function.name, id: toolCall.id }, result: content, params: effectiveParams, tool: tool as any });
 
                 const contentToString = (content: ToolCallPayload) => {
                     return stringifyToolValue(content.data);
@@ -1063,7 +1064,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         }
         try {
             const jsonParsed = JSON.parse(lastAiMessage.content);
-            const parsed = (schema as any).safeParse(jsonParsed) as z.SafeParseReturnType<unknown, Infer<S>>;
+            const parsed = (schema as any).safeParse(jsonParsed) as SafeParseReturnType<unknown, Infer<S>>;
             return { ...parsed, state };
         } catch (error) {
             const preview = lastAiMessage.content.replace(/\s+/g, " ").slice(0, 200);

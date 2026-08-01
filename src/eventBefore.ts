@@ -38,6 +38,7 @@ export type ToolCallConfig<TParams = Record<any, any>> =
     | { injectConfig: ToolCallPayload };
 
 export type EventBeforeToolCall<TParams = Record<any, any>, TMetaData extends DefineMetaData<any> = {}, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> = (
+    toolCall: { readonly name: string, readonly id: string },
     config: ToolCallConfig<TParams>,
     tool: Tool<any> | undefined,
     context: AgentContext<TMetaData, TGlobalStore, TStore>

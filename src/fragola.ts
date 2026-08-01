@@ -1,4 +1,4 @@
-import {z} from "zod";
+import {z, type SafeParseReturnType} from "zod";
 import { Agent, type AgentOptions, type CreateAgentOptions, type JsonQuery } from "./agent";
 import type { maybePromise, StoreLike } from "./types";
 import type { ClientOptions as OpenaiClientOptions } from "openai/index.js";
@@ -56,7 +56,7 @@ export interface Tool<TSCHEMA extends Schema = any> {
     /**
      * The function that handles the tool's logic, or the string "dynamic" for dynamic handlers.
      */
-    handler: ((parameters: TSCHEMA extends z.ZodType<any, any> ? z.infer<TSCHEMA> : any, context: AgentContext<any, any>) => ToolHandlerReturnType) | "dynamic";
+    handler: ((parameters: TSCHEMA extends ZodSchema<any> ? Infer<TSCHEMA> : any, context: AgentContext<any, any>) => ToolHandlerReturnType) | "dynamic";
     /**
      * The Zod schema or JSON Schema string that validates/describes the parameters for the tool.
      * - Zod schema: Automatic validation will be performed
@@ -278,7 +278,7 @@ export class Fragola<TGlobalStore extends StoreLike<any> = {}> {
      * }
      * ```
      */
-    async json<S extends ZodSchema = ZodSchema>(query: JsonQuery<S>, options: CreateAgentOptions | undefined = undefined): Promise<z.SafeParseReturnType<unknown, Infer<S>>> {
+    async json<S extends ZodSchema = ZodSchema>(query: JsonQuery<S>, options: CreateAgentOptions | undefined = undefined): Promise<SafeParseReturnType<unknown, Infer<S>>> {
         if (!this.clientOptions?.model) {
             throw new BadUsage(presetBadUsageMessage);
         }

@@ -10,6 +10,8 @@ import { type AgentAny } from "./agent";
 import * as z3 from "zod/v3";
 import * as z4 from "zod/v4";
 
+import type { EventPayloadBase } from "./event";
+
 export type ToolHandlerReturnTypeNonAsync = any[] | Record<any, any> | Function | number | bigint | boolean | string;
 export type ToolHandlerReturnType = maybePromise<ToolHandlerReturnTypeNonAsync>;
 export type AllowedMetaKeys = "user" | "ai" | "tool";
@@ -138,9 +140,12 @@ export const FRAGOLA_FRIEND = Symbol("Fragola_friend")
 /**
  * Called after Fragola creates a new agent instance.
  * Can return a promise to perform async setup work.
- * @param agent - The newly created agent.
+ * @param payload - The payload containing the created agent and context.
  */
-export type AgentCreatedCallback = (agent: AgentAny) => maybePromise<void>;
+export type AgentCreatedCallbackPayload = EventPayloadBase<any, any, any> & {
+    agent: AgentAny;
+};
+export type AgentCreatedCallback = (payload: AgentCreatedCallbackPayload) => maybePromise<void>;
 
 /**
  * Lifecycle callbacks emitted by a Fragola instance.
@@ -205,7 +210,7 @@ export class Fragola<TGlobalStore extends StoreLike<any> = {}> {
         const created = new Agent<TMetaData, TGlobalStore, TStore>(opts, this.globalStore, this.#sdkInstance, undefined, this as Fragola<any>);
         (async () => {
             if (this.clientOptions.events?.agentCreated) {
-                void await this.clientOptions.events.agentCreated(created)
+                void await this.clientOptions.events.agentCreated({ agent: created, context: created.context })
             }
         })();
         return created;

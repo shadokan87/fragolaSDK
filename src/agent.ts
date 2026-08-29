@@ -1198,7 +1198,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      * remaining `toolCall` / `after:toolCall` pipeline for the current tool call.
      *
      * @example
-    * agent.onToolCall((result, params, tool) => {
+    * agent.onToolCall(({ result, params, tool }) => {
      *   if (tool.name !== "getWeather") return result;
     *   if (!result.success) return result;
      *   return {
@@ -1222,7 +1222,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      * or `context.stop()` to stop processing the current assistant message.
      *
      * @example
-     * agent.onAiMessage((message, finish_reason) => {
+     * agent.onAiMessage(({ message, finish_reason }) => {
      *   if (finish_reason === null) return message;
      *   if (typeof message.content !== "string") return message;
      *   return {
@@ -1240,7 +1240,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      * user message which will be used instead of the original.
      *
      * @example
-     * agent.onUserMessage((message, context) => {
+     * agent.onUserMessage(({ message, context }) => {
      *   // enrich user message with metadata
      *   return { ...message, content: message.content.trim() };
      * });
@@ -1253,7 +1253,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      * Called before a step is executed.
      *
      * @example
-     * agent.onBeforeStep((options, context) => {
+     * agent.onBeforeStep(({ options, context }) => {
      *   console.log('Before step', options);
      * });
      */
@@ -1265,7 +1265,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      * Called after a step is executed.
      *
          * @example
-         * agent.onAfterStep((options, newMessages, stepsTaken, context) => {
+         * agent.onAfterStep(({ options, newMessages, stepsTaken, context }) => {
          *   console.log('After step', options, newMessages, stepsTaken);
      * });
      */
@@ -1294,7 +1294,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      * Called after the model is invoked.
      *
      * @example
-     * agent.onAfterModelInvocation((message, context) => {
+     * agent.onAfterModelInvocation(({ message, context }) => {
      *   console.log('After model invocation', message);
      * });
      */
@@ -1309,7 +1309,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         * and `context.stop()` aborts the current tool call.
       *
       * @example
-      * agent.onBeforeToolCall((config, tool) => {
+      * agent.onBeforeToolCall(({ config, tool }) => {
       *   if (tool.name !== "search" || !("params" in config)) return config;
       *   return { params: { ...config.params, limit: 5 } };
       * });
@@ -1322,7 +1322,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         * Called after a tool payload is finalized.
      *
      * @example
-     * agent.onAfterToolCall((result, params, tool, context) => {
+     * agent.onAfterToolCall(({ result, params, tool, context }) => {
      *   console.log('After tool call', tool.name, result);
      * });
      */
@@ -1355,16 +1355,16 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
       * `context.stop()` to abort further processing.
       *
       * @example
-      * agent.onModelInvocation((invocation) => {
-      *   if (invocation.kind === "completion") {
-      *     if (typeof invocation.data.content !== "string") return invocation.data;
+      * agent.onModelInvocation((payload) => {
+      *   if (payload.kind === "completion") {
+      *     if (typeof payload.data.content !== "string") return payload.data;
       *     return {
-      *       ...invocation.data,
-      *       content: invocation.data.content.trim(),
+      *       ...payload.data,
+      *       content: payload.data.content.trim(),
       *     };
       *   }
       *
-      *   if (!invocation.delta?.content) return invocation.chunk;
+      *   if (!payload.delta?.content) return payload.chunk;
       *
       *   return {
       *     injectDelta: {
@@ -1382,7 +1382,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      * or asynchronous persistence.
      *
      * @example
-     * agent.onAfterStateUpdate((context) => {
+     * agent.onAfterStateUpdate(({ context }) => {
      *   // e.g. emit metrics about step count
      *   console.log('stepCount', context.state.stepCount);
      * });
@@ -1404,7 +1404,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
     * import { Hook } from "@fragola-ai/agent/hook";
     *
     * const loggingHook = Hook((agent) => {
-    *   agent.onAfterStateUpdate((context) => {
+    *   agent.onAfterStateUpdate(({ context }) => {
     *     console.log(context.state.status);
     *   });
     * });

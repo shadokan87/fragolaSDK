@@ -5,7 +5,7 @@ type MaybePromise<T> = Promise<T> | T;
 type HookAgent = Parameters<FragolaHook>[0];
 type UserMessageHandler = Parameters<HookAgent["onUserMessage"]>[0];
 type AnyUserMessage = ChatCompletionUserMessageParam;
-type AnyContext = Parameters<UserMessageHandler>[1];
+type AnyContext = Parameters<UserMessageHandler>[0]["context"];
 
 const SYM_GUARDRAIL_FAIL = Symbol("Guardrail_fail");
 const _guardRailFail = { message: "", [SYM_GUARDRAIL_FAIL]: true };
@@ -61,7 +61,7 @@ export const guardrail = (
   rejectionBehaviour: "keepAndAnnotate" | "remove" = "keepAndAnnotate",
 ): FragolaHook => {
   return (agent) => {
-    agent.onUserMessage(async (message, context) => {
+    agent.onUserMessage(async ({ message, context }) => {
       // If the last message is from a user role but has been rejected by a guardrail, we remove it from the messages
       const lastMessage = context.state.messages.at(-1);
       if (lastMessage?.role == "user") {

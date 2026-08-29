@@ -121,9 +121,9 @@ export async function applyAfterStateUpdate<TMetaData extends DefineMetaData<any
     }
     for (let i = 0; i < events.length; i++) {
         const callback = events[i].callback as EventAfterStateUpdate<TMetaData, TGlobalStore, TStore>;
-        const params: Parameters<typeof callback> = [context];
+        const payload = { context };
 
-        const res = await callback(...params) as any;
+        const res = await callback(payload) as any;
         if (accumulate)
             await accumulate(res);
         if (isStopEvent(res)) {
@@ -151,8 +151,8 @@ export async function applyBeforeStep<TMetaData extends DefineMetaData<any>, TGl
     }
     for (let i = 0; i < events.length; i++) {
         const callback = events[i].callback as EventBeforeStep<TMetaData, TGlobalStore, TStore>;
-        const params: Parameters<typeof callback> = [_params.options, context];
-        const res = await callback(...params) as any;
+        const payload = { options: _params.options, context };
+        const res = await callback(payload) as any;
         if (accumulate)
             await accumulate(res);
         if (isStopEvent(res)) {
@@ -180,8 +180,8 @@ export async function applyAfterStep<TMetaData extends DefineMetaData<any>, TGlo
     }
     for (let i = 0; i < events.length; i++) {
         const callback = events[i].callback as EventAfterStep<TMetaData, TGlobalStore, TStore>;
-        const params: Parameters<typeof callback> = [_params.options, _params.newMessages, _params.stepsTaken, _params.error, context];
-        const res = await callback(...params) as any;
+        const payload = { options: _params.options, newMessages: _params.newMessages, stepsTaken: _params.stepsTaken, error: _params.error, context };
+        const res = await callback(payload) as any;
         if (accumulate)
             await accumulate(res);
         if (isStopEvent(res)) {
@@ -210,8 +210,8 @@ export async function applyBeforeModelInvocation<TMetaData extends DefineMetaDat
     let configTmp: ModelInvocationConfig<TMetaData>;
     for (let i = 0; i < events.length; i++) {
         const callback = events[i].callback as EventBeforeModelInvocation<TMetaData, TGlobalStore, TStore>;
-        const params: Parameters<typeof callback> = [result.value, context];
-        configTmp = await callback(...params) as any;
+        const payload = { config: result.value, context };
+        configTmp = await callback(payload) as any;
         if (accumulate)
             await accumulate(configTmp);
         if (isStopEvent(configTmp)) {
@@ -247,7 +247,8 @@ export async function applyModelInvocation<TMetaData extends DefineMetaData<any>
                 delta: (result.value as ModelInvocationChunk).choices[0]?.delta as ModelInvocationDelta | undefined,
             }
             : { kind: "completion" as const, data: result.value as ChatCompletionAssistantMessageParam<TMetaData> };
-        const res = await callback(invocation, context);
+        const payload = { ...invocation, context };
+        const res = await callback(payload);
         if (accumulate)
             await accumulate(res);
         if (isStopEvent(res)) {
@@ -277,8 +278,8 @@ export async function applyAfterModelInvocation<TMetaData extends DefineMetaData
     }
     for (let i = 0; i < events.length; i++) {
         const callback = events[i].callback as EventAfterModelInvocation<TMetaData, TGlobalStore, TStore>;
-        const params: Parameters<typeof callback> = [_params.message, context];
-        const res = await callback(...params) as any;
+        const payload = { message: _params.message, context };
+        const res = await callback(payload) as any;
         if (accumulate)
             await accumulate(res);
         if (isStopEvent(res)) {
@@ -306,8 +307,8 @@ export async function applyAiMessage<TMetaData extends DefineMetaData<any>, TGlo
     }
     for (let i = 0; i < events.length; i++) {
         const callback = events[i].callback as EventAiMessage<TMetaData, TGlobalStore, TStore>;
-        const params: Parameters<typeof callback> = [result.value as ChatCompletionAssistantMessageParam<TMetaData>, _params.finish_reason, _params.usage, context];
-        const res = await callback(...params) as any;
+        const payload = { message: result.value as ChatCompletionAssistantMessageParam<TMetaData>, finish_reason: _params.finish_reason, usage: _params.usage, context };
+        const res = await callback(payload) as any;
         if (accumulate)
             await accumulate(res);
         if (isStopEvent(res)) {
@@ -336,8 +337,8 @@ export async function applyUserMessage<TMetaData extends DefineMetaData<any>, TG
     // let message = _params.message;
     for (let i = 0; i < events.length; i++) {
         const callback = events[i].callback as EventUserMessage<TMetaData, TGlobalStore, TStore>;
-        const params: Parameters<typeof callback> = [result.value as ChatCompletionUserMessageParam<TMetaData>, context];
-        const res = await callback(...params) as any;
+        const payload = { message: result.value as ChatCompletionUserMessageParam<TMetaData>, context };
+        const res = await callback(payload) as any;
         if (accumulate)
             await accumulate(res);
         if (isStopEvent(res)) {
@@ -370,7 +371,8 @@ export async function applyBeforeToolCall<TMetaData extends DefineMetaData<any>,
     let configTmp: ToolCallConfig<any>;
     for (let i = 0; i < events.length; i++) {
         const callback = events[i].callback as EventBeforeToolCall<any, TMetaData, TGlobalStore, TStore>;
-        configTmp = await callback(_params.toolCall, result.value, _params.tool, context) as any;
+        const payload = { toolCall: _params.toolCall, config: result.value, tool: _params.tool, context };
+        configTmp = await callback(payload) as any;
         if (accumulate)
             await accumulate(configTmp);
         if (isStopEvent(configTmp)) {
@@ -398,7 +400,8 @@ export async function applyToolCall<TMetaData extends DefineMetaData<any>, TGlob
     }
     for (let i = 0; i < events.length; i++) {
         const callback = events[i].callback as EventToolCall<any, TMetaData, TGlobalStore, TStore>;
-        const res = await callback(_params.toolCall, result.value, _params.params, _params.tool, context) as any;
+        const payload = { toolCall: _params.toolCall, result: result.value, params: _params.params, tool: _params.tool, context };
+        const res = await callback(payload) as any;
         if (accumulate)
             await accumulate(res);
         if (isStopEvent(res)) {
@@ -426,8 +429,8 @@ export async function applyAfterToolCall<TMetaData extends DefineMetaData<any>, 
     }
     for (let i = 0; i < events.length; i++) {
         const callback = events[i].callback as EventAfterToolCall<any, TMetaData, TGlobalStore, TStore>;
-        const params: Parameters<typeof callback> = [_params.toolCall, _params.result, _params.params, _params.tool, context];
-        const res = await callback(...params) as any;
+        const payload = { toolCall: _params.toolCall, result: _params.result, params: _params.params, tool: _params.tool, context };
+        const res = await callback(payload) as any;
         if (accumulate)
             await accumulate(res);
         if (isStopEvent(res)) {

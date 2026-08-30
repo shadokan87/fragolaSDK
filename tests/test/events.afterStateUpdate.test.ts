@@ -25,7 +25,7 @@ describe("after:stateUpdate — callback behavior", () => {
         });
         agent.use(injectReply("ok"));
 
-        agent.onAfterStateUpdate((context) => {
+        agent.onAfterStateUpdate(({ context }) => {
             snapshots.push({
                 status: context.state.status,
                 stepCount: context.state.stepCount,
@@ -59,12 +59,12 @@ describe("after:stateUpdate — callback behavior", () => {
         });
         agent.use(injectReply("ok"));
 
-        agent.onAfterStateUpdate((context) => {
+        agent.onAfterStateUpdate(({ context }) => {
             if (!matchedFirstUpdate && context.state.status === "idle" && context.state.messages.length === 1) {
                 calls.push(1);
             }
         });
-        agent.onAfterStateUpdate((context) => {
+        agent.onAfterStateUpdate(({ context }) => {
             if (!matchedFirstUpdate && context.state.status === "idle" && context.state.messages.length === 1) {
                 calls.push(2);
                 matchedFirstUpdate = true;

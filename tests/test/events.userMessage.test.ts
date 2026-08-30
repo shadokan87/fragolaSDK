@@ -34,7 +34,7 @@ describe("userMessage — callback behavior", () => {
         const agent = fragola.agent({ name: "a", instructions: "", description: "" });
         agent.use(injectReply("ok"));
 
-        agent.onUserMessage((message) => {
+        agent.onUserMessage(({ message }) => {
             capturedRole = message.role;
             capturedContent = typeof message.content === "string" ? message.content : null;
             return message;
@@ -49,15 +49,15 @@ describe("userMessage — callback behavior", () => {
         const agent = fragola.agent({ name: "a", instructions: "", description: "" });
         agent.use(injectReply("ok"));
 
-        agent.onUserMessage((message) => ({
+        agent.onUserMessage(({ message }) => ({
             ...message,
             content: typeof message.content === "string" ? `${message.content}+A` : message.content,
         }));
-        agent.onUserMessage((message) => ({
+        agent.onUserMessage(({ message }) => ({
             ...message,
             content: typeof message.content === "string" ? `${message.content}+B` : message.content,
         }));
-        agent.onUserMessage((message) => ({
+        agent.onUserMessage(({ message }) => ({
             ...message,
             content: typeof message.content === "string" ? `${message.content}+C` : message.content,
         }));
@@ -72,7 +72,7 @@ describe("userMessage — callback behavior", () => {
         const agent = fragola.agent({ name: "a", instructions: "", description: "" });
         agent.use(injectReply("ok"));
 
-        const off = agent.onUserMessage((message) => {
+        const off = agent.onUserMessage(({ message }) => {
             called();
             return message;
         });
@@ -94,7 +94,7 @@ describe("userMessage — skip and stop", () => {
         agent.use(injectReply("ok"));
 
         agent.onUserMessage(() => { order.push(1); return skip() as any; });
-        agent.onUserMessage((message) => {
+        agent.onUserMessage(({ message }) => {
             order.push(2);
             return {
                 ...message,
@@ -112,7 +112,7 @@ describe("userMessage — skip and stop", () => {
         const agent = fragola.agent({ name: "a", instructions: "", description: "" });
         agent.use(injectReply("never-used"));
 
-        agent.onUserMessage((_message, ctx) => ctx.stop() as any);
+        agent.onUserMessage(({ message: _message, context: ctx }) => ctx.stop() as any);
 
         const state = await agent.userMessage({ content: "hi" });
         expect(state.stepCount).toBe(0);
@@ -129,7 +129,7 @@ describe("userMessage — state connection", () => {
         const agent = fragola.agent({ name: "a", instructions: "", description: "" });
         agent.use(injectReply("ok"));
 
-        agent.onUserMessage((message) => ({
+        agent.onUserMessage(({ message }) => ({
             ...message,
             content: typeof message.content === "string" ? `${message.content}:checked` : message.content,
         }));

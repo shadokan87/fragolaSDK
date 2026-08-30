@@ -22,12 +22,12 @@ describe("before:step — option modification", () => {
         const agent = fragola.agent({ name: "a", instructions: "", description: "" });
         agent.use(injectReply("ok"));
 
-        agent.onBeforeStep((options) => ({
+        agent.onBeforeStep(({ options }) => ({
             ...options,
             maxStep: 1,
             resetStepCountAfterUserMessage: false,
         }));
-        agent.onAfterStep((options) => {
+        agent.onAfterStep(({ options }) => {
             receivedOptions = options;
         });
 
@@ -43,9 +43,9 @@ describe("before:step — option modification", () => {
         const agent = fragola.agent({ name: "a", instructions: "", description: "" });
         agent.use(injectReply("ok"));
 
-        agent.onBeforeStep((options) => ({ ...options, maxStep: 1 }));
-        agent.onBeforeStep((options) => ({ ...options, maxStep: 2 }));
-        agent.onAfterStep((options) => {
+        agent.onBeforeStep(({ options }) => ({ ...options, maxStep: 1 }));
+        agent.onBeforeStep(({ options }) => ({ ...options, maxStep: 2 }));
+        agent.onAfterStep(({ options }) => {
             receivedMaxStep = options.maxStep;
         });
 
@@ -60,11 +60,11 @@ describe("before:step — option modification", () => {
         agent.use(injectReply("ok"));
 
         agent.onBeforeStep(() => { order.push(1); return skip() as any; });
-        agent.onBeforeStep((options) => {
+        agent.onBeforeStep(({ options }) => {
             order.push(2);
             return { ...options, resetStepCountAfterUserMessage: false };
         });
-        agent.onAfterStep((options) => {
+        agent.onAfterStep(({ options }) => {
             receivedReset = options.resetStepCountAfterUserMessage;
         });
 
@@ -80,7 +80,7 @@ describe("before:step — stop", () => {
         const agent = fragola.agent({ name: "a", instructions: "", description: "" });
         agent.use(injectReply("never-used"));
 
-        agent.onBeforeStep((_options, ctx) => ctx.stop() as any);
+        agent.onBeforeStep(({ options: _options, context: ctx }) => ctx.stop() as any);
         agent.onAfterStep(() => { afterCalled(); });
 
         const state = await agent.userMessage({ content: "hi" });
@@ -93,8 +93,8 @@ describe("before:step — stop", () => {
         const secondCalled = vi.fn();
         const agent = fragola.agent({ name: "a", instructions: "", description: "" });
 
-        agent.onBeforeStep((_options, ctx) => ctx.stop() as any);
-        agent.onBeforeStep((options) => {
+        agent.onBeforeStep(({ options: _options, context: ctx }) => ctx.stop() as any);
+        agent.onBeforeStep(({ options }) => {
             secondCalled();
             return { ...options, maxStep: 1 };
         });
@@ -116,7 +116,7 @@ describe("after:step — callback behavior", () => {
         const agent = fragola.agent({ name: "a", instructions: "", description: "" });
         agent.use(injectReply("result"));
 
-        agent.onAfterStep((options, newMessages, stepsTaken) => {
+        agent.onAfterStep(({ options, newMessages, stepsTaken }) => {
             receivedOptions = options;
             receivedMessages = newMessages.map((message) => ({
                 role: message.role,
@@ -170,12 +170,12 @@ describe("before:step → after:step connection", () => {
         const agent = fragola.agent({ name: "a", instructions: "", description: "" });
         agent.use(injectReply("ok"));
 
-        agent.onBeforeStep((options) => ({
+        agent.onBeforeStep(({ options }) => ({
             ...options,
             maxStep: 3,
             resetStepCountAfterUserMessage: false,
         }));
-        agent.onAfterStep((options) => {
+        agent.onAfterStep(({ options }) => {
             afterOptions = options;
         });
 
@@ -191,7 +191,7 @@ describe("before:step → after:step connection", () => {
         const agent = fragola.agent({ name: "a", instructions: "", description: "" });
         agent.use(injectReply("assistant-only"));
 
-        agent.onAfterStep((_options, newMessages) => {
+        agent.onAfterStep(({ newMessages }) => {
             newMessagesRoles = newMessages.map((message) => message.role);
         });
 

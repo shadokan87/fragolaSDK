@@ -2,9 +2,10 @@ import { describe, expect, it } from "vitest";
 import { tool, type Schema } from "@fragola-ai/agent";
 import * as z3 from "zod/v3";
 import * as z4 from "zod/v4";
+import { toJSONSchema as zod4ToJsonSchema, type $ZodType as Zod4Type } from "zod/v4/core";
 import {zodToJsonSchema as _zodToJsonSchema} from "zod-to-json-schema";
 
-const isZodV4Schema = (schema: Exclude<Schema, string>): schema is z4.ZodType => "_zod" in schema;
+const isZodV4Schema = (schema: Exclude<Schema, string>): schema is Zod4Type<any, any> => "_zod" in schema;
 
 const zodToJsonSchema = <TSCHEMA extends Schema>(schema: TSCHEMA) => {
     if (typeof schema === "string") {
@@ -12,9 +13,9 @@ const zodToJsonSchema = <TSCHEMA extends Schema>(schema: TSCHEMA) => {
     }
 
     if (isZodV4Schema(schema))
-        return z4.toJSONSchema(schema);
+        return zod4ToJsonSchema(schema);
 
-    return _zodToJsonSchema(schema as z3.ZodType);
+    return _zodToJsonSchema(schema as any);
 }
 
 describe("zodToJsonSchema", () => {

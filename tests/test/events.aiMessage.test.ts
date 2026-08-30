@@ -27,7 +27,7 @@ describe("aiMessage — non-streaming completions (real API)", () => {
         let eventFired = false;
         let finalFinishReason: string | null | undefined;
 
-        agent.onAiMessage((message, finishReason) => {
+        agent.onAiMessage(({ message, finish_reason: finishReason }) => {
             eventFired = true;
             finalFinishReason = finishReason;
             return message;
@@ -55,7 +55,7 @@ describe("aiMessage — non-streaming completions", () => {
         const agent = fragola.agent({ name: "a", instructions: "", description: "" });
         agent.use(injectReply("result"));
 
-        agent.onAiMessage((message, finishReason, usage) => {
+        agent.onAiMessage(({ message, finish_reason: finishReason, usage }) => {
             callCount++;
             receivedContent = typeof message.content === "string" ? message.content : null;
             receivedFinishReason = finishReason;
@@ -74,15 +74,15 @@ describe("aiMessage — non-streaming completions", () => {
         const agent = fragola.agent({ name: "a", instructions: "", description: "" });
         agent.use(injectReply("base"));
 
-        agent.onAiMessage((message) => ({
+        agent.onAiMessage(({ message }) => ({
             ...message,
             content: typeof message.content === "string" ? `${message.content}+A` : message.content,
         }));
-        agent.onAiMessage((message) => ({
+        agent.onAiMessage(({ message }) => ({
             ...message,
             content: typeof message.content === "string" ? `${message.content}+B` : message.content,
         }));
-        agent.onAiMessage((message) => ({
+        agent.onAiMessage(({ message }) => ({
             ...message,
             content: typeof message.content === "string" ? `${message.content}+C` : message.content,
         }));
@@ -97,7 +97,7 @@ describe("aiMessage — non-streaming completions", () => {
         const agent = fragola.agent({ name: "a", instructions: "", description: "" });
         agent.use(injectReply("ok"));
 
-        const off = agent.onAiMessage((message) => {
+        const off = agent.onAiMessage(({ message }) => {
             called();
             return message;
         });
@@ -119,7 +119,7 @@ describe("aiMessage — skip and stop", () => {
         agent.use(injectReply("base"));
 
         agent.onAiMessage(() => { order.push(1); return skip() as any; });
-        agent.onAiMessage((message) => {
+        agent.onAiMessage(({ message }) => {
             order.push(2);
             return {
                 ...message,
@@ -137,7 +137,7 @@ describe("aiMessage — skip and stop", () => {
         const agent = fragola.agent({ name: "a", instructions: "", description: "" });
         agent.use(injectReply("never-appended"));
 
-        agent.onAiMessage((_message, _finishReason, _usage, ctx) => ctx.stop() as any);
+        agent.onAiMessage(({ context: ctx }) => ctx.stop() as any);
 
         const state = await agent.userMessage({ content: "hi" });
         expect(state.stepCount).toBe(0);
@@ -154,7 +154,7 @@ describe("aiMessage — state connection", () => {
         const agent = fragola.agent({ name: "a", instructions: "", description: "" });
         agent.use(injectReply("result"));
 
-        agent.onAiMessage((message) => ({
+        agent.onAiMessage(({ message }) => ({
             ...message,
             content: typeof message.content === "string" ? `${message.content}:checked` : message.content,
         }));
@@ -180,7 +180,7 @@ describe("aiMessage — streaming partial messages (real API)", () => {
 
         let partialCount = 0;
         let finalFinishReason: string | null | undefined;
-        agent.onAiMessage((message, finishReason) => {
+        agent.onAiMessage(({ message, finish_reason: finishReason }) => {
             if (finishReason === null && typeof message.content === "string" && message.content.length > 0)
                 partialCount++;
             if (finishReason !== null)

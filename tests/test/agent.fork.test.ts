@@ -128,7 +128,7 @@ describe("fork", () => {
     it("copies manual events to the fork and keeps later unsubscription isolated", async () => {
         const agent = fragola.agent({ ...baseAgentOptions });
         agent.use(injectReply("ok"));
-        const off = agent.onUserMessage((message) => ({
+        const off = agent.onUserMessage(({ message }) => ({
             ...message,
             content: typeof message.content === "string" ? `${message.content}:manual` : message.content,
         }));
@@ -148,7 +148,7 @@ describe("fork", () => {
 
     it("replays hook behavior on the fork without duplicating hook-registered events", async () => {
         const suffixHook = Hook((agent) => {
-            agent.onUserMessage((message) => ({
+            agent.onUserMessage(({ message }) => ({
                 ...message,
                 content: typeof message.content === "string" ? `${message.content}:hook` : message.content,
             }));
@@ -171,7 +171,7 @@ describe("fork", () => {
 
     it("allows removing a named hook on the fork without affecting the original", async () => {
         const removableHook = Hook((agent) => {
-            const off = agent.onUserMessage((message) => ({
+            const off = agent.onUserMessage(({ message }) => ({
                 ...message,
                 content: typeof message.content === "string" ? `${message.content}:tag` : message.content,
             }));

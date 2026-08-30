@@ -62,7 +62,7 @@ describe("before:modelInvocation — config injection and modification", () => {
         agent.onBeforeModelInvocation(() => ({
             injectMessage: { content: "hello from inject" },
         }));
-        agent.onAfterModelInvocation((message) => {
+        agent.onAfterModelInvocation(({ message }) => {
             receivedContent = typeof message.content === "string" ? message.content : null;
         });
 
@@ -76,7 +76,7 @@ describe("before:modelInvocation — config injection and modification", () => {
 
         agent.onBeforeModelInvocation(() => ({ injectMessage: { content: "first" } }));
         agent.onBeforeModelInvocation(() => ({ injectMessage: { content: "second" } }));
-        agent.onAfterModelInvocation((message) => {
+        agent.onAfterModelInvocation(({ message }) => {
             receivedContent = typeof message.content === "string" ? message.content : null;
         });
 
@@ -102,7 +102,7 @@ describe("before:modelInvocation — stop", () => {
         const afterCalled = vi.fn();
         const agent = fragola.agent({ name: "a", instructions: "", description: "" });
 
-        agent.onBeforeModelInvocation((_, ctx) => ctx.stop() as any);
+        agent.onBeforeModelInvocation(({ config: _, context: ctx }) => ctx.stop() as any);
         agent.onAfterModelInvocation(() => { afterCalled(); });
 
         const state = await agent.userMessage({ content: "hi" });
@@ -114,7 +114,7 @@ describe("before:modelInvocation — stop", () => {
         const secondCalled = vi.fn();
         const agent = fragola.agent({ name: "a", instructions: "", description: "" });
 
-        agent.onBeforeModelInvocation((_, ctx) => ctx.stop() as any);
+        agent.onBeforeModelInvocation(({ config: _, context: ctx }) => ctx.stop() as any);
         agent.onBeforeModelInvocation(() => { secondCalled(); return { injectMessage: { content: "ok" } }; });
 
         await agent.userMessage({ content: "hi" });
@@ -132,7 +132,7 @@ describe("after:modelInvocation — callback behavior", () => {
         const agent = fragola.agent({ name: "a", instructions: "", description: "" });
 
         agent.onBeforeModelInvocation(() => ({ injectMessage: { content: "result" } }));
-        agent.onAfterModelInvocation((message) => {
+        agent.onAfterModelInvocation(({ message }) => {
             messages.push(typeof message.content === "string" ? message.content : "");
         });
 
@@ -177,7 +177,7 @@ describe("before:modelInvocation → after:modelInvocation connection", () => {
         const agent = fragola.agent({ name: "a", instructions: "", description: "" });
 
         agent.onBeforeModelInvocation(() => ({ injectMessage: { content: injected.content } }));
-        agent.onAfterModelInvocation((message) => {
+        agent.onAfterModelInvocation(({ message }) => {
             afterContent = typeof message.content === "string" ? message.content : null;
         });
 
@@ -189,7 +189,7 @@ describe("before:modelInvocation → after:modelInvocation connection", () => {
         const afterFired = vi.fn();
         const agent = fragola.agent({ name: "a", instructions: "", description: "" });
 
-        agent.onBeforeModelInvocation((_, ctx) => ctx.stop() as any);
+        agent.onBeforeModelInvocation(({ config: _, context: ctx }) => ctx.stop() as any);
         agent.onAfterModelInvocation(() => { afterFired(); });
 
         await agent.userMessage({ content: "hi" });
@@ -250,12 +250,12 @@ describe("modelInvocation — streaming chunk events", () => {
         ]);
 
         let chunksBeforeStop = 0;
-        agent.onModelInvocation((invocation, ctx) => {
+        agent.onModelInvocation((invocation) => {
             chunksBeforeStop++;
             if (invocation.kind !== "chunk")
                 return invocation.data;
             if (chunksBeforeStop >= 2)
-                return ctx.stop();
+                return invocation.context.stop();
             return invocation.chunk;
         });
 

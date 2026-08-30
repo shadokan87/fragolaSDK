@@ -92,7 +92,7 @@ describe("before:toolCall — injectConfig", () => {
         agent.onBeforeToolCall(() => ({ injectConfig: successPayload("from-before") }));
 
         let afterResult: unknown;
-        agent.onAfterToolCall((result) => { afterResult = result; });
+        agent.onAfterToolCall(({ result: result }) => { afterResult = result; });
 
         await agent.userMessage({ content: "hi" });
         expect(afterResult).toEqual({ success: true, data: "from-before" });
@@ -107,7 +107,7 @@ describe("before:toolCall — injectConfig", () => {
         agent.onBeforeToolCall(() => ({ injectConfig: successPayload("second") }));
 
         let afterResult: unknown;
-        agent.onAfterToolCall((result) => { afterResult = result; });
+        agent.onAfterToolCall(({ result: result }) => { afterResult = result; });
 
         await agent.userMessage({ content: "hi" });
         expect(afterResult).toEqual({ success: true, data: "second" });
@@ -147,7 +147,7 @@ describe("before:toolCall — stop", () => {
         const agent = fragola.agent({ name: "a", instructions: "", description: "", tools: [t] });
         injectToolCall(agent, "myTool");
 
-        agent.onBeforeToolCall((_config, _tool, ctx) => ctx.stop() as any);
+        agent.onBeforeToolCall(({ config: _config, tool: _tool, context: ctx }) => ctx.stop() as any);
         agent.onToolCall(() => { toolCallFired(); return skip(); });
         agent.onAfterToolCall(() => { afterFired(); });
 
@@ -163,7 +163,7 @@ describe("before:toolCall — stop", () => {
         const agent = fragola.agent({ name: "a", instructions: "", description: "", tools: [t] });
         injectToolCall(agent, "myTool");
 
-        agent.onBeforeToolCall((_config, _tool, ctx) => ctx.stop() as any);
+        agent.onBeforeToolCall(({ config: _config, tool: _tool, context: ctx }) => ctx.stop() as any);
         agent.onBeforeToolCall(() => { secondCalled(); return { injectConfig: successPayload("never") }; });
 
         await agent.userMessage({ content: "hi" });
@@ -182,7 +182,7 @@ describe("toolCall — handler runs automatically, event transforms result", () 
         injectToolCall(agent, "myTool", { input: "x" });
 
         let receivedResult: unknown;
-        agent.onToolCall((result) => { receivedResult = result; return result; });
+        agent.onToolCall(({ result }) => { receivedResult = result; return result; });
 
         await agent.userMessage({ content: "hi" });
         expect(handlerSpy).toHaveBeenCalledWith({ input: "x" }, expect.anything());
@@ -197,7 +197,7 @@ describe("toolCall — handler runs automatically, event transforms result", () 
         agent.onToolCall(() => ({ success: true, data: "transformed-result" }));
 
         let afterResult: unknown;
-        agent.onAfterToolCall((result) => { afterResult = result; });
+        agent.onAfterToolCall(({ result: result }) => { afterResult = result; });
 
         await agent.userMessage({ content: "hi" });
         expect(afterResult).toEqual({ success: true, data: "transformed-result" });
@@ -211,7 +211,7 @@ describe("toolCall — handler runs automatically, event transforms result", () 
         agent.onToolCall(() => skip());
 
         let afterResult: unknown;
-        agent.onAfterToolCall((result) => { afterResult = result; });
+        agent.onAfterToolCall(({ result: result }) => { afterResult = result; });
 
         await agent.userMessage({ content: "hi" });
         expect(afterResult).toEqual({ success: true, data: "handler-result:x" });
@@ -222,21 +222,21 @@ describe("toolCall — handler runs automatically, event transforms result", () 
         const agent = fragola.agent({ name: "a", instructions: "", description: "", tools: [t] });
         injectToolCall(agent, "myTool", { input: "x" });
 
-        agent.onToolCall((result) => {
+        agent.onToolCall(({ result }) => {
             const payload = asPayload(result);
             return payload.success ? { ...payload, data: `${payload.data}+A` } : payload;
         });
-        agent.onToolCall((result) => {
+        agent.onToolCall(({ result }) => {
             const payload = asPayload(result);
             return payload.success ? { ...payload, data: `${payload.data}+B` } : payload;
         });
-        agent.onToolCall((result) => {
+        agent.onToolCall(({ result }) => {
             const payload = asPayload(result);
             return payload.success ? { ...payload, data: `${payload.data}+C` } : payload;
         });
 
         let afterResult: unknown;
-        agent.onAfterToolCall((result) => { afterResult = result; });
+        agent.onAfterToolCall(({ result: result }) => { afterResult = result; });
 
         await agent.userMessage({ content: "hi" });
         expect(afterResult).toEqual({ success: true, data: "handler-result:x+A+B+C" });
@@ -257,8 +257,8 @@ describe("toolCall — handler runs automatically, event transforms result", () 
 
         let receivedResult: unknown;
         let afterResult: unknown;
-        agent.onToolCall((result) => { receivedResult = result; return result; });
-        agent.onAfterToolCall((result) => { afterResult = result; });
+        agent.onToolCall(({ result }) => { receivedResult = result; return result; });
+        agent.onAfterToolCall(({ result: result }) => { afterResult = result; });
 
         await expect(agent.userMessage({ content: "hi" })).resolves.toBeDefined();
 
@@ -279,7 +279,7 @@ describe("toolCall — handler runs automatically, event transforms result", () 
         const agent = fragola.agent({ name: "a", instructions: "", description: "", tools: [t] });
         injectToolCall(agent, "myTool");
 
-        agent.onToolCall((_result, _params, _tool, ctx) => ctx.stop() as any);
+        agent.onToolCall(({ context: ctx }) => ctx.stop() as any);
         agent.onToolCall(() => { secondCalled(); return skip(); });
         agent.onAfterToolCall(() => { afterFired(); });
 
@@ -313,7 +313,7 @@ describe("after:toolCall — callback behavior", () => {
         const agent = fragola.agent({ name: "a", instructions: "", description: "", tools: [t] });
         injectToolCall(agent, "myTool", { input: "z" });
 
-        agent.onAfterToolCall((result) => { results.push(result); });
+        agent.onAfterToolCall(({ result: result }) => { results.push(result); });
 
         await agent.userMessage({ content: "hi" });
         expect(results).toHaveLength(1);
@@ -354,9 +354,9 @@ describe("after:toolCall — callback behavior", () => {
 
         let capturedParams: unknown;
         let capturedToolName: string | undefined;
-        agent.onAfterToolCall((result, params, tool) => {
+        agent.onAfterToolCall(({ params, tool }) => {
             capturedParams = params;
-            capturedToolName = tool.name;
+            capturedToolName = tool?.name;
         });
 
         await agent.userMessage({ content: "hi" });
@@ -378,7 +378,7 @@ describe("before:toolCall → toolCall → after:toolCall connections", () => {
         agent.onBeforeToolCall(() => ({ injectConfig: successPayload("injected") }));
 
         let toolCallReceivedResult: unknown;
-        agent.onToolCall((result) => { toolCallReceivedResult = result; return result; });
+        agent.onToolCall(({ result }) => { toolCallReceivedResult = result; return result; });
 
         await agent.userMessage({ content: "hi" });
         expect(handlerSpy).not.toHaveBeenCalled();
@@ -390,13 +390,13 @@ describe("before:toolCall → toolCall → after:toolCall connections", () => {
         const agent = fragola.agent({ name: "a", instructions: "", description: "", tools: [t] });
         injectToolCall(agent, "myTool", { input: "flow" });
 
-        agent.onToolCall((result) => {
+        agent.onToolCall(({ result }) => {
             const payload = asPayload(result);
             return payload.success ? { ...payload, data: `${payload.data}:transformed` } : payload;
         });
 
         let afterResult: unknown;
-        agent.onAfterToolCall((result) => { afterResult = result; });
+        agent.onAfterToolCall(({ result: result }) => { afterResult = result; });
 
         await agent.userMessage({ content: "hi" });
         expect(afterResult).toEqual({ success: true, data: "handler-result:flow:transformed" });
@@ -409,7 +409,7 @@ describe("before:toolCall → toolCall → after:toolCall connections", () => {
         const agent = fragola.agent({ name: "a", instructions: "", description: "", tools: [t] });
         injectToolCall(agent, "myTool");
 
-        agent.onBeforeToolCall((_config, _tool, ctx) => ctx.stop() as any);
+        agent.onBeforeToolCall(({ config: _config, tool: _tool, context: ctx }) => ctx.stop() as any);
         agent.onToolCall(() => { toolCallFired(); return skip(); });
         agent.onAfterToolCall(() => { afterFired(); });
 
@@ -438,7 +438,7 @@ describe("before:toolCall → toolCall → after:toolCall connections", () => {
         injectToolCall(agent, "myTool", { input: "passthrough" });
 
         agent.onToolCall(() => skip());
-        agent.onAfterToolCall((result) => { afterResult = result; });
+        agent.onAfterToolCall(({ result: result }) => { afterResult = result; });
 
         await agent.userMessage({ content: "hi" });
         expect(afterResult).toEqual({ success: true, data: "handler-result:passthrough" });
@@ -455,7 +455,7 @@ describe("missing tools behavior", () => {
         injectToolCall(agent, "nonExistingTool", { input: "x" });
 
         let capturedTool: any = "was-not-undefined";
-        agent.onBeforeToolCall((config, tool) => {
+        agent.onBeforeToolCall(({ config, tool }) => {
             capturedTool = tool;
             return { injectConfig: successPayload("injected-for-missing-tool") };
         });

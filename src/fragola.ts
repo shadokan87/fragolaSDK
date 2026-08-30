@@ -1,4 +1,8 @@
-import {z, type SafeParseReturnType} from "zod";
+import {z} from "zod";
+import type { SafeParseReturnType, ZodIssue as Zod3Issue } from "zod/v3";
+import type { ZodSafeParseResult } from "zod/v4";
+import type { $ZodIssue as Zod4Issue } from "zod/v4/core";
+export type SafeParseResult<Input, Output> = SafeParseReturnType<Input, Output> | ZodSafeParseResult<Output>;
 import { Agent, type AgentOptions, type CreateAgentOptions, type JsonQuery } from "./agent";
 import type { maybePromise, StoreLike } from "./types";
 import type { ClientOptions as OpenaiClientOptions } from "openai/index.js";
@@ -9,8 +13,6 @@ import type { AgentContext } from "@src/agentContext";
 import { type AgentAny } from "./agent";
 import * as z3 from "zod/v3";
 import * as z4 from "zod/v4";
-
-import type { EventPayloadBase } from "./event";
 
 export type ToolHandlerReturnTypeNonAsync = any[] | Record<any, any> | Function | number | bigint | boolean | string;
 export type ToolHandlerReturnType = maybePromise<ToolHandlerReturnTypeNonAsync>;
@@ -140,12 +142,9 @@ export const FRAGOLA_FRIEND = Symbol("Fragola_friend")
 /**
  * Called after Fragola creates a new agent instance.
  * Can return a promise to perform async setup work.
- * @param payload - The payload containing the created agent and context.
+ * @param agent - The newly created agent instance.
  */
-export type AgentCreatedCallbackPayload = EventPayloadBase<any, any, any> & {
-    agent: AgentAny;
-};
-export type AgentCreatedCallback = (payload: AgentCreatedCallbackPayload) => maybePromise<void>;
+export type AgentCreatedCallback = (agent: AgentAny) => maybePromise<void>;
 
 /**
  * Lifecycle callbacks emitted by a Fragola instance.
@@ -210,7 +209,7 @@ export class Fragola<TGlobalStore extends StoreLike<any> = {}> {
         const created = new Agent<TMetaData, TGlobalStore, TStore>(opts, this.globalStore, this.#sdkInstance, undefined, this as Fragola<any>);
         (async () => {
             if (this.clientOptions.events?.agentCreated) {
-                void await this.clientOptions.events.agentCreated({ agent: created, context: created.context })
+                void await this.clientOptions.events.agentCreated(created)
             }
         })();
         return created;
@@ -283,7 +282,7 @@ export class Fragola<TGlobalStore extends StoreLike<any> = {}> {
      * }
      * ```
      */
-    async json<S extends ZodSchema = ZodSchema>(query: JsonQuery<S>, options: CreateAgentOptions | undefined = undefined): Promise<SafeParseReturnType<unknown, Infer<S>>> {
+    async json<S extends ZodSchema = ZodSchema>(query: JsonQuery<S>, options: CreateAgentOptions | undefined = undefined): Promise<SafeParseResult<unknown, Infer<S>>> {
         if (!this.clientOptions?.model) {
             throw new BadUsage(presetBadUsageMessage);
         }

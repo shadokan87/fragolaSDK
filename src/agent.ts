@@ -5,9 +5,7 @@ import type { ChatCompletionCreateParamsBase } from "openai/resources/chat/compl
 import { streamChunkToMessage, isSkipEvent, isStopEvent, isChunkPartial } from "./utils"
 import { BadUsage, FragolaError, JsonModeError, MaxStepHitError } from "./exceptions"
 import type z from "zod";
-import type { SafeParseReturnType } from "zod";
-import type * as z3 from "zod/v3";
-import * as z4 from "zod/v4";
+import type { SafeParseResult } from "./fragola";
 import type { Prettify, StoreLike } from "./types"
 import OpenAI from "openai/index.js"
 import { type AgentEventId } from "./event"
@@ -18,6 +16,7 @@ import type { EventBeforeStep, EventBeforeModelInvocation, EventBeforeToolCall, 
 import { type registeredEvent, type eventIdToCallback, EventMap } from "./extendedJS/events/EventMap"
 import type { FragolaHook, FragolaHookDispose } from "@src/hook/index";
 import { zodToJsonSchema as _zodToJsonSchema } from "zod-to-json-schema"
+import { toJSONSchema as zod4ToJsonSchema, type $ZodType as Zod4Type } from "zod/v4/core"
 import type { ChatCompletionChunk, ResponseFormatJSONSchema } from "openai/resources"
 import { AgentContext } from "@src/agentContext";
 import { STOP } from "@src/agentContext"
@@ -129,7 +128,7 @@ export type JsonQuery<S extends ZodSchema = ZodSchema> = Prettify<UserMessageQue
 
 export type JsonResult<S extends ZodSchema = ZodSchema, TMetaData extends DefineMetaData<any> = {}> = {
     state: AgentState<TMetaData>
-} & SafeParseReturnType<unknown, Infer<S>>;
+} & SafeParseResult<unknown, Infer<S>>;
 
 
 export type applyEventParams<K extends AgentEventId, TMetaData extends DefineMetaData<any>> =
@@ -165,12 +164,6 @@ export type appliedEvent<K extends AgentEventId, TMetaData extends DefineMetaDat
 const FORK_FRIEND = Symbol("fork_friend");
 const NOOP_HOOK_DISPOSE: FragolaHookDispose = () => { };
 const CANCELLED_HOOK_INIT = Symbol("cancelled_hook_init");
-
-const formatIssuePath = (path: Array<string | number>) => path.length ? path.map(String).join(".") : "<root>";
-
-const formatZodIssues = (issues: z.ZodIssue[]) => issues
-    .map((issue) => `${formatIssuePath(issue.path)}: ${issue.message}`)
-    .join("; ");
 
 const formatUnknownError = (error: unknown) => error instanceof Error ? error.message : String(error);
 
@@ -208,7 +201,7 @@ const stringifyToolValue = (value: unknown): string => {
     });
 };
 
-const isZodV4Schema = (schema: Exclude<Schema, string>): schema is z4.ZodType => "_zod" in schema;
+const isZodV4Schema = (schema: Exclude<Schema, string>): schema is Zod4Type<any, any> => "_zod" in schema;
 
 const zodToJsonSchema = <TSCHEMA extends Schema>(schema: TSCHEMA) => {
     if (typeof schema === "string") {
@@ -216,9 +209,9 @@ const zodToJsonSchema = <TSCHEMA extends Schema>(schema: TSCHEMA) => {
     }
 
     if (isZodV4Schema(schema))
-        return z4.toJSONSchema(schema);
+        return zod4ToJsonSchema(schema);
 
-    return _zodToJsonSchema(schema as z3.ZodType);
+    return _zodToJsonSchema(schema as any);
 }
 
 export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> {
@@ -929,7 +922,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                 // Find tool in options that matches the tool requested by last ai message
                 const tool = this.opts.tools?.find(tool => tool.name == toolCall.function.name);
 
-                let paramsParsed: SafeParseReturnType<any, any> | undefined;
+                let paramsParsed: SafeParseResult<any, any> | undefined;
                 let rawParams: any;
                 let effectiveParams: any;
                 let toolCallPayload: ToolCallPayload | undefined;
@@ -1064,7 +1057,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         }
         try {
             const jsonParsed = JSON.parse(lastAiMessage.content);
-            const parsed = (schema as any).safeParse(jsonParsed) as SafeParseReturnType<unknown, Infer<S>>;
+            const parsed = (schema as any).safeParse(jsonParsed) as SafeParseResult<unknown, Infer<S>>;
             return { ...parsed, state };
         } catch (error) {
             const preview = lastAiMessage.content.replace(/\s+/g, " ").slice(0, 200);

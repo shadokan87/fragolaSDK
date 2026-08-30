@@ -170,7 +170,7 @@ export async function promptUser(prompt = "You: "): Promise<string> {
 export const ui: FragolaHook = ((agent: AgentAny) => {
 // Refresh UI after every state update
 let _wasGenerating = false;
-agent.onAfterStateUpdate((context) => {
+agent.onAfterStateUpdate(({ context }) => {
     const { status, messages } = context.state;
     if (status === "generating") {
         if (!_wasGenerating) {

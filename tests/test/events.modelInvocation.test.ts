@@ -5,7 +5,6 @@
 import { describe, it, expect, vi } from "vitest";
 import type OpenAI from "openai";
 import type { AgentAny } from "@fragola-ai/agent/agent";
-import { skip } from "@fragola-ai/agent/event";
 import { injectReply } from "../injectReply";
 import { createTestClient } from "./createTestClient";
 
@@ -88,7 +87,7 @@ describe("before:modelInvocation — config injection and modification", () => {
         const order: number[] = [];
         const agent = fragola.agent({ name: "a", instructions: "", description: "" });
 
-        agent.onBeforeModelInvocation(() => { order.push(1); return skip() as any; });
+        agent.onBeforeModelInvocation(() => { order.push(1);  });
         // second handler must inject a reply so no real API call is made
         agent.onBeforeModelInvocation(() => { order.push(2); return { injectMessage: { content: "ok" } }; });
 
@@ -229,7 +228,7 @@ describe("modelInvocation — streaming chunk events", () => {
         agent.onModelInvocation((invocation) => {
             chunkCount++;
             expect(invocation.kind).toBe("chunk");
-            return skip(); // skip: chunk is used as-is
+            ; // skip: chunk is used as-is
         });
 
         await agent.userMessage({ content: "say hi" });

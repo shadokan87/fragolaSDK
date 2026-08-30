@@ -6,7 +6,6 @@
  * before:modelInvocation.
  */
 import { describe, it, expect, vi } from "vitest";
-import { skip } from "@fragola-ai/agent/event";
 import { injectReply } from "../injectReply";
 import { createTestClient } from "./createTestClient";
 
@@ -59,7 +58,7 @@ describe("before:step — option modification", () => {
         const agent = fragola.agent({ name: "a", instructions: "", description: "" });
         agent.use(injectReply("ok"));
 
-        agent.onBeforeStep(() => { order.push(1); return skip() as any; });
+        agent.onBeforeStep(() => { order.push(1);  });
         agent.onBeforeStep(({ options }) => {
             order.push(2);
             return { ...options, resetStepCountAfterUserMessage: false };

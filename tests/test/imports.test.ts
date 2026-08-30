@@ -25,12 +25,6 @@ import type {
 	Schema
 } from '@fragola-ai/agent';
 
-// exports from `agent.index.ts`
-import {
-    //@ts-ignore
-	skip as skipFromAgent
-} from '@fragola-ai/agent/agent';
-
 import type {
 	AgentState,
 	StepOptions,
@@ -47,7 +41,6 @@ import { Store } from '@fragola-ai/agent/store';
 import type { StoreChangeCallback } from '@fragola-ai/agent/store';
 
 // exports from `event.index.ts`
-import { SKIP_EVENT, skip as skipFromEvent } from '@fragola-ai/agent/event';
 import type {
 	AgentDefaultEventId,
 	eventResult,
@@ -63,8 +56,6 @@ describe('package import surface', () => {
 		expect(typeof tool === 'function').toBeTruthy();
 		expect(typeof Store === 'function').toBeTruthy();
 		// expect(typeof AgentContext === 'function').toBeTruthy();
-		expect(SKIP_EVENT).toBeDefined();
 		// skip functions
-		expect(typeof skipFromAgent === 'function').toBeTruthy();
 	});
 });

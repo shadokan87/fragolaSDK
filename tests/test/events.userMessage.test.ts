@@ -5,7 +5,6 @@
  * before:modelInvocation.
  */
 import { describe, it, expect, vi } from "vitest";
-import { skip } from "@fragola-ai/agent/event";
 import { injectReply } from "../injectReply";
 import { createTestClient, defaultOpts } from "./createTestClient";
 
@@ -93,7 +92,7 @@ describe("userMessage — skip and stop", () => {
         const agent = fragola.agent({ name: "a", instructions: "", description: "" });
         agent.use(injectReply("ok"));
 
-        agent.onUserMessage(() => { order.push(1); return skip() as any; });
+        agent.onUserMessage(() => { order.push(1);  });
         agent.onUserMessage(({ message }) => {
             order.push(2);
             return {

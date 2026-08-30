@@ -8,16 +8,10 @@ import type { AgentBeforeEventId } from "./eventBefore";
 export type AgentDefaultEventId =
    "modelInvocation" | "toolCall" | "aiMessage" | "userMessage";
 
-export const SKIP_EVENT = Symbol.for('skip_event');
-/**
- * When returned from an event handler, the event will be ignored.
- * 
- * @returns An object with the SKIP_EVENT symbol that signals the event system to skip this event
- */
-export const skip = () => ({[SKIP_EVENT]: true});
+
 export const stop = () => ({[STOP]: true});
 
-export type eventResult<T> = T | ReturnType<typeof skip> | ReturnType<typeof stop>; //TODO: fix stop not imported
+export type eventResult<T> = T | ReturnType<typeof stop>; //TODO: fix stop not imported
 
 export type AgentEventId = AgentDefaultEventId | AgentAfterEventId | AgentBeforeEventId;
 

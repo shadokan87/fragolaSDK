@@ -7,7 +7,6 @@
  * follow-up invocation (after the tool result message is appended).
  */
 import { describe, it, expect, vi } from "vitest";
-import { skip } from "@fragola-ai/agent/event";
 import { tool } from "@fragola-ai/agent";
 import { z } from "zod";
 import type { AgentAny } from "@fragola-ai/agent/agent";
@@ -119,7 +118,7 @@ describe("before:toolCall — injectConfig", () => {
         const agent = fragola.agent({ name: "a", instructions: "", description: "", tools: [t] });
         injectToolCall(agent, "myTool");
 
-        agent.onBeforeToolCall(() => { order.push(1); return skip() as any; });
+        agent.onBeforeToolCall(() => { order.push(1);  });
         agent.onBeforeToolCall(() => { order.push(2); return { injectConfig: successPayload("skipped-then-injected") }; });
 
         await agent.userMessage({ content: "hi" });
@@ -148,7 +147,7 @@ describe("before:toolCall — stop", () => {
         injectToolCall(agent, "myTool");
 
         agent.onBeforeToolCall(({ config: _config, tool: _tool, context: ctx }) => ctx.stop() as any);
-        agent.onToolCall(() => { toolCallFired(); return skip(); });
+        agent.onToolCall(() => { toolCallFired(); ; });
         agent.onAfterToolCall(() => { afterFired(); });
 
         await agent.userMessage({ content: "hi" });
@@ -208,7 +207,7 @@ describe("toolCall — handler runs automatically, event transforms result", () 
         const agent = fragola.agent({ name: "a", instructions: "", description: "", tools: [t] });
         injectToolCall(agent, "myTool", { input: "x" });
 
-        agent.onToolCall(() => skip());
+        agent.onToolCall(() => {});
 
         let afterResult: unknown;
         agent.onAfterToolCall(({ result: result }) => { afterResult = result; });
@@ -280,7 +279,7 @@ describe("toolCall — handler runs automatically, event transforms result", () 
         injectToolCall(agent, "myTool");
 
         agent.onToolCall(({ context: ctx }) => ctx.stop() as any);
-        agent.onToolCall(() => { secondCalled(); return skip(); });
+        agent.onToolCall(() => { secondCalled(); ; });
         agent.onAfterToolCall(() => { afterFired(); });
 
         await agent.userMessage({ content: "hi" });
@@ -410,7 +409,7 @@ describe("before:toolCall → toolCall → after:toolCall connections", () => {
         injectToolCall(agent, "myTool");
 
         agent.onBeforeToolCall(({ config: _config, tool: _tool, context: ctx }) => ctx.stop() as any);
-        agent.onToolCall(() => { toolCallFired(); return skip(); });
+        agent.onToolCall(() => { toolCallFired(); ; });
         agent.onAfterToolCall(() => { afterFired(); });
 
         await agent.userMessage({ content: "hi" });
@@ -437,7 +436,7 @@ describe("before:toolCall → toolCall → after:toolCall connections", () => {
         const agent = fragola.agent({ name: "a", instructions: "", description: "", tools: [t] });
         injectToolCall(agent, "myTool", { input: "passthrough" });
 
-        agent.onToolCall(() => skip());
+        agent.onToolCall(() => {});
         agent.onAfterToolCall(({ result: result }) => { afterResult = result; });
 
         await agent.userMessage({ content: "hi" });

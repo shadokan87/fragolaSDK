@@ -1,5 +1,5 @@
 import type OpenAI from "openai/index.js";
-import { skip, SKIP_EVENT, stop } from "./event"
+import { stop } from "./event"
 import type { EventAfterStateUpdate, EventAfterStep, EventAfterModelInvocation, EventAfterToolCall } from "./eventAfter"
 import type { EventBeforeStep, EventBeforeModelInvocation, EventBeforeToolCall, ModelInvocationConfig, ToolCallConfig } from "./eventBefore"
 import type { EventAiMessage, EventModelInvocation, EventToolCall, EventUserMessage, MergePatch, ModelInvocationChunk, ModelInvocationChunkInjection, ModelInvocationDelta, ModelInvocationPrimaryChoice, ToolCallPayload } from "./eventDefault"
@@ -14,7 +14,7 @@ import { BadUsage } from "./exceptions";
 export type AccumulateCallback<T> = (data: Awaited<T>) => maybePromise<void>;
 export type EventResult<T extends (...args: any) => any> = Awaited<ReturnType<T>>;
 
-export type ExcludeSignal<T> = Exclude<T, { [SKIP_EVENT]: boolean } | { [STOP]: boolean }>;
+export type ExcludeSignal<T> = Exclude<T, { [STOP]: boolean }>;
 
 export type EventStripSignal<T extends (...args: any[]) => any> = ExcludeSignal<Awaited<
 ReturnType<T>
@@ -24,7 +24,7 @@ ReturnType<T>
 * Will return the last accumulated value and last known signal (skip/stop)
 */
 export type ApplyEventResult<T extends (...args: any[]) => any> = {
-    signal: ReturnType<typeof skip> | ReturnType<typeof stop> | undefined,
+    signal: ReturnType<typeof stop> | undefined,
     value: EventStripSignal<T>
 }
 
@@ -131,7 +131,6 @@ export async function applyAfterStateUpdate<TMetaData extends DefineMetaData<any
             break;
         }
         if (isSkipEvent(res)) {
-            result.signal = res;
             continue;
         }
         result.value = res;
@@ -160,7 +159,6 @@ export async function applyBeforeStep<TMetaData extends DefineMetaData<any>, TGl
             break;
         }
         if (isSkipEvent(res)) {
-            result.signal = res;
             continue;
         }
         result.value = res;
@@ -189,7 +187,6 @@ export async function applyAfterStep<TMetaData extends DefineMetaData<any>, TGlo
             break;
         }
         if (isSkipEvent(res)) {
-            result.signal = res;
             continue;
         }
         result.value = res;
@@ -219,7 +216,6 @@ export async function applyBeforeModelInvocation<TMetaData extends DefineMetaDat
             return result;
         }
         if (isSkipEvent(configTmp)) {
-            result.signal = configTmp as any;
             continue;
         }
         result.value = configTmp;
@@ -256,7 +252,6 @@ export async function applyModelInvocation<TMetaData extends DefineMetaData<any>
             return result;
         }
         if (isSkipEvent(res)) {
-            result.signal = res as any;
             continue;
         }
         result.value = _params.kind === "chunk"
@@ -287,7 +282,6 @@ export async function applyAfterModelInvocation<TMetaData extends DefineMetaData
             break;
         }
         if (isSkipEvent(res)) {
-            result.signal = res;
             continue;
         }
         result.value = res;
@@ -316,7 +310,6 @@ export async function applyAiMessage<TMetaData extends DefineMetaData<any>, TGlo
             return result;
         }
         if (isSkipEvent(res)) {
-            result.signal = res;
             continue;
         }
         result.value = res as ChatCompletionAssistantMessageParam<TMetaData>;
@@ -346,7 +339,6 @@ export async function applyUserMessage<TMetaData extends DefineMetaData<any>, TG
             return result;
         }
         if (isSkipEvent(res)) {
-            result.signal = res;
             continue;
         }
         const { role, ...nextMessage } = res as ChatCompletionUserMessageParam<TMetaData>;
@@ -380,7 +372,6 @@ export async function applyBeforeToolCall<TMetaData extends DefineMetaData<any>,
             return result;
         }
         if (isSkipEvent(configTmp)) {
-            result.signal = configTmp as any;
             continue;
         }
         result.value = configTmp;
@@ -409,7 +400,6 @@ export async function applyToolCall<TMetaData extends DefineMetaData<any>, TGlob
             return result;
         }
         if (isSkipEvent(res)) {
-            result.signal = res as any;
             continue;
         }
         result.value = res as ToolCallPayload;
@@ -438,7 +428,6 @@ export async function applyAfterToolCall<TMetaData extends DefineMetaData<any>, 
             break;
         }
         if (isSkipEvent(res)) {
-            result.signal = res;
             continue;
         }
         result.value = res;

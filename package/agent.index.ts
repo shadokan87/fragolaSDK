@@ -12,4 +12,3 @@ export type {
     ContextRaw
 } from "@src/agent";
 export { AgentContext } from "@src/agentContext";
-export { skip } from "@src/event";

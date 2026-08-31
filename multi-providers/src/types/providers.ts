@@ -198,4 +198,8 @@ export type Provider<K extends ProviderName> =
     K extends "fireworks-ai" ? FireworksAIProviderOptions :
     K extends "cortex" ? CortexProviderOptions :
     K extends "huggingface" ? HuggingfaceProviderOptions :
-    BaseProviderOptions; 
+    BaseProviderOptions;
+
+// export type Model<K extends ProviderName = ProviderName> = K extends string & {} ? `@${K}/${string}` : never;
+// export const model = <K extends ProviderName>(name: K) => name;
+// const test = model("@302ai/test") 

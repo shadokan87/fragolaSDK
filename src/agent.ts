@@ -373,6 +373,9 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                 _this.opts.tools = updatedTools;
                 _this.toolsToModelSettingsTools();
             }
+            buildRequestBody(modelSettings?: CreateAgentOptions["modelSettings"]): ChatCompletionCreateParamsBase {
+                return _this.buildRequestBody(modelSettings);
+            }
         }
     })();
 
@@ -797,6 +800,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                     config: {
                         modelSettings: modelSettings ?? this.modelSettings(),
                         clientOptions: this.context.instance.options //TODO: check if this is correct
+
                     }
                 }));
 
@@ -820,16 +824,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                             choices: [{ index: 0, message: injectedMessage as unknown as OpenAI.ChatCompletionMessage, finish_reason: "stop" as const, logprobs: null }],
                         } satisfies OpenAI.ChatCompletion;
                     } else {
-                        if (!config.modelSettings!["model"])
-                            config.modelSettings!["model"] = this.modelSettings().model;
-                        const instructionsRole: ChatCompletionCreateParamsBase["messages"][0]["role"] = this.opts.useDeveloperRole ? "developer" : "system";
-
-                        const requestBody: ChatCompletionCreateParamsBase = {
-                            ...config.modelSettings as ChatCompletionCreateParamsBase,
-                            messages: [{ role: instructionsRole, content: this.mergedInstructions }, ...stripMessagesMeta(this.#state.messages)]
-                        };
-                        if (this.paramsTools?.length)
-                            requestBody["tools"] = this.paramsTools;
+                        const requestBody = this.buildRequestBody(config.modelSettings);
                         return await openai.chat.completions.create(requestBody, { signal: this.abortController!.signal });
                     }
                 })();
@@ -1002,6 +997,23 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
             }
         }
         return { ...this.options.modelSettings, model: this.options.modelSettings.model ?? this.#instance.options.model }
+    }
+
+    private buildRequestBody(modelSettings?: CreateAgentOptions["modelSettings"]): ChatCompletionCreateParamsBase {
+        const settings = {
+            ...this.modelSettings(),
+            ...(modelSettings ?? {})
+        };
+        const instructionsRole: ChatCompletionCreateParamsBase["messages"][0]["role"] = this.opts.useDeveloperRole ? "developer" : "system";
+
+        const requestBody: ChatCompletionCreateParamsBase = {
+            ...settings as ChatCompletionCreateParamsBase,
+            messages: [{ role: instructionsRole, content: this.mergedInstructions }, ...stripMessagesMeta(this.#state.messages)]
+        };
+        if (this.paramsTools?.length)
+            requestBody["tools"] = this.paramsTools;
+
+        return requestBody;
     }
 
     /**

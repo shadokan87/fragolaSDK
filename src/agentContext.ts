@@ -1,8 +1,9 @@
-import type { AgentOptions, AgentState, ContextRaw, SetOptionsParams } from "./agent";
+import type { AgentOptions, AgentState, ContextRaw, CreateAgentOptions, ModelSettings, SetOptionsParams } from "./agent";
 import type { DefineMetaData, Fragola, Tool } from "./fragola";
 import type { StoreLike } from "./types";
 import type { Store } from "./store";
 import type { MessagesParser } from "./stateUtils";
+import type { ChatCompletionCreateParamsBase } from "openai/resources/chat/completions.js";
 
 export const STOP = Symbol('stop');
 export abstract class AgentContext<TMetaData extends DefineMetaData<any> = {}, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> {
@@ -76,4 +77,6 @@ export abstract class AgentContext<TMetaData extends DefineMetaData<any> = {}, T
     abstract stop(): Promise<{[STOP]: true}>;
     /** Stop the agent execution - Sync */
     abstract stopSync(): {[STOP]: true}
+    /** Builds the OpenAI-formatted request body for model invocation. */
+    abstract buildRequestBody(modelSettings?: CreateAgentOptions["modelSettings"]): ChatCompletionCreateParamsBase;
 }

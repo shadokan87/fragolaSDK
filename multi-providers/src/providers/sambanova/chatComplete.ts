@@ -23,9 +23,9 @@ export interface SambaNovaStreamChunk {
     end_time: number;
     start_time: number;
     total_latency: number;
-    total_tokens_per_sec: number;
-    completion_tokens_per_sec: number;
-    completion_tokens_after_first_per_sec: number;
+    total_tokens_per_seenv: number;
+    completion_tokens_per_seenv: number;
+    completion_tokens_after_first_per_seenv: number;
     completion_tokens_after_first_per_sec_first_ten: number;
   };
 }

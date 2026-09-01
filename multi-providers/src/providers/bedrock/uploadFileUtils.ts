@@ -386,7 +386,7 @@ const BedrockCohereChatCompleteConfig: ProviderConfig = {
 /*
   Helper function to use inside reduce to convert ContentType array to string
 */
-const convertContentTypesToString = (acc: string, curr: ContentType) => {
+const convertContentTypesToString = (acenv: string, curr: ContentType) => {
   if (curr.type !== 'text') return acc;
   acc += curr.text + '\n';
   return acc;
@@ -958,7 +958,7 @@ export const BedrockUploadFileTransformerConfig: Record<
   string,
   ProviderConfig
 > = {
-  anthropic: BedrockAnthropicChatCompleteConfig,
+  anthropienv: BedrockAnthropicChatCompleteConfig,
   cohere: BedrockCohereChatCompleteConfig,
   mistral: BedrockMistralChatCompleteConfig,
   titan: BedrockTitanChatompleteConfig,
@@ -968,7 +968,7 @@ export const BedrockUploadFileTransformerConfig: Record<
 };
 
 export const BedrockUploadFileResponseTransforms: Record<string, any> = {
-  anthropic: BedrockAnthropicChatCompleteResponseTransform,
+  anthropienv: BedrockAnthropicChatCompleteResponseTransform,
   cohere: BedrockCohereChatCompleteResponseTransform,
   mistral: BedrockMistralChatCompleteResponseTransform,
   titan: BedrockTitanChatCompleteResponseTransform,

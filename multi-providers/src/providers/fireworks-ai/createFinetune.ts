@@ -1,5 +1,4 @@
 import { FIREWORKS_AI } from '../../globals';
-import { constructConfigFromRequestHeaders } from '../../handlers/handlerUtils';
 import { transformUsingProviderConfig } from '../../services/transformToProviderRequest';
 import { Options } from '../../types/requestBody';
 import { FinetuneRequest, ProviderConfig } from '../types';
@@ -59,11 +58,9 @@ export const FireworksFinetuneCreateConfig: ProviderConfig = {
 
 export const FireworksRequestTransform = (
   requestBody: Record<string, any>,
-  requestHeaders: Record<string, string>
+  requestHeaders: Record<string, string>,
+  providerOptions: Options
 ) => {
-  const providerOptions = constructConfigFromRequestHeaders(
-    requestHeaders
-  ) as Options;
 
   if (requestBody.training_file) {
     requestBody.training_file = `accounts/${providerOptions.fireworksAccountId}/datasets/${requestBody.training_file}`;

@@ -12,9 +12,9 @@ const encoder = new TextEncoder();
 
 export const FireworkFileUploadRequestHandler: RequestHandler<
   ReadableStream
-> = async ({ requestURL, requestBody, providerOptions, c, requestHeaders }) => {
+> = async ({ requestURL, requestBody, providerOptions, env, requestHeaders }) => {
   const headers = await FireworksAIAPIConfig.headers({
-    c,
+    env,
     providerOptions,
     fn: 'uploadFile',
     transformedRequestBody: requestBody,
@@ -28,7 +28,7 @@ export const FireworkFileUploadRequestHandler: RequestHandler<
     1;
 
   const baseURL = await FireworksAIAPIConfig.getBaseURL({
-    c,
+    env,
     providerOptions,
     gatewayRequestURL: requestURL,
   });

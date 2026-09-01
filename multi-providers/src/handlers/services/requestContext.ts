@@ -1,26 +1,19 @@
 // requestContext.ts
 
-import { Context } from 'hono';
-import {
-  CacheSettings,
-  Options,
-  Params,
-  RetrySettings,
-} from '../../types/requestBody';
+import { ProviderEnv } from '../../types/env';
+import { Options, Params } from '../../types/requestBody';
 import { endpointStrings } from '../../providers/types';
-import { HEADER_KEYS, RETRY_STATUS_CODES } from '../../globals';
-import { HookObject } from '../../middlewares/hooks/types';
-import { HooksManager } from '../../middlewares/hooks';
+import { HEADER_KEYS } from '../../globals';
 import { transformToProviderRequest } from '../../services/transformToProviderRequest';
 
 export class RequestContext {
   private _params: Params | null = null;
   private _transformedRequestBody: any;
   public readonly providerOption: Options;
-  private _requestURL: string = ''; // Is set at the beginning of tryPost()
+  private _requestURL: string = '';
 
   constructor(
-    public readonly honoContext: Context,
+    public readonly env: ProviderEnv,
     providerOption: Options,
     public readonly endpoint: endpointStrings,
     public readonly requestHeaders: Record<string, string>,
@@ -29,11 +22,9 @@ export class RequestContext {
       | FormData
       | ReadableStream
       | ArrayBuffer,
-    public readonly method: string = 'POST',
-    public readonly index: number | string
+    public readonly method: string = 'POST'
   ) {
     this.providerOption = providerOption;
-    this.providerOption.retry = this.normalizeRetryConfig(providerOption.retry);
   }
 
   get requestURL(): string {
@@ -82,10 +73,6 @@ export class RequestContext {
     return this.requestHeaders[key] ?? '';
   }
 
-  get traceId(): string {
-    return this.requestHeaders[HEADER_KEYS.TRACE_ID] ?? '';
-  }
-
   get isStreaming(): boolean {
     if (
       (this.endpoint === 'imageEdit' ||
@@ -97,22 +84,7 @@ export class RequestContext {
   }
 
   get strictOpenAiCompliance(): boolean {
-    const headerKey = HEADER_KEYS.STRICT_OPEN_AI_COMPLIANCE;
-    if (
-      this.requestHeaders[headerKey] === 'false' ||
-      this.providerOption.strictOpenAiCompliance === false
-    ) {
-      return false;
-    }
-    return true;
-  }
-
-  get metadata(): Record<string, string> {
-    try {
-      return JSON.parse(this.requestHeaders[HEADER_KEYS.METADATA] ?? '{}');
-    } catch (error) {
-      return {};
-    }
+    return true; // Simplify
   }
 
   get forwardHeaders(): string[] {
@@ -145,69 +117,6 @@ export class RequestContext {
     return this.providerOption?.provider ?? '';
   }
 
-  private normalizeRetryConfig(retry?: RetrySettings): RetrySettings {
-    return {
-      attempts: retry?.attempts ?? 0,
-      onStatusCodes: retry?.attempts
-        ? retry?.onStatusCodes ?? RETRY_STATUS_CODES
-        : [],
-      useRetryAfterHeader: retry?.useRetryAfterHeader,
-    };
-  }
-
-  get retryConfig(): RetrySettings {
-    return this.providerOption.retry!;
-  }
-
-  get cacheConfig(): CacheSettings & { cacheStatus: string } {
-    const cacheConfig = this.providerOption?.cache;
-    let cacheStatus = 'DISABLED';
-    if (typeof cacheConfig === 'object' && cacheConfig?.mode) {
-      cacheStatus = cacheConfig.mode === 'DISABLED' ? 'DISABLED' : 'MISS';
-      return {
-        mode: cacheConfig.mode,
-        maxAge: cacheConfig.maxAge
-          ? parseInt(cacheConfig.maxAge.toString())
-          : undefined,
-        cacheStatus,
-      };
-    } else if (typeof cacheConfig === 'string') {
-      return {
-        mode: cacheConfig,
-        maxAge: undefined,
-        cacheStatus: cacheConfig === 'DISABLED' ? 'DISABLED' : 'MISS',
-      };
-    }
-    return { mode: 'DISABLED', maxAge: undefined, cacheStatus };
-  }
-
-  hasRetries(): boolean {
-    return this.retryConfig?.attempts > 0;
-  }
-
-  get beforeRequestHooks(): HookObject[] {
-    return [
-      ...(this.providerOption?.beforeRequestHooks || []),
-      ...(this.providerOption?.defaultInputGuardrails || []),
-    ];
-  }
-
-  get afterRequestHooks(): HookObject[] {
-    return [
-      ...(this.providerOption?.afterRequestHooks || []),
-      ...(this.providerOption?.defaultOutputGuardrails || []),
-    ];
-  }
-
-  get hooksManager(): HooksManager {
-    return this.honoContext.get('hooksManager');
-  }
-
-  /**
-   * Transforms the request body to the provider request body and
-   * sets the transformed request body to the request context.
-   * @returns The transformed request body.
-   */
   transformToProviderRequestAndSave() {
     if (this.method !== 'POST') {
       this.transformedRequestBody = this.requestBody;
@@ -221,20 +130,5 @@ export class RequestContext {
       this.requestHeaders,
       this.providerOption
     );
-  }
-
-  get requestOptions(): any[] {
-    return this.honoContext.get('requestOptions') ?? [];
-  }
-
-  appendRequestOptions(requestOptions: any) {
-    this.honoContext.set('requestOptions', [
-      ...this.requestOptions,
-      requestOptions,
-    ]);
-  }
-
-  updateModelPricingConfig(modelPricingConfig: Record<string, any>) {
-    this.providerOption.modelPricingConfig = modelPricingConfig;
   }
 }

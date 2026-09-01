@@ -1,15 +1,14 @@
-import { Context } from 'hono';
 import OpenAIAPIConfig from './api';
 import { Options } from '../../types/requestBody';
 import { RetrieveBatchResponse } from '../types';
 
 // Return a ReadableStream containing batches output data
 export const OpenAIGetBatchOutputRequestHandler = async ({
-  c,
+  env,
   providerOptions,
   requestURL,
 }: {
-  c: Context;
+  env: ProviderEnv;
   providerOptions: Options;
   requestURL: string;
 }) => {
@@ -19,13 +18,13 @@ export const OpenAIGetBatchOutputRequestHandler = async ({
   const baseUrl = OpenAIAPIConfig.getBaseURL({
     providerOptions,
     fn: 'retrieveBatch',
-    c,
+    env,
     gatewayRequestURL: requestURL,
   });
   const batchId = requestURL.split('/v1/batches/')[1].replace('/output', '');
   const retrieveBatchURL = `${baseUrl}/batches/${batchId}`;
   const retrieveBatchesHeaders = await OpenAIAPIConfig.headers({
-    c,
+    env,
     providerOptions,
     fn: 'retrieveBatch',
     transformedRequestBody: {},
@@ -50,7 +49,7 @@ export const OpenAIGetBatchOutputRequestHandler = async ({
   }
   const retrieveFileContentURL = `${baseUrl}/files/${outputFileId}/content`;
   const retrieveFileContentHeaders = await OpenAIAPIConfig.headers({
-    c,
+    env,
     providerOptions,
     fn: 'retrieveFileContent',
     transformedRequestBody: {},

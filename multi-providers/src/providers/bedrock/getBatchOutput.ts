@@ -1,4 +1,3 @@
-import { Context } from 'hono';
 import { Options } from '../../types/requestBody';
 import BedrockAPIConfig from './api';
 import { BedrockGetBatchResponse } from './types';
@@ -44,11 +43,11 @@ const getRowTransform = (modelId: string) => {
 };
 
 export const BedrockGetBatchOutputRequestHandler = async ({
-  c,
+  env,
   providerOptions,
   requestURL,
 }: {
-  c: Context;
+  env: ProviderEnv;
   providerOptions: Options;
   requestURL: string;
 }): Promise<Response> => {
@@ -59,13 +58,13 @@ export const BedrockGetBatchOutputRequestHandler = async ({
     const baseUrl = await BedrockAPIConfig.getBaseURL({
       providerOptions,
       fn: 'retrieveBatch',
-      c,
+      env,
       gatewayRequestURL: requestURL,
     });
     const batchId = requestURL.split('/v1/batches/')[1].replace('/output', '');
     const retrieveBatchURL = `${baseUrl}/model-invocation-job/${batchId}`;
     const retrieveBatchesHeaders = await BedrockAPIConfig.headers({
-      c,
+      env,
       providerOptions,
       fn: 'retrieveBatch',
       transformedRequestBody: {},
@@ -114,7 +113,7 @@ export const BedrockGetBatchOutputRequestHandler = async ({
 
     const s3FileURL = `https://${awsS3Bucket}.s3.${awsRegion}.${getAwsEndpointDomain(c)}/${awsS3ObjectKey}`;
     const s3FileHeaders = await BedrockAPIConfig.headers({
-      c,
+      env,
       providerOptions,
       fn: 'retrieveFileContent',
       transformedRequestBody: {},

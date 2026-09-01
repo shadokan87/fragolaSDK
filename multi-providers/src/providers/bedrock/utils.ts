@@ -1,7 +1,6 @@
 import { SignatureV4 } from '@smithy/signature-v4';
 import { Sha256 } from '@aws-crypto/sha256-js';
-import { Context } from 'hono';
-import { env } from 'hono/adapter';
+import { ProviderEnv } from '../../types/env';
 import {
   BedrockChatCompletionsParams,
   BedrockConverseAI21ChatCompletionsParams,
@@ -15,8 +14,8 @@ import { FinetuneRequest } from '../types';
 import { BEDROCK } from '../../globals';
 import { Environment } from '../../utils/env';
 
-export const getAwsEndpointDomain = (c: Context) =>
-  Environment(c).AWS_ENDPOINT_DOMAIN || 'amazonaws.com';
+export const getAwsEndpointDomain = (env: ProviderEnv) =>
+  Environment(env).AWS_ENDPOINT_DOMAIN || 'amazonaws.com';
 
 export const generateAWSHeaders = async (
   body: Record<string, any> | string | undefined,
@@ -227,7 +226,7 @@ export const transformAI21AdditionalModelRequestFields = (
 };
 
 export async function getAssumedRoleCredentials(
-  c: Context,
+  env: ProviderEnv,
   awsRoleArn: string,
   awsExternalId: string,
   awsRegion: string,
@@ -238,15 +237,7 @@ export async function getAssumedRoleCredentials(
   }
 ) {
   const cacheKey = `${awsRoleArn}/${awsExternalId}/${awsRegion}`;
-  const getFromCacheByKey = c.get('getFromCacheByKey');
-  const putInCacheWithValue = c.get('putInCacheWithValue');
-
-  const resp = getFromCacheByKey
-    ? await getFromCacheByKey(env(c), cacheKey)
-    : null;
-  if (resp) {
-    return resp;
-  }
+  
 
   // Determine which credentials to use
   let accessKeyId: string;
@@ -261,7 +252,7 @@ export async function getAssumedRoleCredentials(
   } else {
     // Use environment credentials
     const { AWS_ASSUME_ROLE_ACCESS_KEY_ID, AWS_ASSUME_ROLE_SECRET_ACCESS_KEY } =
-      env(c);
+      env;
     accessKeyId = AWS_ASSUME_ROLE_ACCESS_KEY_ID || '';
     secretAccessKey = AWS_ASSUME_ROLE_SECRET_ACCESS_KEY || '';
   }
@@ -310,7 +301,7 @@ export async function getAssumedRoleCredentials(
     const xmlData = await response.text();
     credentials = parseXml(xmlData);
     if (putInCacheWithValue) {
-      await putInCacheWithValue(env(c), cacheKey, credentials, 300); //5 minutes
+      await putInCacheWithValue(env, cacheKey, credentials, 300); //5 minutes
     }
   } catch (error) {
     console.error('getAssumedRoleCredentials error: ', {
@@ -386,15 +377,15 @@ export const bedrockFinetuneToOpenAI = (finetune: BedrockFinetuneRecord) => {
 };
 
 export async function providerAssumedRoleCredentials(
-  c: Context,
+  env: ProviderEnv,
   providerOptions: Options
 ) {
   try {
     // Assume the role in the source account
     const sourceRoleCredentials = await getAssumedRoleCredentials(
-      c,
-      env(c).AWS_ASSUME_ROLE_SOURCE_ARN, // Role ARN in the source account
-      env(c).AWS_ASSUME_ROLE_SOURCE_EXTERNAL_ID || '', // External ID for source role (if needed)
+      env,
+      env.AWS_ASSUME_ROLE_SOURCE_ARN, // Role ARN in the source account
+      env.AWS_ASSUME_ROLE_SOURCE_EXTERNAL_ID || '', // External ID for source role (if needed)
       providerOptions.awsRegion || ''
     );
 
@@ -405,7 +396,7 @@ export async function providerAssumedRoleCredentials(
     // Assume role in destination account using temporary creds obtained in first step
     const { accessKeyId, secretAccessKey, sessionToken } =
       (await getAssumedRoleCredentials(
-        c,
+        env,
         providerOptions.awsRoleArn || '',
         providerOptions.awsExternalId || '',
         providerOptions.awsRegion || '',
@@ -437,7 +428,7 @@ export const populateHyperParameters = (value: FinetuneRequest) => {
 export const getInferenceProfile = async (
   inferenceProfileIdentifier: string,
   providerOptions: Options,
-  c: Context
+  env: ProviderEnv
 ) => {
   if (providerOptions.awsAuthType === 'assumedRole') {
     try {
@@ -485,20 +476,12 @@ export const getInferenceProfile = async (
 };
 
 export const getFoundationModelFromInferenceProfile = async (
-  c: Context,
+  env: ProviderEnv,
   inferenceProfileIdentifier: string,
   providerOptions: Options
 ) => {
   try {
-    const getFromCacheByKey = c.get('getFromCacheByKey');
-    const putInCacheWithValue = c.get('putInCacheWithValue');
-    const cacheKey = `bedrock-inference-profile-${inferenceProfileIdentifier}`;
-    const cachedFoundationModel = getFromCacheByKey
-      ? await getFromCacheByKey(env(c), cacheKey)
-      : null;
-    if (cachedFoundationModel) {
-      return cachedFoundationModel;
-    }
+    
 
     const inferenceProfile = await getInferenceProfile(
       inferenceProfileIdentifier || '',
@@ -510,9 +493,7 @@ export const getFoundationModelFromInferenceProfile = async (
     const foundationModel = inferenceProfile?.models?.[0]?.modelArn
       ?.split('/')
       ?.pop();
-    if (putInCacheWithValue) {
-      putInCacheWithValue(env(c), cacheKey, foundationModel, 86400);
-    }
+    
     return foundationModel;
   } catch (error) {
     return null;

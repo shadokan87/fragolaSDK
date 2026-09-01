@@ -1,4 +1,3 @@
-import { Context } from 'hono';
 import AzureAIInferenceAPI from './api';
 import { Options } from '../../types/requestBody';
 import { RetrieveBatchResponse } from '../types';
@@ -6,11 +5,11 @@ import { AZURE_OPEN_AI } from '../../globals';
 
 // Return a ReadableStream containing batches output data
 export const AzureAIInferenceGetBatchOutputRequestHandler = async ({
-  c,
+  env,
   providerOptions,
   requestURL,
 }: {
-  c: Context;
+  env: ProviderEnv;
   providerOptions: Options;
   requestURL: string;
 }) => {
@@ -20,7 +19,7 @@ export const AzureAIInferenceGetBatchOutputRequestHandler = async ({
   const baseUrl = AzureAIInferenceAPI.getBaseURL({
     providerOptions,
     fn: 'retrieveBatch',
-    c,
+    env,
     gatewayRequestURL: requestURL,
   });
   const retrieveBatchRequestURL = requestURL.replace('/output', '');
@@ -30,12 +29,12 @@ export const AzureAIInferenceGetBatchOutputRequestHandler = async ({
       providerOptions,
       fn: 'retrieveBatch',
       gatewayRequestURL: retrieveBatchRequestURL,
-      c,
+      env,
       gatewayRequestBodyJSON: {},
       gatewayRequestBody: {},
     });
   const retrieveBatchesHeaders = await AzureAIInferenceAPI.headers({
-    c,
+    env,
     providerOptions,
     fn: 'retrieveBatch',
     transformedRequestBody: {},
@@ -92,12 +91,12 @@ export const AzureAIInferenceGetBatchOutputRequestHandler = async ({
         providerOptions,
         fn: 'retrieveFileContent',
         gatewayRequestURL: retrieveFileContentRequestURL,
-        c,
+        env,
         gatewayRequestBodyJSON: {},
         gatewayRequestBody: {},
       });
     const retrieveFileContentHeaders = await AzureAIInferenceAPI.headers({
-      c,
+      env,
       providerOptions,
       fn: 'retrieveFileContent',
       transformedRequestBody: {},

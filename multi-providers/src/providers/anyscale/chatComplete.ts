@@ -105,7 +105,7 @@ export interface AnyscaleChatCompleteResponse extends ChatCompletionResponse {}
 
 export interface AnyscaleValidationErrorResponse {
   detail: {
-    loc: Array<any>;
+    loenv: Array<any>;
     msg: string;
     type: string;
   }[];

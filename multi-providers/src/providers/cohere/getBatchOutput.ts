@@ -1,4 +1,3 @@
-import { Context } from 'hono';
 import CohereAPIConfig from './api';
 import { Options } from '../../types/requestBody';
 import { CohereGetFileResponse, CohereRetrieveBatchResponse } from './types';
@@ -6,11 +5,11 @@ import { CohereEmbedResponseTransformBatch } from './embed';
 import { COHERE } from '../../globals';
 
 export const CohereGetBatchOutputHandler = async ({
-  c,
+  env,
   providerOptions,
   requestURL,
 }: {
-  c: Context;
+  env: ProviderEnv;
   providerOptions: Options;
   requestURL: string;
 }) => {
@@ -19,20 +18,20 @@ export const CohereGetBatchOutputHandler = async ({
     const baseURL = CohereAPIConfig.getBaseURL({
       providerOptions,
       fn: 'retrieveBatch',
-      c,
+      env,
       gatewayRequestURL: requestURL,
     });
     const endpoint = CohereAPIConfig.getEndpoint({
       providerOptions,
       fn: 'retrieveBatch',
       gatewayRequestURL: requestURL.replace('/output', ''),
-      c,
+      env,
       gatewayRequestBodyJSON: {},
     });
     const headers = await CohereAPIConfig.headers({
       providerOptions,
       fn: 'retrieveBatch',
-      c,
+      env,
       transformedRequestUrl: baseURL + endpoint,
       transformedRequestBody: {},
     });

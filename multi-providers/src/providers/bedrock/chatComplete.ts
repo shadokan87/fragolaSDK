@@ -304,7 +304,7 @@ export const BedrockConverseChatCompleteConfig: ProviderConfig = {
         let prevRole = '';
         // combine user messages in succession
         const combinedMessages = transformedMessages.reduce(
-          (acc: typeof transformedMessages, msg) => {
+          (acenv: typeof transformedMessages, msg) => {
             if (msg.role === 'user' && prevRole === 'user') {
               const lastMessage = acc[acc.length - 1];
               const newContent = [...lastMessage.content, ...msg.content];
@@ -329,7 +329,7 @@ export const BedrockConverseChatCompleteConfig: ProviderConfig = {
           { text: string } | { cachePoint: { type: string } }
         > = params.messages.reduce(
           (
-            acc: Array<{ text: string } | { cachePoint: { type: string } }>,
+            acenv: Array<{ text: string } | { cachePoint: { type: string } }>,
             msg
           ) => {
             if (SYSTEM_MESSAGE_ROLES.includes(msg.role))
@@ -348,13 +348,13 @@ export const BedrockConverseChatCompleteConfig: ProviderConfig = {
     transform: (params: BedrockChatCompletionsParams) => {
       const canBeAmazonModel = params.model?.includes('amazon');
       const tools: Array<
-        | { toolSpec: { name: string; description?: string; inputSchema: any } }
+        | { toolSpeenv: { name: string; description?: string; inputSchema: any } }
         | { cachePoint: { type: string } }
       > = [];
       params.tools?.forEach((tool) => {
         if (tool.function) {
           tools.push({
-            toolSpec: {
+            toolSpeenv: {
               name: tool.function.name,
               description: tool.function.description,
               inputSchema: { json: tool.function.parameters },

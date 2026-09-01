@@ -1,4 +1,3 @@
-import { Context } from 'hono';
 import { Options, Params } from '../../types/requestBody';
 import { endpointStrings, ProviderAPIConfig } from '../types';
 import { bedrockInvokeModels } from './constants';
@@ -13,7 +12,7 @@ import { GatewayError } from '../../errors/GatewayError';
 
 interface BedrockAPIConfigInterface extends Omit<ProviderAPIConfig, 'headers'> {
   headers: (args: {
-    c: Context;
+    env: ProviderEnv;
     providerOptions: Options;
     fn: string;
     transformedRequestBody: Record<string, any> | string;
@@ -71,7 +70,7 @@ const ENDPOINTS_TO_ROUTE_TO_S3 = [
 const getMethod = (
   fn: endpointStrings,
   transformedRequestUrl: string,
-  c: Context
+  env: ProviderEnv
 ) => {
   if (fn === 'proxy') {
     return c.req.method;
@@ -111,13 +110,13 @@ const setRouteSpecificHeaders = (
 };
 
 const BedrockAPIConfig: BedrockAPIConfigInterface = {
-  getBaseURL: async ({ c, providerOptions, fn, gatewayRequestURL, params }) => {
+  getBaseURL: async ({ env, providerOptions, fn, gatewayRequestURL, params }) => {
     const model = decodeURIComponent(params?.model || '');
     if (model.includes('arn:aws') && params) {
       const foundationModel = model.includes('foundation-model/')
         ? model.split('/').pop()
         : await getFoundationModelFromInferenceProfile(
-            c,
+            env,
             model,
             providerOptions
           );
@@ -146,7 +145,7 @@ const BedrockAPIConfig: BedrockAPIConfigInterface = {
     return `https://${isAWSControlPlaneEndpoint ? 'bedrock' : 'bedrock-runtime'}.${providerOptions.awsRegion || 'us-east-1'}.${getAwsEndpointDomain(c)}`;
   },
   headers: async ({
-    c,
+    env,
     fn,
     providerOptions,
     transformedRequestBody,

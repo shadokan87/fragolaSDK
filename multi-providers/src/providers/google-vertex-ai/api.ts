@@ -64,7 +64,7 @@ export const GoogleApiConfig: ProviderAPIConfig = {
 
     return `https://${vertexRegion}-aiplatform.googleapis.com`;
   },
-  headers: async ({ c, providerOptions, gatewayRequestBody }) => {
+  headers: async ({ env, providerOptions, gatewayRequestBody }) => {
     const { apiKey, vertexServiceAccountJson } = providerOptions;
     let authToken = apiKey;
     if (vertexServiceAccountJson) {

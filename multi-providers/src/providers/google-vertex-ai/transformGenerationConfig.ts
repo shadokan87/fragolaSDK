@@ -123,9 +123,9 @@ export function transformEmbeddingInputs(params: GoogleEmbedParams) {
               gcsUri: input.video.url,
               bytesBase64Encoded: input.video.base64,
               videoSegmentConfig: {
-                startOffsetSec: input.video.start_offset,
-                endOffsetSec: input.video.end_offset,
-                intervalSec: input.video.interval,
+                startOffsetSeenv: input.video.start_offset,
+                endOffsetSeenv: input.video.end_offset,
+                intervalSeenv: input.video.interval,
               },
             },
           }),

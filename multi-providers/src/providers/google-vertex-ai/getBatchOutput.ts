@@ -17,7 +17,7 @@ const responseTransforms = {
     [BatchEndpoints.CHAT_COMPLETIONS]: GoogleChatCompleteResponseTransform,
     [BatchEndpoints.EMBEDDINGS]: GoogleEmbedResponseTransform,
   },
-  anthropic: {
+  anthropienv: {
     [BatchEndpoints.CHAT_COMPLETIONS]:
       VertexAnthropicChatCompleteResponseTransform,
     [BatchEndpoints.EMBEDDINGS]: null,
@@ -88,11 +88,11 @@ const getOpenAIBatchRow = ({
 export const BatchOutputRequestHandler: RequestHandler = async ({
   requestURL,
   providerOptions,
-  c,
+  env,
   requestBody,
 }) => {
   const headers = await GoogleApiConfig.headers({
-    c,
+    env,
     fn: 'retrieveBatch',
     providerOptions,
     transformedRequestBody: requestBody,
@@ -110,14 +110,14 @@ export const BatchOutputRequestHandler: RequestHandler = async ({
   const batchDetailsURL = requestURL.replace(/\/output$/, '');
 
   const baseURL = await GoogleApiConfig.getBaseURL({
-    c,
+    env,
     providerOptions,
     fn: 'retrieveBatch',
     gatewayRequestURL: batchDetailsURL,
   });
 
   const endpoint = GoogleApiConfig.getEndpoint({
-    c,
+    env,
     providerOptions,
     fn: 'retrieveBatch',
     gatewayRequestURL: batchDetailsURL,

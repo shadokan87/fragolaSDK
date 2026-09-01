@@ -5,16 +5,15 @@ import {
   getAzureManagedIdentityToken,
   getAzureWorkloadIdentityToken,
 } from './utils';
-import { getRuntimeKey } from 'hono/adapter';
 
-const runtime = getRuntimeKey();
+const isNodeInstance = typeof process !== 'undefined' && process.versions != null && process.versions.node != null;
 
 const AzureOpenAIAPIConfig: ProviderAPIConfig = {
   getBaseURL: ({ providerOptions }) => {
     const { resourceName } = providerOptions;
     return `https://${resourceName}.openai.azure.com/openai`;
   },
-  headers: async ({ providerOptions, fn, c }) => {
+  headers: async ({ providerOptions, fn, env }) => {
     const { apiKey, azureAdToken, azureAuthMode } = providerOptions;
     if (azureAdToken) {
       return {
@@ -56,13 +55,13 @@ const AzureOpenAIAPIConfig: ProviderAPIConfig = {
       };
     }
     // `AZURE_FEDERATED_TOKEN_FILE` is injected by runtime, skipping serverless for now.
-    if (azureAuthMode === 'workload' && runtime === 'node') {
+    if (azureAuthMode === 'workload' && isNodeInstance) {
       const { azureWorkloadClientId, azureEntraScope } = providerOptions;
 
-      const authorityHost = Environment(c).AZURE_AUTHORITY_HOST;
-      const tenantId = Environment(c).AZURE_TENANT_ID;
-      const clientId = azureWorkloadClientId || Environment(c).AZURE_CLIENT_ID;
-      const federatedTokenFile = Environment(c).AZURE_FEDERATED_TOKEN_FILE;
+      const authorityHost = Environment(env).AZURE_AUTHORITY_HOST;
+      const tenantId = Environment(env).AZURE_TENANT_ID;
+      const clientId = azureWorkloadClientId || Environment(env).AZURE_CLIENT_ID;
+      const federatedTokenFile = Environment(env).AZURE_FEDERATED_TOKEN_FILE;
 
       if (authorityHost && tenantId && clientId && federatedTokenFile) {
         const fs = await import('fs');

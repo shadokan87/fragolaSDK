@@ -27,12 +27,13 @@ export class ProviderContext {
 
   async getHeaders(context: RequestContext): Promise<Record<string, any>> {
     return await this.apiConfig?.headers({
-      c: context.honoContext,
+      env: context.env,
       providerOptions: context.providerOption,
       fn: context.endpoint,
       transformedRequestBody: context.transformedRequestBody,
       transformedRequestUrl: context.requestURL,
       gatewayRequestBody: context.params,
+      headers: context.requestHeaders,
     });
   }
 
@@ -44,37 +45,26 @@ export class ProviderContext {
     return await this.apiConfig.getBaseURL({
       providerOptions: context.providerOption,
       fn: context.endpoint,
-      c: context.honoContext,
-      gatewayRequestURL: context.honoContext.req.url,
+      env: context.env,
+      gatewayRequestURL: '',
       params: context.params,
     });
   }
 
   getEndpointPath(context: RequestContext): string {
     return this.apiConfig.getEndpoint({
-      c: context.honoContext,
+      env: context.env,
       providerOptions: context.providerOption,
       fn: context.endpoint,
       gatewayRequestBodyJSON: context.params,
       gatewayRequestBody: {}, // not using anywhere.
-      gatewayRequestURL: context.honoContext.req.url,
+      gatewayRequestURL: '',
     });
   }
 
   getProxyPath(context: RequestContext, baseURL: string): string {
-    let reqURL = new URL(context.honoContext.req.url);
-    let reqPath = reqURL.pathname;
-    const reqQuery = reqURL.search;
-    const proxyEndpointPath =
-      reqURL.pathname.indexOf('/v1/proxy') > -1 ? '/v1/proxy' : '/v1';
-    reqPath = reqPath.replace(proxyEndpointPath, '');
-
-    if (
-      this.provider === AZURE_OPEN_AI &&
-      reqPath.includes('.openai.azure.com')
-    ) {
-      return `https:/${reqPath}${reqQuery}`;
-    }
+    let reqPath = '/v1';
+    const reqQuery = '';
 
     if (this.apiConfig?.getProxyEndpoint) {
       return `${baseURL}${this.apiConfig.getProxyEndpoint({
@@ -124,9 +114,9 @@ export class ProviderContext {
 
     return () =>
       requestHandler({
-        c: context.honoContext,
+        env: context.env,
         providerOptions: context.providerOption,
-        requestURL: context.honoContext.req.url,
+        requestURL: '',
         requestHeaders: context.requestHeaders,
         requestBody: context.requestBody,
       });

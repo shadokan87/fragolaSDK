@@ -1,4 +1,3 @@
-import { Context } from 'hono';
 import { Options } from '../../types/requestBody';
 import BedrockAPIConfig from './api';
 import { getOctetStreamToOctetStreamTransformer } from '../../handlers/streamHandlerUtils';
@@ -9,11 +8,11 @@ const getRowTransform = () => {
 };
 
 export const BedrockRetrieveFileContentRequestHandler = async ({
-  c,
+  env,
   providerOptions,
   requestURL,
 }: {
-  c: Context;
+  env: ProviderEnv;
   providerOptions: Options;
   requestURL: string;
 }) => {
@@ -22,21 +21,21 @@ export const BedrockRetrieveFileContentRequestHandler = async ({
     const baseURL = await BedrockAPIConfig.getBaseURL({
       providerOptions,
       fn: 'retrieveFileContent',
-      c,
+      env,
       gatewayRequestURL: requestURL,
     });
     const endpoint = BedrockAPIConfig.getEndpoint({
       providerOptions,
       fn: 'retrieveFileContent',
       gatewayRequestURL: requestURL,
-      c,
+      env,
       gatewayRequestBodyJSON: {},
     });
     const url = `${baseURL}${endpoint}`;
 
     // generate the headers
     const headers = await BedrockAPIConfig.headers({
-      c,
+      env,
       providerOptions,
       fn: 'retrieveFileContent',
       transformedRequestBody: {},

@@ -20,9 +20,9 @@ export const FireworkCancelFinetuneResponseTransform = (
 
 export const FireworksCancelFinetuneRequestHandler: RequestHandler<
   Params
-> = async ({ requestBody, requestURL, providerOptions, c }) => {
+> = async ({ requestBody, requestURL, providerOptions, env }) => {
   const headers = await FireworksAIAPIConfig.headers({
-    c,
+    env,
     fn: 'cancelFinetune',
     providerOptions,
     transformedRequestUrl: requestURL,
@@ -30,13 +30,13 @@ export const FireworksCancelFinetuneRequestHandler: RequestHandler<
   });
 
   const baseURL = await FireworksAIAPIConfig.getBaseURL({
-    c,
+    env,
     gatewayRequestURL: requestURL,
     providerOptions,
   });
 
   const endpoint = FireworksAIAPIConfig.getEndpoint({
-    c,
+    env,
     fn: 'cancelFinetune',
     gatewayRequestBodyJSON: requestBody,
     gatewayRequestURL: requestURL,

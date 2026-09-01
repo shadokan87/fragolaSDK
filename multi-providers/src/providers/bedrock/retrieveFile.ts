@@ -1,14 +1,13 @@
-import { Context } from 'hono';
 import { Options } from '../../types/requestBody';
 import BedrockAPIConfig from './api';
 import { BEDROCK } from '../../globals';
 
 export const BedrockRetrieveFileRequestHandler = async ({
-  c,
+  env,
   providerOptions,
   requestURL,
 }: {
-  c: Context;
+  env: ProviderEnv;
   providerOptions: Options;
   requestURL: string;
 }) => {
@@ -17,11 +16,11 @@ export const BedrockRetrieveFileRequestHandler = async ({
     const baseUrl = await BedrockAPIConfig.getBaseURL({
       providerOptions,
       fn: 'retrieveFile',
-      c,
+      env,
       gatewayRequestURL: requestURL,
     });
     const endpoint = BedrockAPIConfig.getEndpoint({
-      c,
+      env,
       providerOptions,
       fn: 'retrieveFile',
       gatewayRequestURL: requestURL,
@@ -31,7 +30,7 @@ export const BedrockRetrieveFileRequestHandler = async ({
 
     // generate the headers
     const headers = await BedrockAPIConfig.headers({
-      c,
+      env,
       providerOptions,
       fn: 'retrieveFile',
       transformedRequestBody: {},

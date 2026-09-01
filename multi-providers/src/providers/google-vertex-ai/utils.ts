@@ -12,8 +12,7 @@ import {
   fileExtensionMimeTypeMap,
 } from '../../globals';
 import { ErrorResponse, FinetuneRequest, Logprobs } from '../types';
-import { Context } from 'hono';
-import { env } from 'hono/adapter';
+import { ProviderEnv } from '../../types/env';
 import { ContentType, JsonSchema, Tool } from '../../types/requestBody';
 import { GoogleMessagePart } from '../google/chatComplete';
 
@@ -89,21 +88,10 @@ async function importPrivateKey(pem: string): Promise<CryptoKey> {
 }
 
 export const getAccessToken = async (
-  c: Context,
+  env: ProviderEnv,
   serviceAccountInfo: Record<string, any>
 ): Promise<string> => {
   try {
-    let cacheKey = `${serviceAccountInfo.project_id}/${serviceAccountInfo.private_key_id}/${serviceAccountInfo.client_email}`;
-    // try to get from cache
-    try {
-      const getFromCacheByKey = c.get('getFromCacheByKey');
-      const resp = getFromCacheByKey
-        ? await getFromCacheByKey(env(c), cacheKey)
-        : null;
-      if (resp) {
-        return resp;
-      }
-    } catch (err) {}
 
     const scope = 'https://www.googleapis.com/auth/cloud-platform';
     const iat = Math.floor(Date.now() / 1000);
@@ -144,10 +132,6 @@ export const getAccessToken = async (
     });
 
     const tokenJson: Record<string, any> = await tokenResponse.json();
-    const putInCacheWithValue = c.get('putInCacheWithValue');
-    if (putInCacheWithValue && cacheKey) {
-      await putInCacheWithValue(env(c), cacheKey, tokenJson.access_token, 3000); // 50 minutes
-    }
 
     return tokenJson.access_token;
   } catch (err) {
@@ -717,7 +701,7 @@ export const OPENAI_AUDIO_FORMAT_TO_VERTEX_MIME_TYPE_MAPPING = {
   mp3: 'audio/mp3',
   wav: 'audio/wav',
   opus: 'audio/ogg',
-  flac: 'audio/flac',
+  flaenv: 'audio/flac',
   pcm16: 'audio/pcm',
   'x-aac': 'audio/aac',
   'x-m4a': 'audio/m4a',
@@ -727,7 +711,7 @@ export const OPENAI_AUDIO_FORMAT_TO_VERTEX_MIME_TYPE_MAPPING = {
   webm: 'audio/webm',
 };
 
-export const transformInputAudioPart = (c: ContentType): GoogleMessagePart => {
+export const transformInputAudioPart = (env: ContentType): GoogleMessagePart => {
   const data = c.input_audio?.data;
   const mimeType =
     OPENAI_AUDIO_FORMAT_TO_VERTEX_MIME_TYPE_MAPPING[

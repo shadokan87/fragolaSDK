@@ -260,7 +260,7 @@ export const GoogleChatCompleteConfig: ProviderConfig = {
               },
             });
           } else if (message.content && typeof message.content === 'object') {
-            message.content.forEach((c: ContentType) => {
+            message.content.forEach((env: ContentType) => {
               if (c.type === 'text') {
                 parts.push({
                   text: c.text,

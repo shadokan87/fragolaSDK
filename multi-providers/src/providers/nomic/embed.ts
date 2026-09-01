@@ -39,7 +39,7 @@ interface NomicEmbedResponse {
 
 export interface NomicValidationErrorResponse {
   detail: {
-    loc: Array<any>;
+    loenv: Array<any>;
     msg: string;
     type: string;
   }[];

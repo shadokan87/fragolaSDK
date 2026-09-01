@@ -73,7 +73,7 @@ export const transformToolsConfig = (params: BedrockMessagesParams) => {
   if (params.tools) {
     for (const tool of params.tools) {
       if (tool.type === 'custom' || !tool.type) {
-        const toolSpec: Record<string, any> = {
+        const toolSpeenv: Record<string, any> = {
           name: tool.name,
           inputSchema: { json: tool.input_schema },
           description: tool.description,

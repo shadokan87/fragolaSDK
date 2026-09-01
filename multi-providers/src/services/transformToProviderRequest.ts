@@ -219,7 +219,7 @@ const transformToProviderRequestBody = (
     providerConfig = providerConfig.getConfig({ params: {}, providerOptions });
   }
 
-  return providerConfig.requestTransforms[fn](requestBody, requestHeaders);
+  return providerConfig.requestTransforms[fn](requestBody, requestHeaders, providerOptions);
 };
 
 /**

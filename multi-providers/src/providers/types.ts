@@ -1,4 +1,4 @@
-import { Context } from 'hono';
+import { ProviderEnv } from '../types/env';
 import { Message, Options, Params } from '../types/requestBody';
 import { ANTHROPIC_STOP_REASON } from './anthropic/types';
 import {
@@ -47,7 +47,7 @@ export interface ProviderConfig {
 export interface ProviderAPIConfig {
   /** A function to generate the headers for the API request. */
   headers: (args: {
-    c: Context;
+    env: ProviderEnv;
     providerOptions: Options;
     fn: string;
     transformedRequestBody: Record<string, any>;
@@ -60,13 +60,13 @@ export interface ProviderAPIConfig {
     providerOptions: Options;
     fn?: endpointStrings;
     requestHeaders?: Record<string, string>;
-    c: Context;
+    env: ProviderEnv;
     gatewayRequestURL: string;
     params?: Params;
   }) => Promise<string> | string;
   /** A function to generate the endpoint based on parameters */
   getEndpoint: (args: {
-    c: Context;
+    env: ProviderEnv;
     providerOptions: Options;
     fn: endpointStrings;
     gatewayRequestBodyJSON: Params;
@@ -131,7 +131,7 @@ export interface ProviderAPIConfigs {
 export type RequestHandler<
   T = Params | FormData | ArrayBuffer | ReadableStream,
 > = (Params: {
-  c: Context;
+  env: ProviderEnv;
   providerOptions: Options;
   requestURL: string;
   requestHeaders: Record<string, string>;

@@ -1,8 +1,11 @@
-import { constructConfigFromRequestHeaders } from '../../handlers/handlerUtils';
+import { Options } from '../../types/requestBody';
 import { transformUsingProviderConfig } from '../../services/transformToProviderRequest';
 import { Options } from '../../types/requestBody';
+import { Options } from '../../types/requestBody';
 import { ProviderConfig } from '../types';
+import { Options } from '../../types/requestBody';
 import { GoogleBatchRecord } from './types';
+import { Options } from '../../types/requestBody';
 import { getModelAndProvider, GoogleToOpenAIBatch } from './utils';
 
 export const GoogleBatchCreateConfig: ProviderConfig = {
@@ -74,9 +77,9 @@ export const GoogleBatchCreateConfig: ProviderConfig = {
 
 export const GoogleBatchCreateRequestTransform = (
   requestBody: any,
-  requestHeaders: Record<string, string>
+  requestHeaders: Record<string, string>,
+  providerOptions: Options
 ) => {
-  const providerOptions = constructConfigFromRequestHeaders(requestHeaders);
 
   const baseConfig = transformUsingProviderConfig(
     GoogleBatchCreateConfig,

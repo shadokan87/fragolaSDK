@@ -5,7 +5,6 @@ import {
   tryChatToTextTransformation,
 } from './uploadFileUtils';
 import { transformUsingProviderConfig } from '../../services/transformToProviderRequest';
-import { Context } from 'hono';
 import { BEDROCK, POWERED_BY } from '../../globals';
 import {
   getFoundationModelFromInferenceProfile,
@@ -23,7 +22,7 @@ class AwsMultipartUploadHandler {
   private url: URL;
   private parts: { PartNumber: number; ETag: string }[] = [];
   private providerOptions: Options;
-  private c: Context;
+  private env: ProviderEnv;
   public contentLength: number = 0;
 
   constructor(
@@ -31,7 +30,7 @@ class AwsMultipartUploadHandler {
     bucket: string = '',
     objectKey: string = '',
     providerOptions: Options,
-    c: Context
+    env: ProviderEnv
   ) {
     this.region = region;
     this.bucket = bucket;
@@ -46,7 +45,7 @@ class AwsMultipartUploadHandler {
   async initiateMultipartUpload() {
     const method = 'POST';
     const headers = await BedrockAPIConfig.headers({
-      c: this.c,
+      env: this.c,
       providerOptions: this.providerOptions,
       fn: 'initiateMultipartUpload',
       transformedRequestBody: {},
@@ -173,7 +172,7 @@ class AwsMultipartUploadHandler {
       `https://${this.bucket}.s3.${this.region}.amazonaws.com/${this.objectKey}?partNumber=${partNumber}&uploadId=${this.uploadId}`
     );
     const headers = await BedrockAPIConfig.headers({
-      c: this.c,
+      env: this.c,
       providerOptions: this.providerOptions,
       fn: 'uploadFile',
       transformedRequestBody: partData,
@@ -219,7 +218,7 @@ class AwsMultipartUploadHandler {
     const payload = `<CompleteMultipartUpload>${partsXml}</CompleteMultipartUpload>`;
 
     const headers = await BedrockAPIConfig.headers({
-      c: this.c,
+      env: this.c,
       providerOptions: this.providerOptions,
       fn: 'uploadFile',
       transformedRequestBody: payload,
@@ -329,7 +328,7 @@ export const BedrockUploadFileRequestHandler: RequestHandler<
   providerOptions: providerOptions,
   requestBody,
   requestHeaders,
-  c,
+  env,
 }) => {
   try {
     // get aws credentials and parse provider options
@@ -367,7 +366,7 @@ export const BedrockUploadFileRequestHandler: RequestHandler<
       const foundationModel = awsBedrockModel.includes('foundation-model/')
         ? awsBedrockModel.split('/').pop()
         : await getFoundationModelFromInferenceProfile(
-            c,
+            env,
             awsBedrockModel,
             providerOptions
           );

@@ -26,7 +26,7 @@ const PROVIDER_CONFIG: Record<
     [BatchEndpoints.CHAT_COMPLETIONS]: VertexGoogleChatCompleteConfig,
     [BatchEndpoints.EMBEDDINGS]: VertexBatchEmbedConfig,
   },
-  anthropic: {
+  anthropienv: {
     [BatchEndpoints.CHAT_COMPLETIONS]: VertexAnthropicChatCompleteConfig,
   },
   meta: {
@@ -42,7 +42,7 @@ const encoder = new TextEncoder();
 
 export const GoogleFileUploadRequestHandler: RequestHandler<
   ReadableStream
-> = async ({ c, providerOptions, requestBody, requestHeaders }) => {
+> = async ({ env, providerOptions, requestBody, requestHeaders }) => {
   const {
     vertexStorageBucketName,
     filename,
@@ -154,7 +154,7 @@ export const GoogleFileUploadRequestHandler: RequestHandler<
   // Pipe the node stream through our line splitter and into the transform stream.
 
   const providerHeaders = await GoogleApiConfig.headers({
-    c,
+    env,
     providerOptions,
     fn: 'uploadFile',
     transformedRequestBody: {},

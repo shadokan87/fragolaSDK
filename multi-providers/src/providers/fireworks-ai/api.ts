@@ -24,7 +24,7 @@ const FireworksAIAPIConfig: ProviderAPIConfig = {
   getEndpoint: ({
     fn,
     gatewayRequestBodyJSON: gatewayRequestBody,
-    c,
+    env,
     gatewayRequestURL,
   }) => {
     const model = gatewayRequestBody?.model;

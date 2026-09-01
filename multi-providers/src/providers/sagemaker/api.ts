@@ -4,7 +4,6 @@ import {
   getAssumedRoleCredentials,
 } from '../bedrock/utils';
 import { ProviderAPIConfig } from '../types';
-import { env } from 'hono/adapter';
 const SagemakerAPIConfig: ProviderAPIConfig = {
   getBaseURL: ({ providerOptions }) => {
     return `https://runtime.sagemaker.${providerOptions.awsRegion}.amazonaws.com`;
@@ -13,7 +12,7 @@ const SagemakerAPIConfig: ProviderAPIConfig = {
     providerOptions,
     transformedRequestBody,
     transformedRequestUrl,
-    c,
+    env,
   }) => {
     const headers: Record<string, string> = {
       'content-type': 'application/json',
@@ -23,9 +22,9 @@ const SagemakerAPIConfig: ProviderAPIConfig = {
       try {
         // Assume the role in the source account
         const sourceRoleCredentials = await getAssumedRoleCredentials(
-          c,
-          env(c).AWS_ASSUME_ROLE_SOURCE_ARN, // Role ARN in the source account
-          env(c).AWS_ASSUME_ROLE_SOURCE_EXTERNAL_ID || '', // External ID for source role (if needed)
+          env,
+          env.AWS_ASSUME_ROLE_SOURCE_ARN, // Role ARN in the source account
+          env.AWS_ASSUME_ROLE_SOURCE_EXTERNAL_ID || '', // External ID for source role (if needed)
           providerOptions.awsRegion || ''
         );
 
@@ -36,7 +35,7 @@ const SagemakerAPIConfig: ProviderAPIConfig = {
         // Assume role in destination account using temporary creds obtained in first step
         const { accessKeyId, secretAccessKey, sessionToken } =
           (await getAssumedRoleCredentials(
-            c,
+            env,
             providerOptions.awsRoleArn || '',
             providerOptions.awsExternalId || '',
             providerOptions.awsRegion || '',

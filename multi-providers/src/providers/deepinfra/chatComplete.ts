@@ -94,7 +94,7 @@ interface DeepInfraChatCompleteResponse extends ChatCompletionResponse {
 
 export interface DeepInfraErrorResponse {
   detail: {
-    loc: string[];
+    loenv: string[];
     msg: string;
     type: string;
   }[];

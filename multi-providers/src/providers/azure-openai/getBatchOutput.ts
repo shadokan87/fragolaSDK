@@ -1,4 +1,3 @@
-import { Context } from 'hono';
 import AzureOpenAIAPIConfig from './api';
 import { Options } from '../../types/requestBody';
 import { RetrieveBatchResponse } from '../types';
@@ -7,11 +6,11 @@ import { generateErrorResponse } from '../utils';
 
 // Return a ReadableStream containing batches output data
 export const AzureOpenAIGetBatchOutputRequestHandler = async ({
-  c,
+  env,
   providerOptions,
   requestURL,
 }: {
-  c: Context;
+  env: ProviderEnv;
   providerOptions: Options;
   requestURL: string;
 }) => {
@@ -21,7 +20,7 @@ export const AzureOpenAIGetBatchOutputRequestHandler = async ({
   const baseUrl = AzureOpenAIAPIConfig.getBaseURL({
     providerOptions,
     fn: 'retrieveBatch',
-    c,
+    env,
     gatewayRequestURL: requestURL,
   });
   const retrieveBatchRequestURL = requestURL.replace('/output', '');
@@ -31,12 +30,12 @@ export const AzureOpenAIGetBatchOutputRequestHandler = async ({
       providerOptions,
       fn: 'retrieveBatch',
       gatewayRequestURL: retrieveBatchRequestURL,
-      c,
+      env,
       gatewayRequestBodyJSON: {},
       gatewayRequestBody: {},
     });
   const retrieveBatchesHeaders = await AzureOpenAIAPIConfig.headers({
-    c,
+    env,
     providerOptions,
     fn: 'retrieveBatch',
     transformedRequestBody: {},
@@ -81,12 +80,12 @@ export const AzureOpenAIGetBatchOutputRequestHandler = async ({
         providerOptions,
         fn: 'retrieveFileContent',
         gatewayRequestURL: retrieveFileContentRequestURL,
-        c,
+        env,
         gatewayRequestBodyJSON: {},
         gatewayRequestBody: {},
       });
     const retrieveFileContentHeaders = await AzureOpenAIAPIConfig.headers({
-      c,
+      env,
       providerOptions,
       fn: 'retrieveFileContent',
       transformedRequestBody: {},
@@ -100,7 +99,7 @@ export const AzureOpenAIGetBatchOutputRequestHandler = async ({
   }
   if (outputBlob) {
     const retrieveBlobHeaders = await AzureOpenAIAPIConfig.headers({
-      c,
+      env,
       providerOptions: {
         ...providerOptions,
         azureEntraScope: 'https://storage.azure.com/.default',

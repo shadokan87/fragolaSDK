@@ -143,8 +143,8 @@ interface EmbedPredictionsResponse {
   textEmbedding?: number[];
   videoEmbeddings?: {
     embedding: number[];
-    endOffsetSec: number;
-    startOffsetSec: number;
+    endOffsetSeenv: number;
+    startOffsetSeenv: number;
   }[];
 }
 
@@ -248,7 +248,7 @@ export interface GoogleFinetuneRecord {
   source_model?: {
     baseModel: string;
   };
-  supervisedTuningSpec: {
+  supervisedTuningSpeenv: {
     trainingDatasetUri: string;
     validationDatasetUri: string;
     hyperParameters: {

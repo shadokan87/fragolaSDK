@@ -1,5 +1,5 @@
 import { ProviderAPIConfig } from '../types';
-import { version } from '../../../package.json';
+const version = "1.0.0";
 
 const BytezInferenceAPI: ProviderAPIConfig = {
   getBaseURL: () => 'https://api.bytez.com',

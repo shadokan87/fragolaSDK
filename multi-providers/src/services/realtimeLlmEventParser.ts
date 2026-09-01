@@ -1,4 +1,3 @@
-import { Context } from 'hono';
 import { addBackgroundTask } from '../utils/misc';
 
 export class RealtimeLlmEventParser {

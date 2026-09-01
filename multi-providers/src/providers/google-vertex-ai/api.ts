@@ -1,5 +1,6 @@
 import { GatewayError } from '../../errors/GatewayError';
 import { Options } from '../../types/requestBody';
+import { ProviderEnv } from "../../types/env";
 import { endpointStrings, ProviderAPIConfig } from '../types';
 import { getModelAndProvider, getAccessToken, getBucketAndFile } from './utils';
 
@@ -68,7 +69,7 @@ export const GoogleApiConfig: ProviderAPIConfig = {
     const { apiKey, vertexServiceAccountJson } = providerOptions;
     let authToken = apiKey;
     if (vertexServiceAccountJson) {
-      authToken = await getAccessToken(c, vertexServiceAccountJson);
+      authToken = await getAccessToken(env, vertexServiceAccountJson);
     }
     const anthropicBeta =
       providerOptions?.['anthropicBeta'] ??

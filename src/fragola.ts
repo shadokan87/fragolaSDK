@@ -173,6 +173,10 @@ export class Fragola<TGlobalStore extends StoreLike<any> = {}> {
         this.#sdkInstance = opts ? new this.sdk(opts) : new this.sdk();
     }
 
+    setSdkOpts(clientOptions: OpenaiClientOptions) {
+        this.#sdkInstance = new this.#sdk(clientOptions);
+    }
+
     /** Returns the OpenAI SDK constructor used by this Fragola instance. */
     get sdk() {
         return this.#sdk;

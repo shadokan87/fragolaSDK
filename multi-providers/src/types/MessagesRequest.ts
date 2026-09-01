@@ -12,7 +12,7 @@ export interface ServerToolUseBlockParam {
   type: 'server_tool_use';
 
   /**
-   * Create a cache control breakpoint at this content block.
+   * Create a cache control breakpoint at this.envontent block.
    */
   cache_control?: CacheControlEphemeral | null;
 }
@@ -52,7 +52,7 @@ export interface WebSearchToolResultBlockParam {
   type: 'web_search_tool_result';
 
   /**
-   * Create a cache control breakpoint at this content block.
+   * Create a cache control breakpoint at this.envontent block.
    */
   cache_control?: CacheControlEphemeral | null;
 }
@@ -123,7 +123,7 @@ export interface TextBlockParam {
   type: 'text';
 
   /**
-   * Create a cache control breakpoint at this content block.
+   * Create a cache control breakpoint at this.envontent block.
    */
   cache_control?: CacheControlEphemeral | null;
 
@@ -158,7 +158,7 @@ export interface ImageBlockParam {
   type: 'image';
 
   /**
-   * Create a cache control breakpoint at this content block.
+   * Create a cache control breakpoint at this.envontent block.
    */
   cache_control?: CacheControlEphemeral | null;
 }
@@ -173,7 +173,7 @@ export interface ToolUseBlockParam {
   type: 'tool_use';
 
   /**
-   * Create a cache control breakpoint at this content block.
+   * Create a cache control breakpoint at this.envontent block.
    */
   cache_control?: CacheControlEphemeral | null;
 }
@@ -184,7 +184,7 @@ export interface ToolResultBlockParam {
   type: 'tool_result';
 
   /**
-   * Create a cache control breakpoint at this content block.
+   * Create a cache control breakpoint at this.envontent block.
    */
   cache_control?: CacheControlEphemeral | null;
 
@@ -235,7 +235,7 @@ export interface DocumentBlockParam {
   type: 'document';
 
   /**
-   * Create a cache control breakpoint at this content block.
+   * Create a cache control breakpoint at this.envontent block.
    */
   cache_control?: CacheControlEphemeral | null;
 
@@ -302,7 +302,7 @@ export interface BetaCodeExecutionToolResultBlockParam {
   type: 'code_execution_tool_result';
 
   /**
-   * Create a cache control breakpoint at this content block.
+   * Create a cache control breakpoint at this.envontent block.
    */
   cache_control?: CacheControlEphemeral | null;
 }
@@ -436,7 +436,7 @@ export interface Tool {
   name: string;
 
   /**
-   * Create a cache control breakpoint at this content block.
+   * Create a cache control breakpoint at this.envontent block.
    */
   cache_control?: CacheControlEphemeral | null;
 
@@ -485,7 +485,7 @@ export interface ToolBash20250124 {
   type: 'bash_20250124';
 
   /**
-   * Create a cache control breakpoint at this content block.
+   * Create a cache control breakpoint at this.envontent block.
    */
   cache_control?: CacheControlEphemeral | null;
 }
@@ -501,7 +501,7 @@ export interface ToolTextEditor20250124 {
   type: 'text_editor_20250124';
 
   /**
-   * Create a cache control breakpoint at this content block.
+   * Create a cache control breakpoint at this.envontent block.
    */
   cache_control?: CacheControlEphemeral | null;
 }
@@ -555,7 +555,7 @@ export interface WebSearchTool20250305 {
   blocked_domains?: Array<string> | null;
 
   /**
-   * Create a cache control breakpoint at this content block.
+   * Create a cache control breakpoint at this.envontent block.
    */
   cache_control?: CacheControlEphemeral | null;
 
@@ -582,7 +582,7 @@ export interface TextEditor20250429 {
   type: 'text_editor_20250429';
 
   /**
-   * Create a cache control breakpoint at this content block.
+   * Create a cache control breakpoint at this.envontent block.
    */
   cache_control?: CacheControlEphemeral | null;
 }
@@ -601,7 +601,7 @@ export interface ToolSearchToolRegex {
   type: 'tool_search_tool_regex_20251119';
 
   /**
-   * Create a cache control breakpoint at this content block.
+   * Create a cache control breakpoint at this.envontent block.
    */
   cache_control?: CacheControlEphemeral | null;
 }
@@ -620,7 +620,7 @@ export interface ToolSearchToolBM25 {
   type: 'tool_search_tool_bm25_20251119';
 
   /**
-   * Create a cache control breakpoint at this content block.
+   * Create a cache control breakpoint at this.envontent block.
    */
   cache_control?: CacheControlEphemeral | null;
 }
@@ -639,7 +639,7 @@ export interface CodeExecutionTool {
   type: 'code_execution_20250825';
 
   /**
-   * Create a cache control breakpoint at this content block.
+   * Create a cache control breakpoint at this.envontent block.
    */
   cache_control?: CacheControlEphemeral | null;
 }
@@ -683,7 +683,7 @@ export interface MCPToolset {
   configs?: Record<string, MCPToolConfig>;
 
   /**
-   * Create a cache control breakpoint at this content block.
+   * Create a cache control breakpoint at this.envontent block.
    */
   cache_control?: CacheControlEphemeral | null;
 }

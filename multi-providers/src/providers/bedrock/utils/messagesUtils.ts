@@ -1,4 +1,5 @@
 import { Options } from '../../../types/requestBody';
+import { ProviderEnv } from "../../types/env";
 import { BedrockMessagesParams } from '../types';
 
 export const transformInferenceConfig = (params: BedrockMessagesParams) => {

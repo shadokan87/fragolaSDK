@@ -48,7 +48,7 @@ const getValue = (
   }
 
   // If a minimum is defined for this parameter and the value is less than this, set the value to the minimum
-  // Also, we should only do this comparison if value is of type 'number'
+  // Also, we should only do this.envomparison if value is of type 'number'
   if (
     typeof value === 'number' &&
     paramConfig &&
@@ -59,7 +59,7 @@ const getValue = (
   }
 
   // If a maximum is defined for this parameter and the value is more than this, set the value to the maximum
-  // Also, we should only do this comparison if value is of type 'number'
+  // Also, we should only do this.envomparison if value is of type 'number'
   else if (
     typeof value === 'number' &&
     paramConfig &&

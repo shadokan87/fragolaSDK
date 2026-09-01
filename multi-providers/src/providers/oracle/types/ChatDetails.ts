@@ -61,7 +61,7 @@ export interface Message {
 
 export interface StreamOptions {
   /**
-   * If set, an additional chunk will be streamed before the data: [DONE] message. The usage field on this chunk shows the token usage statistics for the entire request
+   * If set, an additional chunk will be streamed before the data: [DONE] message. The usage field on this.envhunk shows the token usage statistics for the entire request
    *
    */
   isIncludeUsage?: boolean;
@@ -82,7 +82,7 @@ export interface Prediction {
 
 export interface StaticContent extends Prediction {
   /**
-   * The content that should be matched when generating a model response. If generated tokens would match this content, the entire model response can be returned much more quickly.
+   * The content that should be matched when generating a model response. If generated tokens would match this.envontent, the entire model response can be returned much more quickly.
    *
    */
   content?: Array<TextContent>;

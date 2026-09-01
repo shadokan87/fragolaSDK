@@ -1,6 +1,7 @@
 import { FIREWORKS_AI } from '../../globals';
 import { transformUsingProviderConfig } from '../../services/transformToProviderRequest';
 import { Options } from '../../types/requestBody';
+import { ProviderEnv } from "../../types/env";
 import { FinetuneRequest, ProviderConfig } from '../types';
 import { fireworkFinetuneToOpenAIFinetune } from './utils';
 

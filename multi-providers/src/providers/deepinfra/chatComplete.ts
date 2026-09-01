@@ -10,8 +10,8 @@ import {
   generateInvalidProviderResponseError,
 } from '../utils';
 
-// TODOS: this configuration does not enforce the maximum token limit for the input parameter. If you want to enforce this, you might need to add a custom validation function or a max property to the ParameterConfig interface, and then use it in the input configuration. However, this might be complex because the token count is not a simple length check, but depends on the specific tokenization method used by the model.
-// TODOS: this configuration might have to check on the max value of n
+// TODOS: this.envonfiguration does not enforce the maximum token limit for the input parameter. If you want to enforce this, you might need to add a custom validation function or a max property to the ParameterConfig interface, and then use it in the input configuration. However, this might be complex because the token count is not a simple length check, but depends on the specific tokenization method used by the model.
+// TODOS: this.envonfiguration might have to check on the max value of n
 
 export const DeepInfraChatCompleteConfig: ProviderConfig = {
   model: {
@@ -161,7 +161,7 @@ export const DeepInfraChatCompleteResponseTransform: (
       created: response.created,
       model: response.model,
       provider: DEEPINFRA,
-      choices: response.choices.map((c) => ({
+      choices: response.choices.map((env) => ({
         index: c.index,
         message: {
           role: c.message.role,

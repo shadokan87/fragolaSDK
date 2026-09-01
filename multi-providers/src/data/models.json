@@ -8288,7 +8288,7 @@
       "provider": {
         "id": "openrouter"
       },
-      "name": "Anthropic: Claude v1"
+      "name": "Anthropienv: Claude v1"
     },
     {
       "id": "anthropic/claude-1.2",
@@ -8296,7 +8296,7 @@
       "provider": {
         "id": "openrouter"
       },
-      "name": "Anthropic: Claude v1.2"
+      "name": "Anthropienv: Claude v1.2"
     },
     {
       "id": "anthropic/claude-2",
@@ -8304,7 +8304,7 @@
       "provider": {
         "id": "openrouter"
       },
-      "name": "Anthropic: Claude v2"
+      "name": "Anthropienv: Claude v2"
     },
     {
       "id": "anthropic/claude-2:beta",
@@ -8312,7 +8312,7 @@
       "provider": {
         "id": "openrouter"
       },
-      "name": "Anthropic: Claude v2 (self-moderated)"
+      "name": "Anthropienv: Claude v2 (self-moderated)"
     },
     {
       "id": "anthropic/claude-2.0",
@@ -8320,7 +8320,7 @@
       "provider": {
         "id": "openrouter"
       },
-      "name": "Anthropic: Claude v2.0"
+      "name": "Anthropienv: Claude v2.0"
     },
     {
       "id": "anthropic/claude-2.0:beta",
@@ -8328,7 +8328,7 @@
       "provider": {
         "id": "openrouter"
       },
-      "name": "Anthropic: Claude v2.0 (self-moderated)"
+      "name": "Anthropienv: Claude v2.0 (self-moderated)"
     },
     {
       "id": "anthropic/claude-2.1",
@@ -8336,7 +8336,7 @@
       "provider": {
         "id": "openrouter"
       },
-      "name": "Anthropic: Claude v2.1"
+      "name": "Anthropienv: Claude v2.1"
     },
     {
       "id": "anthropic/claude-2.1:beta",
@@ -8344,7 +8344,7 @@
       "provider": {
         "id": "openrouter"
       },
-      "name": "Anthropic: Claude v2.1 (self-moderated)"
+      "name": "Anthropienv: Claude v2.1 (self-moderated)"
     },
     {
       "id": "anthropic/claude-3-haiku",
@@ -8352,7 +8352,7 @@
       "provider": {
         "id": "openrouter"
       },
-      "name": "Anthropic: Claude 3 Haiku"
+      "name": "Anthropienv: Claude 3 Haiku"
     },
     {
       "id": "anthropic/claude-3-haiku:beta",
@@ -8360,7 +8360,7 @@
       "provider": {
         "id": "openrouter"
       },
-      "name": "Anthropic: Claude 3 Haiku (self-moderated)"
+      "name": "Anthropienv: Claude 3 Haiku (self-moderated)"
     },
     {
       "id": "anthropic/claude-3-opus",
@@ -8368,7 +8368,7 @@
       "provider": {
         "id": "openrouter"
       },
-      "name": "Anthropic: Claude 3 Opus"
+      "name": "Anthropienv: Claude 3 Opus"
     },
     {
       "id": "anthropic/claude-3-opus:beta",
@@ -8376,7 +8376,7 @@
       "provider": {
         "id": "openrouter"
       },
-      "name": "Anthropic: Claude 3 Opus (self-moderated)"
+      "name": "Anthropienv: Claude 3 Opus (self-moderated)"
     },
     {
       "id": "anthropic/claude-3-sonnet",
@@ -8384,7 +8384,7 @@
       "provider": {
         "id": "openrouter"
       },
-      "name": "Anthropic: Claude 3 Sonnet"
+      "name": "Anthropienv: Claude 3 Sonnet"
     },
     {
       "id": "anthropic/claude-3-sonnet:beta",
@@ -8392,7 +8392,7 @@
       "provider": {
         "id": "openrouter"
       },
-      "name": "Anthropic: Claude 3 Sonnet (self-moderated)"
+      "name": "Anthropienv: Claude 3 Sonnet (self-moderated)"
     },
     {
       "id": "anthropic/claude-3.5-sonnet",
@@ -8400,7 +8400,7 @@
       "provider": {
         "id": "openrouter"
       },
-      "name": "Anthropic: Claude 3.5 Sonnet"
+      "name": "Anthropienv: Claude 3.5 Sonnet"
     },
     {
       "id": "anthropic/claude-3.5-sonnet:beta",
@@ -8408,7 +8408,7 @@
       "provider": {
         "id": "openrouter"
       },
-      "name": "Anthropic: Claude 3.5 Sonnet (self-moderated)"
+      "name": "Anthropienv: Claude 3.5 Sonnet (self-moderated)"
     },
     {
       "id": "anthropic/claude-instant-1",
@@ -8416,7 +8416,7 @@
       "provider": {
         "id": "openrouter"
       },
-      "name": "Anthropic: Claude Instant v1"
+      "name": "Anthropienv: Claude Instant v1"
     },
     {
       "id": "anthropic/claude-instant-1:beta",
@@ -8424,7 +8424,7 @@
       "provider": {
         "id": "openrouter"
       },
-      "name": "Anthropic: Claude Instant v1 (self-moderated)"
+      "name": "Anthropienv: Claude Instant v1 (self-moderated)"
     },
     {
       "id": "anthropic/claude-instant-1.0",
@@ -8432,7 +8432,7 @@
       "provider": {
         "id": "openrouter"
       },
-      "name": "Anthropic: Claude Instant v1.0"
+      "name": "Anthropienv: Claude Instant v1.0"
     },
     {
       "id": "anthropic/claude-instant-1.1",
@@ -8440,7 +8440,7 @@
       "provider": {
         "id": "openrouter"
       },
-      "name": "Anthropic: Claude Instant v1.1"
+      "name": "Anthropienv: Claude Instant v1.1"
     },
     {
       "id": "cognitivecomputations/dolphin-mixtral-8x22b",

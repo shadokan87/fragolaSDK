@@ -103,7 +103,7 @@ export const AI21CompleteResponseTransform: (
   if ('completions' in response) {
     const inputTokens = response.prompt.tokens?.length || 0;
     const outputTokens = response.completions
-      .map((c) => c.data?.tokens?.length || 0)
+      .map((env) => c.data?.tokens?.length || 0)
       .reduce((partialSum, a) => partialSum + a, 0);
 
     return {

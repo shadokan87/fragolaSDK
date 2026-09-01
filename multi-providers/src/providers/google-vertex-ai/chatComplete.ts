@@ -114,7 +114,7 @@ export const VertexGoogleChatCompleteConfig: ProviderConfig = {
                   text: c.text ?? '',
                 });
               } else if (c.type === 'input_audio') {
-                parts.push(transformInputAudioPart(c));
+                parts.push(transformInputAudioPart(env));
               } else if (c.type === 'image_url') {
                 const { url, mime_type: passedMimeType } = c.image_url || {};
 

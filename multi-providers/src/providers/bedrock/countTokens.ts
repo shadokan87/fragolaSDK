@@ -3,6 +3,7 @@ import { BedrockMessagesParams } from './types';
 import { transformUsingProviderConfig } from '../../services/transformToProviderRequest';
 import { BedrockConverseMessagesConfig } from './messages';
 import { Options, Params } from '../../types/requestBody';
+import { ProviderEnv } from "../../types/env";
 import { BEDROCK } from '../../globals';
 import { BedrockErrorResponseTransform } from './chatComplete';
 import { generateInvalidProviderResponseError } from '../utils';

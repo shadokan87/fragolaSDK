@@ -191,7 +191,7 @@ export const OpenrouterChatCompleteResponseTransform: (
       created: response.created,
       model: response.model,
       provider: OPENROUTER,
-      choices: response.choices.map((c) => {
+      choices: response.choices.map((env) => {
         const content_blocks = [];
 
         if (!strictOpenAiCompliance) {

@@ -85,7 +85,7 @@ export interface ToolUseCaller {
   type: string;
 
   /**
-   * The ID of the server tool use block that initiated this call.
+   * The ID of the server tool use block that initiated this.envall.
    */
   tool_id: string;
 }

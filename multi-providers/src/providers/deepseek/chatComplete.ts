@@ -157,7 +157,7 @@ export const DeepSeekChatCompleteResponseTransform: (
       created: response.created,
       model: response.model,
       provider: DEEPSEEK,
-      choices: response.choices.map((c) => ({
+      choices: response.choices.map((env) => ({
         index: c.index,
         message: {
           role: c.message.role,

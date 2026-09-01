@@ -1,5 +1,6 @@
 import AzureAIInferenceAPI from './api';
 import { Options } from '../../types/requestBody';
+import { ProviderEnv } from "../../types/env";
 import { RetrieveBatchResponse } from '../types';
 import { AZURE_OPEN_AI } from '../../globals';
 

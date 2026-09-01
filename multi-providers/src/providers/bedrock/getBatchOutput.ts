@@ -1,4 +1,5 @@
 import { Options } from '../../types/requestBody';
+import { ProviderEnv } from "../../types/env";
 import BedrockAPIConfig from './api';
 import { BedrockGetBatchResponse } from './types';
 import { getOctetStreamToOctetStreamTransformer } from '../../handlers/streamHandlerUtils';
@@ -111,7 +112,7 @@ export const BedrockGetBatchOutputRequestHandler = async ({
     const awsS3ObjectKey = `${primaryKey}${jobId}/${inputS3URIParts[inputS3URIParts.length - 1]}.out`;
     const awsModelProvider = batchDetails.modelId;
 
-    const s3FileURL = `https://${awsS3Bucket}.s3.${awsRegion}.${getAwsEndpointDomain(c)}/${awsS3ObjectKey}`;
+    const s3FileURL = `https://${awsS3Bucket}.s3.${awsRegion}.${getAwsEndpointDomain(env)}/${awsS3ObjectKey}`;
     const s3FileHeaders = await BedrockAPIConfig.headers({
       env,
       providerOptions,

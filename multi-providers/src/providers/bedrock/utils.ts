@@ -8,6 +8,7 @@ import {
   BedrockConverseCohereChatCompletionsParams,
 } from './chatComplete';
 import { Options, Tool } from '../../types/requestBody';
+import { ProviderEnv } from "../../types/env";
 import { GatewayError } from '../../errors/GatewayError';
 import { BedrockFinetuneRecord, BedrockInferenceProfile } from './types';
 import { FinetuneRequest } from '../types';
@@ -432,7 +433,7 @@ export const getInferenceProfile = async (
 ) => {
   if (providerOptions.awsAuthType === 'assumedRole') {
     try {
-      await providerAssumedRoleCredentials(c, providerOptions);
+      await providerAssumedRoleCredentials(env, providerOptions);
     } catch (e) {
       console.error('getInferenceProfile Error while assuming bedrock role', e);
     }

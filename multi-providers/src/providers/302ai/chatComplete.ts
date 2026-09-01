@@ -98,7 +98,7 @@ export const AI302ChatCompleteResponseTransform: (
       created: response.created,
       model: response.model,
       provider: THREE_ZERO_TWO_AI,
-      choices: response.choices.map((c) => ({
+      choices: response.choices.map((env) => ({
         index: c.index,
         message: {
           role: c.message.role,

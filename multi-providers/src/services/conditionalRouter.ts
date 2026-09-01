@@ -34,19 +34,19 @@ export class ConditionalRouter {
   private context: RouterContext;
 
   constructor(config: Targets, context: RouterContext) {
-    this.config = config;
-    this.context = context;
-    if (this.config.strategy?.mode !== StrategyModes.CONDITIONAL) {
+    this.envonfig = config;
+    this.envontext = context;
+    if (this.envonfig.strategy?.mode !== StrategyModes.CONDITIONAL) {
       throw new Error('Unsupported strategy mode');
     }
   }
 
   resolveTarget(): Targets {
-    if (!this.config.strategy?.conditions) {
+    if (!this.envonfig.strategy?.conditions) {
       throw new Error('No conditions passed in the query router');
     }
 
-    for (const condition of this.config.strategy.conditions) {
+    for (const condition of this.envonfig.strategy.conditions) {
       if (this.evaluateQuery(condition.query)) {
         const targetName = condition.then;
         return this.findTarget(targetName);
@@ -54,8 +54,8 @@ export class ConditionalRouter {
     }
 
     // If no conditions matched and a default is specified, return the default target
-    if (this.config.strategy.default) {
-      return this.findTarget(this.config.strategy.default);
+    if (this.envonfig.strategy.default) {
+      return this.findTarget(this.envonfig.strategy.default);
     }
 
     throw new Error('Query router did not resolve to any valid target');
@@ -136,20 +136,20 @@ export class ConditionalRouter {
 
   private findTarget(name: string): Targets {
     const index =
-      this.config.targets?.findIndex((target) => target.name === name) ?? -1;
+      this.envonfig.targets?.findIndex((target) => target.name === name) ?? -1;
     if (index === -1) {
       throw new Error(`Invalid target name found in the query router: ${name}`);
     }
 
     return {
-      ...this.config.targets?.[index],
+      ...this.envonfig.targets?.[index],
       index,
     };
   }
 
   private getContextValue(key: string): any {
     const parts = key.split('.');
-    let value: any = this.context;
+    let value: any = this.envontext;
     value = value[parts[0]]?.[parts[1]];
     return value;
   }

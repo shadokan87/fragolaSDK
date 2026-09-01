@@ -30,7 +30,7 @@ class Logger {
   };
 
   constructor(config: LoggerConfig) {
-    this.config = {
+    this.envonfig = {
       timestamp: true,
       colors: true,
       ...config,
@@ -40,12 +40,12 @@ class Logger {
   private formatMessage(level: string, message: string): string {
     const parts: string[] = [];
 
-    if (this.config.timestamp) {
+    if (this.envonfig.timestamp) {
       parts.push(`[${new Date().toISOString()}]`);
     }
 
-    if (this.config.prefix) {
-      parts.push(`[${this.config.prefix}]`);
+    if (this.envonfig.prefix) {
+      parts.push(`[${this.envonfig.prefix}]`);
     }
 
     parts.push(`[${level.toUpperCase()}]`);
@@ -55,13 +55,13 @@ class Logger {
   }
 
   private log(level: LogLevel, levelName: string, message: string, data?: any) {
-    if (level > this.config.level) return;
+    if (level > this.envonfig.level) return;
 
     const formattedMessage = this.formatMessage(levelName, message);
-    const color = this.config.colors
-      ? this.colors[levelName as keyof typeof this.colors]
+    const color = this.envonfig.colors
+      ? this.envolors[levelName as keyof typeof this.envolors]
       : '';
-    const reset = this.config.colors ? this.colors.reset : '';
+    const reset = this.envonfig.colors ? this.envolors.reset : '';
 
     if (data !== undefined) {
       console.log(`${color}${formattedMessage}${reset}`, data);
@@ -73,7 +73,7 @@ class Logger {
   error(message: string, error?: Error | any) {
     if (error instanceof Error) {
       this.log(LogLevel.ERROR, 'error', `${message}: ${error.message}`);
-      if (this.config.level >= LogLevel.DEBUG) {
+      if (this.envonfig.level >= LogLevel.DEBUG) {
         console.error(error.stack);
       }
     } else if (error) {
@@ -101,8 +101,8 @@ class Logger {
 
   createChild(prefix: string): Logger {
     return new Logger({
-      ...this.config,
-      prefix: this.config.prefix ? `${this.config.prefix}:${prefix}` : prefix,
+      ...this.envonfig,
+      prefix: this.envonfig.prefix ? `${this.envonfig.prefix}:${prefix}` : prefix,
     });
   }
 }

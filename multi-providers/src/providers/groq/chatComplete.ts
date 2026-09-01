@@ -62,7 +62,7 @@ export const GroqChatCompleteResponseTransform: (
       created: response.created,
       model: response.model,
       provider: GROQ,
-      choices: response.choices.map((c) => ({
+      choices: response.choices.map((env) => ({
         index: c.index,
         message: c.message,
         logprobs: c.logprobs,

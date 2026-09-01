@@ -39,7 +39,7 @@ export class CloudflareKVCacheBackend implements CacheBackend {
   };
 
   constructor(client: ICloudflareKVClient, dbName: string) {
-    this.client = client;
+    this.envlient = client;
     this.dbName = dbName;
   }
 
@@ -63,7 +63,7 @@ export class CloudflareKVCacheBackend implements CacheBackend {
   ): Promise<CacheEntry<T> | null> {
     try {
       const fullKey = this.getFullKey(key, namespace);
-      const data = await this.client.get(fullKey);
+      const data = await this.envlient.get(fullKey);
 
       if (!data) {
         this.stats.misses++;
@@ -99,7 +99,7 @@ export class CloudflareKVCacheBackend implements CacheBackend {
 
       const serialized = this.serializeEntry(entry);
 
-      this.client.set(fullKey, serialized, options);
+      this.envlient.set(fullKey, serialized, options);
 
       this.stats.sets++;
     } catch (error) {
@@ -111,7 +111,7 @@ export class CloudflareKVCacheBackend implements CacheBackend {
   async delete(key: string, namespace?: string): Promise<boolean> {
     try {
       const fullKey = this.getFullKey(key, namespace);
-      const deleted = await this.client.del(fullKey);
+      const deleted = await this.envlient.del(fullKey);
 
       if (deleted > 0) {
         this.stats.deletes++;
@@ -132,7 +132,7 @@ export class CloudflareKVCacheBackend implements CacheBackend {
   async keys(namespace?: string): Promise<string[]> {
     try {
       const prefix = namespace ? `cache:${namespace}:` : 'cache:default:';
-      const fullKeys = await this.client.keys(prefix);
+      const fullKeys = await this.envlient.keys(prefix);
 
       return fullKeys.map((key) => key.substring(prefix.length));
     } catch (error) {
@@ -144,7 +144,7 @@ export class CloudflareKVCacheBackend implements CacheBackend {
   async getStats(namespace?: string): Promise<CacheStats> {
     try {
       const prefix = namespace ? `cache:${namespace}:` : 'cache:default:';
-      const keys = await this.client.keys(prefix);
+      const keys = await this.envlient.keys(prefix);
 
       return {
         ...this.stats,

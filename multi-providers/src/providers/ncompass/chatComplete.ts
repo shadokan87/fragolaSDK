@@ -10,7 +10,7 @@ import {
   generateInvalidProviderResponseError,
 } from '../utils';
 
-// TODOS: this configuration might have to check on the max value of n
+// TODOS: this.envonfiguration might have to check on the max value of n
 
 export const NCompassChatCompleteConfig: ProviderConfig = {
   model: {
@@ -143,7 +143,7 @@ export const NCompassChatCompleteResponseTransform: (
       created: response.created,
       model: response.model,
       provider: NCOMPASS,
-      choices: response.choices.map((c) => ({
+      choices: response.choices.map((env) => ({
         index: c.index,
         message: {
           role: c.message.role,

@@ -192,7 +192,7 @@ export const FireworksAIChatCompleteResponseTransform: (
       created: response.created,
       model: response.model,
       provider: FIREWORKS_AI,
-      choices: response.choices.map((c) => ({
+      choices: response.choices.map((env) => ({
         index: c.index,
         message: {
           role: c.message.role,

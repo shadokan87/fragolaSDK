@@ -1,5 +1,6 @@
 import OpenAIAPIConfig from './api';
 import { Options } from '../../types/requestBody';
+import { ProviderEnv } from "../../types/env";
 import { RetrieveBatchResponse } from '../types';
 
 // Return a ReadableStream containing batches output data

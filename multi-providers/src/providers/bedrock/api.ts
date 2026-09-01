@@ -1,4 +1,5 @@
 import { Options, Params } from '../../types/requestBody';
+import { ProviderEnv } from "../../types/env";
 import { endpointStrings, ProviderAPIConfig } from '../types';
 import { bedrockInvokeModels } from './constants';
 import {
@@ -129,20 +130,20 @@ const BedrockAPIConfig: BedrockAPIConfigInterface = {
         gatewayRequestURL.split('/v1/files/')[1]
       );
       const bucketName = s3URL.replace('s3://', '').split('/')[0];
-      return `https://${bucketName}.s3.${providerOptions.awsRegion || 'us-east-1'}.${getAwsEndpointDomain(c)}`;
+      return `https://${bucketName}.s3.${providerOptions.awsRegion || 'us-east-1'}.${getAwsEndpointDomain(env)}`;
     }
     if (fn === 'retrieveFileContent') {
       const s3URL = decodeURIComponent(
         gatewayRequestURL.split('/v1/files/')[1]
       );
       const bucketName = s3URL.replace('s3://', '').split('/')[0];
-      return `https://${bucketName}.s3.${providerOptions.awsRegion || 'us-east-1'}.${getAwsEndpointDomain(c)}`;
+      return `https://${bucketName}.s3.${providerOptions.awsRegion || 'us-east-1'}.${getAwsEndpointDomain(env)}`;
     }
     if (fn === 'uploadFile')
-      return `https://${providerOptions.awsS3Bucket}.s3.${providerOptions.awsRegion || 'us-east-1'}.${getAwsEndpointDomain(c)}`;
+      return `https://${providerOptions.awsS3Bucket}.s3.${providerOptions.awsRegion || 'us-east-1'}.${getAwsEndpointDomain(env)}`;
     const isAWSControlPlaneEndpoint =
       fn && AWS_CONTROL_PLANE_ENDPOINTS.includes(fn);
-    return `https://${isAWSControlPlaneEndpoint ? 'bedrock' : 'bedrock-runtime'}.${providerOptions.awsRegion || 'us-east-1'}.${getAwsEndpointDomain(c)}`;
+    return `https://${isAWSControlPlaneEndpoint ? 'bedrock' : 'bedrock-runtime'}.${providerOptions.awsRegion || 'us-east-1'}.${getAwsEndpointDomain(env)}`;
   },
   headers: async ({
     env,
@@ -176,7 +177,7 @@ const BedrockAPIConfig: BedrockAPIConfigInterface = {
     setRouteSpecificHeaders(fn, headers, providerOptions);
 
     if (awsAuthType === 'assumedRole') {
-      await providerAssumedRoleCredentials(c, providerOptions);
+      await providerAssumedRoleCredentials(env, providerOptions);
     }
 
     if (awsAuthType === 'apiKey') {

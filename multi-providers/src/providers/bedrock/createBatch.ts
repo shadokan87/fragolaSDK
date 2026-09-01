@@ -1,5 +1,6 @@
 import { BEDROCK } from '../../globals';
 import { Options } from '../../types/requestBody';
+import { ProviderEnv } from "../../types/env";
 import {
   CreateBatchRequest,
   CreateBatchResponse,

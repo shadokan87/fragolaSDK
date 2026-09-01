@@ -130,7 +130,7 @@ export const PredibaseChatCompleteResponseTransform: (
       created: response.created,
       model: response.model,
       provider: PREDIBASE,
-      choices: response.choices.map((c) => ({
+      choices: response.choices.map((env) => ({
         index: c.index,
         message: c.message,
         logprobs: c.logprobs,

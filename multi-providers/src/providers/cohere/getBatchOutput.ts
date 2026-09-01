@@ -1,5 +1,6 @@
 import CohereAPIConfig from './api';
 import { Options } from '../../types/requestBody';
+import { ProviderEnv } from "../../types/env";
 import { CohereGetFileResponse, CohereRetrieveBatchResponse } from './types';
 import { CohereEmbedResponseTransformBatch } from './embed';
 import { COHERE } from '../../globals';

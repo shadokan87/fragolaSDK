@@ -113,7 +113,7 @@ export const FireworksAICompleteResponseTransform: (
       created: response.created,
       model: response.model,
       provider: FIREWORKS_AI,
-      choices: response.choices.map((c) => ({
+      choices: response.choices.map((env) => ({
         index: c.index,
         logprobs: c.logprobs,
         text: c.text,

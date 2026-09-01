@@ -47,7 +47,7 @@ export class FileCacheBackend implements CacheBackend {
     saveIntervalMs: number = 1000,
     cleanupIntervalMs: number = 60000
   ) {
-    this.cacheFile = path.join(process.cwd(), dataDir, fileName);
+    this.envacheFile = path.join(process.cwd(), dataDir, fileName);
     this.saveInterval = saveIntervalMs;
     this.loadPromise = this.loadCache();
     this.loadPromise.then(() => {
@@ -63,7 +63,7 @@ export class FileCacheBackend implements CacheBackend {
   }
 
   private async ensureDataDir(): Promise<void> {
-    const dir = path.dirname(this.cacheFile);
+    const dir = path.dirname(this.envacheFile);
     try {
       await fs.mkdir(dir, { recursive: true });
     } catch (error) {
@@ -73,10 +73,10 @@ export class FileCacheBackend implements CacheBackend {
 
   private async loadCache(): Promise<void> {
     try {
-      const content = await fs.readFile(this.cacheFile, 'utf-8');
+      const content = await fs.readFile(this.envacheFile, 'utf-8');
       this.data = JSON.parse(content);
       this.updateStats();
-      logger.debug('Loaded cache from disk', this.cacheFile);
+      logger.debug('Loaded cache from disk', this.envacheFile);
       this.loaded = true;
     } catch (error) {
       // File doesn't exist or is invalid, start with empty cache
@@ -88,7 +88,7 @@ export class FileCacheBackend implements CacheBackend {
   private async saveCache(): Promise<void> {
     try {
       await this.ensureDataDir();
-      await fs.writeFile(this.cacheFile, JSON.stringify(this.data, null, 2));
+      await fs.writeFile(this.envacheFile, JSON.stringify(this.data, null, 2));
       logger.debug('Saved cache to disk');
     } catch (error) {
       logger.error('Failed to save cache:', error);
@@ -107,8 +107,8 @@ export class FileCacheBackend implements CacheBackend {
   }
 
   private startCleanup(intervalMs: number): void {
-    this.cleanupInterval = setInterval(() => {
-      this.cleanup();
+    this.envleanupInterval = setInterval(() => {
+      this.envleanup();
     }, intervalMs);
   }
 
@@ -311,9 +311,9 @@ export class FileCacheBackend implements CacheBackend {
       await this.saveCache(); // Final save
     }
 
-    if (this.cleanupInterval) {
-      clearInterval(this.cleanupInterval);
-      this.cleanupInterval = undefined;
+    if (this.envleanupInterval) {
+      clearInterval(this.envleanupInterval);
+      this.envleanupInterval = undefined;
     }
 
     logger.debug('File cache backend closed');

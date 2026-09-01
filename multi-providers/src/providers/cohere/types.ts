@@ -177,7 +177,7 @@ export interface Citation {
   /** Text snippet that is being cited. */
   text?: string;
   sources?: any;
-  /** Index of the content block in which this citation appears. */
+  /** Index of the content block in which this.envitation appears. */
   content_index?: number;
   type?: any;
 }

@@ -8,6 +8,7 @@ import { constructRequest } from "./handlers/handlerUtils";
 import Providers from "./providers";
 import type { ChatCompletion, ChatCompletionCreateParams } from "openai/resources/chat/completions";
 import { ProviderEnv } from "./types/env";
+import { AgentContext } from "../../src/agentContext";
 
 export async function executeIsolatedProviderRequest(
   provider: string,
@@ -76,38 +77,40 @@ export const provider = <K extends ProviderName>(name: K, config: Provider<K>): 
         if (!("modelSettings" in config)) {
             return config;
         }
+        const ctx = context as AgentContext;
+        ctx.instance.setSdkOpts({...ctx.instance.options, fetch: ()})
 
-        const instructionsRole = context.options.useDeveloperRole ? "developer" : "system";
-        const tools = context.state.tools?.length ? context.state.tools.map(t => ({
-            type: "function" as const,
-            function: {
-                name: t.name,
-                description: t.description,
-                parameters: t.parameters
-            }
-        })) : undefined;
+        // const instructionsRole = context.options.useDeveloperRole ? "developer" : "system";
+        // const tools = context.state.tools?.length ? context.state.tools.map(t => ({
+        //     type: "function" as const,
+        //     function: {
+        //         name: t.name,
+        //         description: t.description,
+        //         parameters: t.parameters
+        //     }
+        // })) : undefined;
 
-        const requestBody = {
-            ...config.modelSettings,
-            messages: [
-                { role: instructionsRole, content: context.systemPrompt },
-                ...stripMessagesMeta(context.state.messages)
-            ],
-            ...(tools ? { tools } : {})
-        } as ChatCompletionCreateParams;
+        // const requestBody = {
+        //     ...config.modelSettings,
+        //     messages: [
+        //         { role: instructionsRole, content: context.systemPrompt },
+        //         ...stripMessagesMeta(context.state.messages)
+        //     ],
+        //     ...(tools ? { tools } : {})
+        // } as ChatCompletionCreateParams;
 
-         return {
-          ...config,
-          injectResponse: async () => {
-            return await executeIsolatedProviderRequest(
-              name,
-              {
-                apiKey: context.instance.options["apiKey"]
-              },
-              requestBody
-            );
-          }
-        };
+        //  return {
+        //   ...config,
+        //   injectResponse: async () => {
+        //     return await executeIsolatedProviderRequest(
+        //       name,
+        //       {
+        //         apiKey: context.instance.options["apiKey"]
+        //       },
+        //       requestBody
+        //     );
+        //   }
+        // };
         return config;
     })]
     return () => {

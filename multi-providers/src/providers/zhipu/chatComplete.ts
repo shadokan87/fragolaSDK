@@ -107,7 +107,7 @@ export const ZhipuChatCompleteResponseTransform: (
       created: response.created,
       model: response.model,
       provider: ZHIPU,
-      choices: response.choices.map((c) => ({
+      choices: response.choices.map((env) => ({
         index: c.index,
         message: {
           role: c.message.role,

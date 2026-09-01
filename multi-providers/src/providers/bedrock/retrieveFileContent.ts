@@ -1,4 +1,5 @@
 import { Options } from '../../types/requestBody';
+import { ProviderEnv } from "../../types/env";
 import BedrockAPIConfig from './api';
 import { getOctetStreamToOctetStreamTransformer } from '../../handlers/streamHandlerUtils';
 import { BEDROCK } from '../../globals';

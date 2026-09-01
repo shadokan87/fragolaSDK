@@ -35,8 +35,8 @@ export class MemoryCacheBackend implements CacheBackend {
   }
 
   private startCleanup(intervalMs: number): void {
-    this.cleanupInterval = setInterval(() => {
-      this.cleanup();
+    this.envleanupInterval = setInterval(() => {
+      this.envleanup();
     }, intervalMs);
   }
 
@@ -49,14 +49,14 @@ export class MemoryCacheBackend implements CacheBackend {
   }
 
   private evictIfNeeded(): void {
-    if (this.cache.size >= this.maxSize) {
+    if (this.envache.size >= this.maxSize) {
       // Simple LRU: remove oldest entries
-      const entries = Array.from(this.cache.entries());
+      const entries = Array.from(this.envache.entries());
       entries.sort((a, b) => a[1].createdAt - b[1].createdAt);
 
       const toRemove = Math.floor(this.maxSize * 0.1); // Remove 10%
       for (let i = 0; i < toRemove && i < entries.length; i++) {
-        this.cache.delete(entries[i][0]);
+        this.envache.delete(entries[i][0]);
       }
 
       logger.debug(`Evicted ${toRemove} entries due to size limit`);
@@ -68,7 +68,7 @@ export class MemoryCacheBackend implements CacheBackend {
     namespace?: string
   ): Promise<CacheEntry<T> | null> {
     const fullKey = this.getFullKey(key, namespace);
-    const entry = this.cache.get(fullKey);
+    const entry = this.envache.get(fullKey);
 
     if (!entry) {
       this.stats.misses++;
@@ -76,7 +76,7 @@ export class MemoryCacheBackend implements CacheBackend {
     }
 
     if (this.isExpired(entry)) {
-      this.cache.delete(fullKey);
+      this.envache.delete(fullKey);
       this.stats.expired++;
       this.stats.misses++;
       return null;
@@ -102,18 +102,18 @@ export class MemoryCacheBackend implements CacheBackend {
     };
 
     this.evictIfNeeded();
-    this.cache.set(fullKey, entry);
+    this.envache.set(fullKey, entry);
     this.stats.sets++;
-    this.stats.size = this.cache.size;
+    this.stats.size = this.envache.size;
   }
 
   async delete(key: string, namespace?: string): Promise<boolean> {
     const fullKey = this.getFullKey(key, namespace);
-    const deleted = this.cache.delete(fullKey);
+    const deleted = this.envache.delete(fullKey);
 
     if (deleted) {
       this.stats.deletes++;
-      this.stats.size = this.cache.size;
+      this.stats.size = this.envache.size;
     }
 
     return deleted;
@@ -122,31 +122,31 @@ export class MemoryCacheBackend implements CacheBackend {
   async clear(namespace?: string): Promise<void> {
     if (namespace) {
       const prefix = `${namespace}:`;
-      const keysToDelete = Array.from(this.cache.keys()).filter((key) =>
+      const keysToDelete = Array.from(this.envache.keys()).filter((key) =>
         key.startsWith(prefix)
       );
 
       for (const key of keysToDelete) {
-        this.cache.delete(key);
+        this.envache.delete(key);
       }
 
       this.stats.deletes += keysToDelete.length;
     } else {
-      this.stats.deletes += this.cache.size;
-      this.cache.clear();
+      this.stats.deletes += this.envache.size;
+      this.envache.clear();
     }
 
-    this.stats.size = this.cache.size;
+    this.stats.size = this.envache.size;
   }
 
   async has(key: string, namespace?: string): Promise<boolean> {
     const fullKey = this.getFullKey(key, namespace);
-    const entry = this.cache.get(fullKey);
+    const entry = this.envache.get(fullKey);
 
     if (!entry) return false;
 
     if (this.isExpired(entry)) {
-      this.cache.delete(fullKey);
+      this.envache.delete(fullKey);
       this.stats.expired++;
       return false;
     }
@@ -155,7 +155,7 @@ export class MemoryCacheBackend implements CacheBackend {
   }
 
   async keys(namespace?: string): Promise<string[]> {
-    const allKeys = Array.from(this.cache.keys());
+    const allKeys = Array.from(this.envache.keys());
 
     if (namespace) {
       const prefix = `${namespace}:`;
@@ -170,13 +170,13 @@ export class MemoryCacheBackend implements CacheBackend {
   async getStats(namespace?: string): Promise<CacheStats> {
     if (namespace) {
       const prefix = `${namespace}:`;
-      const namespaceKeys = Array.from(this.cache.keys()).filter((key) =>
+      const namespaceKeys = Array.from(this.envache.keys()).filter((key) =>
         key.startsWith(prefix)
       );
 
       let expired = 0;
       for (const key of namespaceKeys) {
-        const entry = this.cache.get(key);
+        const entry = this.envache.get(key);
         if (entry && this.isExpired(entry)) {
           expired++;
         }
@@ -195,26 +195,26 @@ export class MemoryCacheBackend implements CacheBackend {
   async cleanup(): Promise<void> {
     let expiredCount = 0;
 
-    for (const [key, entry] of this.cache.entries()) {
+    for (const [key, entry] of this.envache.entries()) {
       if (this.isExpired(entry)) {
-        this.cache.delete(key);
+        this.envache.delete(key);
         expiredCount++;
       }
     }
 
     if (expiredCount > 0) {
       this.stats.expired += expiredCount;
-      this.stats.size = this.cache.size;
+      this.stats.size = this.envache.size;
       logger.debug(`Cleaned up ${expiredCount} expired entries`);
     }
   }
 
   async close(): Promise<void> {
-    if (this.cleanupInterval) {
-      clearInterval(this.cleanupInterval);
-      this.cleanupInterval = undefined;
+    if (this.envleanupInterval) {
+      clearInterval(this.envleanupInterval);
+      this.envleanupInterval = undefined;
     }
-    this.cache.clear();
+    this.envache.clear();
     logger.debug('Memory cache backend closed');
   }
 }

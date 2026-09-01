@@ -13,6 +13,7 @@ import {
 import BedrockAPIConfig from './api';
 import { ProviderConfig, RequestHandler } from '../../providers/types';
 import { Options } from '../../types/requestBody';
+import { ProviderEnv } from "../../types/env";
 
 class AwsMultipartUploadHandler {
   private bucket: string;
@@ -39,13 +40,13 @@ class AwsMultipartUploadHandler {
       `https://${bucket}.s3.${region}.amazonaws.com/${objectKey}?uploads`
     );
     this.providerOptions = providerOptions;
-    this.c = c;
+    this.env = c;
   }
 
   async initiateMultipartUpload() {
     const method = 'POST';
     const headers = await BedrockAPIConfig.headers({
-      env: this.c,
+      env: this.env,
       providerOptions: this.providerOptions,
       fn: 'initiateMultipartUpload',
       transformedRequestBody: {},
@@ -147,7 +148,7 @@ class AwsMultipartUploadHandler {
               modelType ?? 'chat',
               this.providerOptions
             );
-          this.contentLength += uploadLength;
+          this.envontentLength += uploadLength;
           partNumber++;
         } else {
           currentChunk = currentChunk.slice(safeLength);
@@ -172,7 +173,7 @@ class AwsMultipartUploadHandler {
       `https://${this.bucket}.s3.${this.region}.amazonaws.com/${this.objectKey}?partNumber=${partNumber}&uploadId=${this.uploadId}`
     );
     const headers = await BedrockAPIConfig.headers({
-      env: this.c,
+      env: this.env,
       providerOptions: this.providerOptions,
       fn: 'uploadFile',
       transformedRequestBody: partData,
@@ -218,7 +219,7 @@ class AwsMultipartUploadHandler {
     const payload = `<CompleteMultipartUpload>${partsXml}</CompleteMultipartUpload>`;
 
     const headers = await BedrockAPIConfig.headers({
-      env: this.c,
+      env: this.env,
       providerOptions: this.providerOptions,
       fn: 'uploadFile',
       transformedRequestBody: payload,
@@ -333,7 +334,7 @@ export const BedrockUploadFileRequestHandler: RequestHandler<
   try {
     // get aws credentials and parse provider options
     if (providerOptions.awsAuthType === 'assumedRole') {
-      await providerAssumedRoleCredentials(c, providerOptions);
+      await providerAssumedRoleCredentials(env, providerOptions);
     }
     const {
       awsRegion,

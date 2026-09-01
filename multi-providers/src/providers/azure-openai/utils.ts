@@ -1,5 +1,6 @@
 import { AZURE_OPEN_AI } from '../../globals';
 import { Options } from '../../types/requestBody';
+import { ProviderEnv } from "../../types/env";
 import { OpenAIErrorResponseTransform } from '../openai/utils';
 import { ErrorResponse } from '../types';
 

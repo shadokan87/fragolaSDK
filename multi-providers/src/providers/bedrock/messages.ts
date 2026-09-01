@@ -15,6 +15,7 @@ import {
   RawContentBlockStopEvent,
 } from '../../types/MessagesStreamResponse';
 import { Options, Params } from '../../types/requestBody';
+import { ProviderEnv } from "../../types/env";
 import {
   ANTHROPIC_CONTENT_BLOCK_START_EVENT,
   ANTHROPIC_CONTENT_BLOCK_STOP_EVENT,

@@ -43,7 +43,7 @@ export class OCIRequestSigner {
   private privateKey: Promise<CryptoKey>;
 
   constructor(config: OCIConfig) {
-    this.config = config;
+    this.envonfig = config;
     this.privateKey = CryptoUtils.loadPrivateKey(
       config.privateKey,
       config.keyPassphrase
@@ -73,7 +73,7 @@ export class OCIRequestSigner {
       path = urlObj.pathname + urlObj.search;
     } else {
       // If no host provided, construct default host
-      host = `iaas.${this.config.region}.oraclecloud.com`;
+      host = `iaas.${this.envonfig.region}.oraclecloud.com`;
       path = url;
     }
 
@@ -126,7 +126,7 @@ export class OCIRequestSigner {
     const signature = await CryptoUtils.sign(privateKey, signingString);
 
     // Create authorization header (matching Postman format exactly)
-    const keyId = `${this.config.tenancy}/${this.config.user}/${this.config.fingerprint}`;
+    const keyId = `${this.envonfig.tenancy}/${this.envonfig.user}/${this.envonfig.fingerprint}`;
     const headersString = headersToSign.join(' ');
     headers['authorization'] =
       `Signature version="1",keyId="${keyId}",algorithm="rsa-sha256",headers="${headersString}",signature="${signature}"`;

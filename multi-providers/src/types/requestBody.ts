@@ -1,5 +1,4 @@
 import { BatchEndpoints } from '../globals';
-import { HookObject } from '../middlewares/hooks/types';
 
 /**
  * Settings for retrying requests.
@@ -129,10 +128,6 @@ export interface Options {
   // Required for file uploads with google.
   filename?: string;
 
-  afterRequestHooks?: HookObject[];
-  beforeRequestHooks?: HookObject[];
-  defaultInputGuardrails?: HookObject[];
-  defaultOutputGuardrails?: HookObject[];
   /** OpenAI specific */
   openaiProject?: string;
   openaiOrganization?: string;
@@ -219,8 +214,6 @@ export interface Targets {
   /** This is used to determine if the request should be transformed to formData Example: Stability V2 */
   transformToFormData?: boolean;
 
-  defaultInputGuardrails?: HookObject[];
-  defaultOutputGuardrails?: HookObject[];
   originalIndex?: number;
 }
 

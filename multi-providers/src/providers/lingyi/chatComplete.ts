@@ -112,7 +112,7 @@ export const LingyiChatCompleteResponseTransform: (
       created: response.created,
       model: response.model,
       provider: LINGYI,
-      choices: response.choices.map((c) => ({
+      choices: response.choices.map((env) => ({
         index: c.index,
         message: {
           role: c.message.role,

@@ -1,16 +1,18 @@
 import { Fragola } from "../src/fragola";
-import { provider } from "./src";
+import { createLocalGatewayFetch, provider } from "./src";
 
 const fragola = new Fragola({
-    model: process.env["TEST_MODEL_MEDIUM"]!,
-    apiKey: process.env["GOOGLE_API_KEY"]
+    model: "@google/gemini-3.7-flash",
+    apiKey: process.env["GOOGLE_API_KEY"],
+    fetch: createLocalGatewayFetch()
 });
 
 const agent = fragola.agent({
     name: "assistant",
     description: "",
     instructions: ""
-}).use(provider("google", {}));
-
+})
+// .use(provider("google", {}));
+// await agent.init();
 const {messages} = await agent.userMessage({content: "this is a test, say hi"});
 console.log(JSON.stringify(messages, null, 2));

@@ -1,6 +1,5 @@
 import { ProviderEnv } from '../types/env';
 import { Message, Options, Params } from '../types/requestBody';
-import { ProviderEnv } from "../../types/env";
 import { ANTHROPIC_STOP_REASON } from './anthropic/types';
 import {
   BEDROCK_CONVERSE_STOP_REASON,

@@ -11,11 +11,22 @@ import { ProviderEnv } from "./types/env";
 import { AgentContext } from "../../src/agentContext";
 import { endpointStrings } from "./providers/types";
 import { createRouter } from "./router";
+import { Options } from "./types/requestBody";
 
 export function createLocalGatewayFetch(): typeof fetch {
   const router = createRouter();
   return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const urlString = input.toString();
+    console.log("__DEBUG_BODY__ urlString:", urlString);
+    console.log("__HEADERS__", JSON.stringify(init?.headers, null, 2));
+    if (!init || init.headers == undefined)
+      throw new Error("Expected headers to exist");
+
+    // Convert to standard Headers object to access case-insensitively
+    // const headers = new Headers(init.headers as HeadersInit);
+    // const apiKey = headers.get("authorization"); // Safely gets "Bearer ..."
+    // console.log("__apiKey__", apiKey);
+    // process.exit(1);
 
     let endpoint: endpointStrings | undefined = (() => {
       const parsedUrl = input instanceof URL ? input : new URL(urlString, 'http://localhost'); // Provide a dummy base in case it's a relative path
@@ -31,6 +42,7 @@ export function createLocalGatewayFetch(): typeof fetch {
       
       return undefined;
     })();
+    console.log("__DEBUG_BODY__ endpoint:", endpoint);
     if (!endpoint) {
       throw new Error(`unhandled url: ${urlString}`)
     }
@@ -60,37 +72,35 @@ export function createLocalGatewayFetch(): typeof fetch {
     };
 
     const { provider, model } = determineProvider(requestBody.model);
-    if (!provider) {
+    if (!provider.length) {
       throw new Error("Could not determine provider from model string: " + requestBody.model);
     }
 
     requestBody.model = model;
 
-    const requestHeaders = (init?.headers as Record<string, string>) || { "content-type": "application/json" };
+    const requestHeaders: Record<string, string> = {};
+    if (init?.headers) {
+      const headersObj = new Headers(init.headers as HeadersInit);
+      headersObj.forEach((value, key) => {
+        requestHeaders[key.toLowerCase()] = value;
+      });
+    }
+    if (!requestHeaders["content-type"]) {
+      requestHeaders["content-type"] = "application/json";
+    }
 
     const env: ProviderEnv = typeof process !== 'undefined' ? (process.env as ProviderEnv) : {};
 
-    // Extract API key from headers if present (OpenAI SDK uses Authorization: Bearer <key>)
-    const authHeader = requestHeaders['Authorization'] || requestHeaders['authorization'];
-    authHeader.replace('Bearer ', process.env["GOOGLE_API_KEY"]);
-    console.log("__HEADER__", JSON.stringify(authHeader, null, 2));
-    process.exit(1);
-    // let apiKey = authHeader ? authHeader.replace('Bearer ', '').trim() : undefined;
-    // if (!apiKey) {
-    //   apiKey = requestHeaders['api-key'];
-    // }
-
-    // // Assign the API key to the appropriate environment variable based on the provider
-    // if (apiKey) {
-    //   if (provider === 'google') env.GOOGLE_API_KEY = apiKey;
-    //   else if (provider === 'openai') env.OPENAI_API_KEY = apiKey;
-    //   else if (provider === 'anthropic') env.ANTHROPIC_API_KEY = apiKey;
-    //   // Add other providers as needed, or set a generic one
-    // }
-
     // In this generic fetcher without arguments, apiKey might need to be resolved from env directly or passed through headers
     // For now we'll rely on environment variables if no apiKey is explicitly provided
-    const fullProviderOptions = { provider };
+    let fullProviderOptions: Options = { provider };
+    const headers = new Headers(init.headers as HeadersInit);
+    let apiKey;
+
+    apiKey = headers.get("authorization")?.trim().split("Bearer").join("").trim() || undefined;
+
+    if (apiKey)
+      fullProviderOptions["apiKey"] = apiKey;
 
     const requestContext = new RequestContext(
       env,
@@ -102,10 +112,12 @@ export function createLocalGatewayFetch(): typeof fetch {
     );
 
     requestContext.transformToProviderRequestAndSave();
+    console.log("__DEBUG_BODY__ after transformToProviderRequestAndSave:", JSON.stringify(requestContext.transformedRequestBody, null, 2));
 
     const providerContext = new ProviderContext(provider);
     requestContext.requestURL = await providerContext.getFullURL(requestContext);
     console.log("__FULL_URL__", requestContext.requestURL);
+    console.log("__BODY__", JSON.stringify(requestBody, null, 2))
 
     const fetchOptions = await constructRequest(providerContext, requestContext);
 

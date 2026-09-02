@@ -37,6 +37,8 @@ function constructRequestBody(
     body = null;
   }
 
+  console.log("__DEBUG_BODY__ fetchOptions body in constructRequestBody:", body);
+
   return body;
 }
 

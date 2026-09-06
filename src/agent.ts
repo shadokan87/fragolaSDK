@@ -8,10 +8,10 @@ import type z from "zod";
 import type { SafeParseResult } from "./fragola";
 import type { Prettify, StoreLike } from "./types"
 import OpenAI from "openai/index.js"
-import { type AgentEventId } from "./event"
+import { type AgentEventId, type AgentOnEventId } from "./event"
 import type { EventToolCall, EventUserMessage, EventModelInvocation, EventAiMessage, ModelInvocationPayload, ToolCallPayload } from "./eventDefault";
 import { nanoid } from "nanoid"
-import type { EventAfterStateUpdate, EventAfterStep, EventAfterModelInvocation, EventAfterToolCall } from "./eventAfter"
+import type { EventAfterStep, EventAfterModelInvocation, EventAfterToolCall } from "./eventAfter"
 import type { EventBeforeStep, EventBeforeModelInvocation, EventBeforeToolCall, ModelInvocationConfig, ToolCallConfig } from "./eventBefore"
 import { type registeredEvent, type eventIdToCallback, EventMap } from "./extendedJS/events/EventMap"
 import type { FragolaHook, FragolaHookDispose } from "@src/hook/index";
@@ -23,7 +23,7 @@ import { STOP } from "@src/agentContext"
 import { messagesUtils } from "./stateUtils";
 import {
     applyAiMessage,
-    applyAfterStateUpdate,
+    applyWatchState,
     applyBeforeStep,
     applyAfterStep,
     applyBeforeModelInvocation,
@@ -36,6 +36,7 @@ import {
     type AccumulateCallback,
     type ApplyEventResult
 } from "./applyEvent"
+import type { AgentEventWatchId, EventWatchState } from "./eventWatch"
 
 export { AgentContext } from "./agentContext";
 
@@ -143,7 +144,7 @@ export type applyEventParams<K extends AgentEventId, TMetaData extends DefineMet
     K extends "toolCall" ? { toolCall: { readonly name: string, readonly id: string }, result: ToolCallPayload, params: any, tool: Tool<any> | undefined } :
     K extends "before:toolCall" ? { toolCall: { readonly name: string, readonly id: string }, config: ToolCallConfig<any>, tool: Tool<any> | undefined } :
     K extends "after:toolCall" ? { toolCall: { readonly name: string, readonly id: string }, result: ToolCallPayload, params: any, tool: Tool<any> | undefined } :
-    K extends "after:stateUpdate" ? null :
+    K extends "state" ? null :
     never;
 
 export type appliedEvent<K extends AgentEventId, TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> =
@@ -158,7 +159,7 @@ export type appliedEvent<K extends AgentEventId, TMetaData extends DefineMetaDat
     K extends "toolCall" ? ApplyEventResult<EventToolCall<any, TMetaData, TGlobalStore, TStore>> :
     K extends "before:toolCall" ? ApplyEventResult<EventBeforeToolCall<any, TMetaData, TGlobalStore, TStore>> :
     K extends "after:toolCall" ? ApplyEventResult<EventAfterToolCall<any, TMetaData, TGlobalStore, TStore>> :
-    K extends "after:stateUpdate" ? ApplyEventResult<EventAfterStateUpdate<TMetaData, TGlobalStore, TStore>> :
+    K extends "state" ? ApplyEventResult<EventWatchState<TMetaData, TGlobalStore, TStore>> :
     never;
 
 const FORK_FRIEND = Symbol("fork_friend");
@@ -567,7 +568,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
 
     private async updateState(callback: (prev: AgentState<TMetaData>) => AgentState<TMetaData>) {
         this.#state = callback(this.#state);
-        await this.applyEvents("after:stateUpdate", null);
+        await this.applyEvents("state", null);
     }
 
     private async updateMessages(callback: (prev: AgentState<TMetaData>["messages"]) => AgentState<TMetaData>["messages"]) {
@@ -789,7 +790,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
             };
             const defaultClientOptions = stepOptions.clientOptions ?? this.#instance.options;
             const callAPI: CallAPI = async (modelSettings, clientOpts) => {
-                const SDK = this.#instance.sdk;
+                const SDK = this.#instance.sdkClass;
                 const openai = clientOpts ? new SDK(clientOpts) : this.openai;
                 const emptyAssistantMessage = { role: "assistant", content: "" } as OpenAI.ChatCompletionAssistantMessageParam;
 
@@ -1134,8 +1135,8 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                 return await applyAfterToolCall(events as any, this.context, params, accumulate) as any;
             case "aiMessage":
                 return await applyAiMessage(events as any, this.context, params, accumulate) as any;
-            case "after:stateUpdate":
-                return await applyAfterStateUpdate(events as any, this.context, accumulate) as any;
+            case "state":
+                return await applyWatchState(events as any, this.context, accumulate) as any;
             case "after:step":
                 return await applyAfterStep(events as any, this.context, params, accumulate) as any;
             default:
@@ -1143,20 +1144,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         }
     }
 
-    /**
-     * Register a handler for a given event id.
-     * Returns an unsubscribe function that removes the registered handler.
-     *
-     * @example
-     * // listen to userMessage events
-     * const off = agent.on('userMessage', (message, context) => {
-     *   // inspect or transform the message
-     *   return { ...message, content: message.content.trim() };
-     * });
-     * // later
-     * off();
-     */
-    on<TEventId extends AgentEventId>(eventId: TEventId, callback: eventIdToCallback<TEventId, TMetaData, TGlobalStore, TStore>) {
+    private registerEvent<TEventId extends AgentEventId>(eventId: TEventId, callback: eventIdToCallback<TEventId, TMetaData, TGlobalStore, TStore>) {
         type EventTargetType = registeredEvent<TEventId, TMetaData, TGlobalStore, TStore>;
         const events = this.registeredEvents.get(eventId) || [] as EventTargetType[];
         const id = nanoid();
@@ -1177,6 +1165,53 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
             else
                 this.registeredEvents.set(eventId, events);
         }
+    }
+
+    /**
+     * Register a state watcher for a given watch event id.
+     * Returns an unsubscribe function that removes the registered watcher.
+     *
+     * @example
+     * const off = agent.watch('state', ({ context }) => {
+     *   console.log('State updated:', context.state);
+     * });
+     * // later
+     * off();
+     */
+    watch<TEventId extends AgentEventWatchId>(eventId: TEventId, callback: eventIdToCallback<TEventId, TMetaData, TGlobalStore, TStore>) {
+        return this.registerEvent(eventId, callback);
+    }
+
+    /**
+     * Register a handler that watches agent state updates.
+     *
+     * State watchers do not return a value and cannot intercept or mutate state.
+     * Use these for side-effects such as metrics, logging, or UI updates.
+     *
+     * @example
+     * agent.watchState(({ context }) => {
+     *   console.log('stepCount', context.state.stepCount);
+     * });
+     */
+    watchState(callback: EventWatchState<TMetaData, TGlobalStore, TStore>) {
+        return this.watch("state", callback);
+    }
+
+    /**
+     * Register a handler for a given event id.
+     * Returns an unsubscribe function that removes the registered handler.
+     *
+     * @example
+     * // listen to userMessage events
+     * const off = agent.on('userMessage', (message, context) => {
+     *   // inspect or transform the message
+     *   return { ...message, content: message.content.trim() };
+     * });
+     * // later
+     * off();
+     */
+    on<TEventId extends AgentOnEventId>(eventId: TEventId, callback: eventIdToCallback<TEventId, TMetaData, TGlobalStore, TStore>) {
+        return this.registerEvent(eventId, callback);
     }
 
     /**
@@ -1368,20 +1403,6 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
       */
     onModelInvocation(callback: EventModelInvocation<TMetaData, TGlobalStore, TStore>) { return this.on("modelInvocation", callback) }
 
-    /**
-     * Register a handler that runs after the agent state is updated.
-     *
-     * After-state-update handlers do not return a value. Use these for side-effects such as metrics
-     * or asynchronous persistence.
-     *
-     * @example
-     * agent.onAfterStateUpdate(({ context }) => {
-     *   // e.g. emit metrics about step count
-     *   console.log('stepCount', context.state.stepCount);
-     * });
-     */
-    onAfterStateUpdate(callback: EventAfterStateUpdate<TMetaData, TGlobalStore, TStore>) { return this.on("after:stateUpdate", callback) };
-
     //TODO: check dispose logic might be overengineered
     /**
      * Attach a hook to this agent.
@@ -1397,7 +1418,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
     * import { Hook } from "@fragola-ai/agent/hook";
     *
     * const loggingHook = Hook((agent) => {
-    *   agent.onAfterStateUpdate(({ context }) => {
+    *   agent.watchState(({ context }) => {
     *     console.log(context.state.status);
     *   });
     * });

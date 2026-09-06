@@ -1,5 +1,5 @@
 /**
- * Tests for the after:stateUpdate event.
+ * Tests for the watch state / watchState event.
  *
  * These tests avoid real API calls by injecting assistant replies via
  * before:modelInvocation.
@@ -11,11 +11,11 @@ import { createTestClient } from "./createTestClient";
 const fragola = createTestClient();
 
 // ─────────────────────────────────────────────────────────────────────────────
-// after:stateUpdate — callback behavior
+// watch state — callback behavior
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("after:stateUpdate — callback behavior", () => {
-    it("observes state transitions during a non-streaming userMessage turn", async () => {
+describe("watch state — callback behavior", () => {
+    it("observes state transitions during a non-streaming userMessage turn via watchState", async () => {
         const snapshots: Array<{ status: string; stepCount: number; roles: string[] }> = [];
         const agent = fragola.agent({
             name: "a",
@@ -25,7 +25,7 @@ describe("after:stateUpdate — callback behavior", () => {
         });
         agent.use(injectReply("ok"));
 
-        agent.onAfterStateUpdate(({ context }) => {
+        agent.watchState(({ context }) => {
             snapshots.push({
                 status: context.state.status,
                 stepCount: context.state.stepCount,
@@ -48,7 +48,27 @@ describe("after:stateUpdate — callback behavior", () => {
         });
     });
 
-    it("multiple after:stateUpdate handlers are all called for the same update in registration order", async () => {
+    it("observes state transitions via watch('state')", async () => {
+        const snapshots: Array<{ status: string }> = [];
+        const agent = fragola.agent({
+            name: "a",
+            instructions: "",
+            description: "",
+            stepOptions: { resetStepCountAfterUserMessage: false },
+        });
+        agent.use(injectReply("ok"));
+
+        agent.watch("state", ({ context }) => {
+            snapshots.push({
+                status: context.state.status,
+            });
+        });
+
+        await agent.userMessage({ content: "hi" });
+        expect(snapshots.length).toBeGreaterThanOrEqual(5);
+    });
+
+    it("multiple watchState handlers are all called for the same update in registration order", async () => {
         const calls: number[] = [];
         let matchedFirstUpdate = false;
         const agent = fragola.agent({
@@ -59,12 +79,12 @@ describe("after:stateUpdate — callback behavior", () => {
         });
         agent.use(injectReply("ok"));
 
-        agent.onAfterStateUpdate(({ context }) => {
+        agent.watchState(({ context }) => {
             if (!matchedFirstUpdate && context.state.status === "idle" && context.state.messages.length === 1) {
                 calls.push(1);
             }
         });
-        agent.onAfterStateUpdate(({ context }) => {
+        agent.watchState(({ context }) => {
             if (!matchedFirstUpdate && context.state.status === "idle" && context.state.messages.length === 1) {
                 calls.push(2);
                 matchedFirstUpdate = true;
@@ -75,12 +95,12 @@ describe("after:stateUpdate — callback behavior", () => {
         expect(calls).toEqual([1, 2]);
     });
 
-    it("unsubscribe removes an after:stateUpdate handler", async () => {
+    it("unsubscribe removes a watchState handler", async () => {
         const called = vi.fn();
         const agent = fragola.agent({ name: "a", instructions: "", description: "" });
         agent.use(injectReply("ok"));
 
-        const off = agent.onAfterStateUpdate(() => { called(); });
+        const off = agent.watchState(() => { called(); });
         off();
 
         await agent.userMessage({ content: "hi" });

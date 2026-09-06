@@ -4,8 +4,10 @@ import type {AgentBeforeEventId} from "../../eventBefore";
 import { type callbackMap as eventDefaultCallbackMap } from "../../eventDefault";
 import { type callbackMap as eventAfterCallbackMap } from "../../eventAfter";
 import { type callbackMap as eventBeforeCallbackMap } from "../../eventBefore";
+import { type callbackMap as eventWatchCallbackMap } from "../../eventWatch";
 import type { DefineMetaData } from "../../fragola";
 import type { StoreLike } from "../../types";
+import type { AgentEventWatchId } from "@src/eventWatch";
 
 /**
  * Maps an event ID to its corresponding callback type based on the event category.
@@ -21,6 +23,7 @@ export type eventIdToCallback<TEventId extends AgentEventId, TMetaData extends D
     TEventId extends AgentDefaultEventId ? eventDefaultCallbackMap<TMetaData, TGlobalStore, TStore>[TEventId] :
     TEventId extends AgentAfterEventId ? eventAfterCallbackMap<TMetaData, TGlobalStore, TStore>[TEventId] :
     TEventId extends AgentBeforeEventId ? eventBeforeCallbackMap<TMetaData, TGlobalStore, TStore>[TEventId] :
+    TEventId extends AgentEventWatchId ? eventWatchCallbackMap<TMetaData, TGlobalStore, TStore>[TEventId] :
     never;
 
 export type registeredEvent<TEventId extends AgentEventId, TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = {
@@ -30,7 +33,7 @@ export type registeredEvent<TEventId extends AgentEventId, TMetaData extends Def
 }
 
 export class EventMap<
-    K extends AgentEventId, V extends registeredEvent<K, TMetaData, TGlobalStore, TStore>[],
+    K extends AgentEventId | AgentEventId, V extends registeredEvent<K, TMetaData, TGlobalStore, TStore>[],
     TMetaData extends DefineMetaData<any>,
     TGlobalStore extends StoreLike<any> = {},
     TStore extends StoreLike<any> = {}>

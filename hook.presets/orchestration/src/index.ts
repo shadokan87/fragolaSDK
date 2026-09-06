@@ -1,5 +1,5 @@
 import { messagesUtils, tool } from "@fragola-ai/agent";
-import type { Agent, UserMessageQuery } from "@fragola-ai/agent/agent";
+import type { Agent, UserMessageQuery } from "@fragola-ai/agent";
 import type { FragolaHook } from "@fragola-ai/agent/hook";
 import z from "zod";
 

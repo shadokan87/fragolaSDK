@@ -1,6 +1,7 @@
 import type OpenAI from "openai/index.js";
 import { stop } from "./event"
-import type { EventAfterStateUpdate, EventAfterStep, EventAfterModelInvocation, EventAfterToolCall } from "./eventAfter"
+import type { EventAfterStep, EventAfterModelInvocation, EventAfterToolCall } from "./eventAfter"
+import type { EventWatchState } from "./eventWatch"
 import type { EventBeforeStep, EventBeforeModelInvocation, EventBeforeToolCall, ModelInvocationConfig, ToolCallConfig } from "./eventBefore"
 import type { EventAiMessage, EventModelInvocation, EventToolCall, EventUserMessage, MergePatch, ModelInvocationChunk, ModelInvocationChunkInjection, ModelInvocationDelta, ModelInvocationPrimaryChoice, ToolCallPayload } from "./eventDefault"
 import type { registeredEvent } from "./extendedJS/events/EventMap"
@@ -110,17 +111,17 @@ const resolveModelInvocationChunk = (
     });
 };
 
-export async function applyAfterStateUpdate<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>>(
-    events: registeredEvent<"after:stateUpdate", TMetaData, TGlobalStore, TStore>[],
+export async function applyWatchState<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>>(
+    events: registeredEvent<"state", TMetaData, TGlobalStore, TStore>[],
     context: AgentContext<TMetaData, TGlobalStore, TStore>,
-    accumulate?: AccumulateCallback<ReturnType<EventAfterStateUpdate<TMetaData, TGlobalStore, TStore>>>
+    accumulate?: AccumulateCallback<ReturnType<EventWatchState<TMetaData, TGlobalStore, TStore>>>
 ) {
-    let result: ApplyEventResult<EventAfterStateUpdate<TMetaData, TGlobalStore, TStore>> = {
+    let result: ApplyEventResult<EventWatchState<TMetaData, TGlobalStore, TStore>> = {
         signal: undefined,
         value: undefined
     }
     for (let i = 0; i < events.length; i++) {
-        const callback = events[i].callback as EventAfterStateUpdate<TMetaData, TGlobalStore, TStore>;
+        const callback = events[i].callback as EventWatchState<TMetaData, TGlobalStore, TStore>;
         const payload = { context };
 
         const res = await callback(payload) as any;

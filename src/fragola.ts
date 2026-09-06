@@ -160,31 +160,32 @@ export type ClientOptions = OpenaiClientOptions & PreferedModel & {events?: Frag
 
 /** Creates a fragola instance */
 export class Fragola<TGlobalStore extends StoreLike<any> = {}> {
-    #sdk: typeof OpenAI;
-    #sdkInstance: OpenAI;
+    #sdkClass: typeof OpenAI;
+    #sdk: OpenAI;
     #namespaceContext: Map<string, Store<any>> = new Map();
-    constructor(private clientOptions: ClientOptions, private globalStore: Store<TGlobalStore> | undefined = undefined, sdk: typeof OpenAI = OpenAI) {
+    constructor(private clientOptions: ClientOptions, private globalStore: Store<TGlobalStore> | undefined = undefined, sdkClass: typeof OpenAI = OpenAI) {
         const opts = clientOptions ? (() => {
             const copy = { ...clientOptions };
             const { model, ...rest } = copy;
             return rest;
         })() : undefined;
-        this.#sdk = sdk;
-        this.#sdkInstance = opts ? new this.sdk(opts) : new this.sdk();
+        this.#sdkClass = sdkClass;
+        this.#sdk = opts ? new this.sdkClass(opts) : new this.sdkClass();
     }
-
+   
+    /** Set the options for the underlying sdk. Can be used to refresh the options. Will re-instanciate the sdk */
     setSdkOpts(clientOptions: OpenaiClientOptions) {
-        this.#sdkInstance = new this.#sdk(clientOptions);
+        this.#sdk = new this.#sdkClass(clientOptions);
     }
 
     /** Returns the OpenAI SDK constructor used by this Fragola instance. */
-    get sdk() {
-        return this.#sdk;
+    get sdkClass() {
+        return this.#sdkClass;
     }
 
     /** Returns the OpenAI client instance created from this Fragola configuration. */
-    get SdkInstance() {
-        return this.#sdkInstance;
+    get sdk() {
+        return this.#sdk;
     }
 
     /**
@@ -210,7 +211,7 @@ export class Fragola<TGlobalStore extends StoreLike<any> = {}> {
      * ```
      */
     agent<TMetaData extends DefineMetaData<any> = {}, TStore = {}>(opts: CreateAgentOptions<TStore>): Agent<TMetaData, TGlobalStore, TStore> {
-        const created = new Agent<TMetaData, TGlobalStore, TStore>(opts, this.globalStore, this.#sdkInstance, undefined, this as Fragola<any>);
+        const created = new Agent<TMetaData, TGlobalStore, TStore>(opts, this.globalStore, this.#sdk, undefined, this as Fragola<any>);
         (async () => {
             if (this.clientOptions.events?.agentCreated) {
                 void await this.clientOptions.events.agentCreated(created)

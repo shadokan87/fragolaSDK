@@ -1,4 +1,4 @@
-import type { AgentAny } from "@fragola-ai/agent/agent";
+import type { AgentAny } from "@fragola-ai/agent";
 import { Hook } from "@fragola-ai/agent/hook";
 
 /**

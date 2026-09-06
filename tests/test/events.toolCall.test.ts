@@ -9,7 +9,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { tool } from "@fragola-ai/agent";
 import { z } from "zod";
-import type { AgentAny } from "@fragola-ai/agent/agent";
+import type { AgentAny } from "@fragola-ai/agent";
 import { createTestClient } from "./createTestClient";
 
 const fragola = createTestClient();

@@ -34,7 +34,7 @@ import type {
 	StepParams,
 	UserMessageQuery,
 	Agent as AgentType,
-} from '@fragola-ai/agent/agent';
+} from '@fragola-ai/agent';
 
 // exports from `context.index.ts`
 import { Store } from '@fragola-ai/agent/store';

@@ -4,7 +4,7 @@
  */
 import { describe, it, expect, vi } from "vitest";
 import type OpenAI from "openai";
-import type { AgentAny } from "@fragola-ai/agent/agent";
+import type { AgentAny } from "@fragola-ai/agent";
 import { injectReply } from "../injectReply";
 import { createTestClient } from "./createTestClient";
 

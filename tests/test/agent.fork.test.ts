@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { tool } from "@fragola-ai/agent";
-import type { AgentAny } from "@fragola-ai/agent/agent";
+import type { AgentAny } from "@fragola-ai/agent";
 import { createStore } from "@fragola-ai/agent/store";
 import { Hook } from "@fragola-ai/agent/hook";
 import { createTestClient } from "./createTestClient";

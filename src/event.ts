@@ -4,6 +4,7 @@ import type { StoreLike, maybePromise } from "./types";
 import type { DefineMetaData } from "./fragola";
 import type { AgentAfterEventId } from "./eventAfter";
 import type { AgentBeforeEventId } from "./eventBefore";
+import type { AgentEventWatchId } from "./eventWatch";
 
 export type AgentDefaultEventId =
    "modelInvocation" | "toolCall" | "aiMessage" | "userMessage";
@@ -13,7 +14,9 @@ export const stop = () => ({[STOP]: true});
 
 export type eventResult<T> = T | ReturnType<typeof stop>; //TODO: fix stop not imported
 
-export type AgentEventId = AgentDefaultEventId | AgentAfterEventId | AgentBeforeEventId;
+export type AgentOnEventId = AgentDefaultEventId | AgentAfterEventId | AgentBeforeEventId;
+
+export type AgentEventId = AgentOnEventId | AgentEventWatchId;
 
 export type {
     ToolCallPayload

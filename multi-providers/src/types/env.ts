@@ -1,1 +1,0 @@
-export type ProviderEnv = Record<string, string | undefined>;

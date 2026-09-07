@@ -58,15 +58,15 @@ export type EventModelInvocation<TMetaData extends DefineMetaData<any>, TGlobalS
   payload: EventModelInvocationPayload<TMetaData, TGlobalStore, TStore>
 ) => maybePromise<eventResult<ModelInvocationChunkResult | ChatCompletionAssistantMessageParam<TMetaData>>>;
 
-export type EventToolCallPayload<TParams = Record<any, any>, TMetaData extends DefineMetaData<any> = {}, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> = EventPayloadBase<TMetaData, TGlobalStore, TStore> & {
+export type EventToolCallPayload<TMetaData extends DefineMetaData<any> = {}, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> = EventPayloadBase<TMetaData, TGlobalStore, TStore> & {
   toolCall: { readonly name: string, readonly id: string };
   result: ToolCallPayload;
-  params: TParams;
+  params: Record<string, any>;
   tool: Tool<any> | undefined;
 };
 
-export type EventToolCall<TParams = Record<any, any>, TMetaData extends DefineMetaData<any> = {}, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}>
-  = (payload: EventToolCallPayload<TParams, TMetaData, TGlobalStore, TStore>)
+export type EventToolCall<TMetaData extends DefineMetaData<any> = {}, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}>
+  = (payload: EventToolCallPayload<TMetaData, TGlobalStore, TStore>)
     => maybePromise<eventResult<ToolCallPayload>>
 
 export type EventAiMessagePayload<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> = EventPayloadBase<TMetaData, TGlobalStore, TStore> & {
@@ -88,7 +88,7 @@ export type callbackMap<TMetaData extends DefineMetaData<any>, TGlobalStore exte
   [K in AgentDefaultEventId]:
   K extends "aiMessage" ? EventAiMessage<TMetaData, TGlobalStore, TStore> :
   K extends "userMessage" ? EventUserMessage<TMetaData, TGlobalStore, TStore> :
-  K extends "toolCall" ? EventToolCall<any, TMetaData, TGlobalStore, TStore> :
+  K extends "toolCall" ? EventToolCall<TMetaData, TGlobalStore, TStore> :
   K extends "modelInvocation" ? EventModelInvocation<TMetaData, TGlobalStore, TStore> :
   never;
 };

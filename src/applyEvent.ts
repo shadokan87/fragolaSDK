@@ -15,7 +15,9 @@ import { BadUsage } from "./exceptions";
 export type AccumulateCallback<T> = (data: Awaited<T>) => maybePromise<void>;
 export type EventResult<T extends (...args: any) => any> = Awaited<ReturnType<T>>;
 
-export type ExcludeSignal<T> = Exclude<T, { [STOP]: boolean }>;
+export type ExcludeSignal<T> = [Exclude<T, ReturnType<typeof stop> | void | undefined>] extends [never]
+    ? void
+    : Exclude<T, ReturnType<typeof stop> | void | undefined>;
 
 export type EventStripSignal<T extends (...args: any[]) => any> = ExcludeSignal<Awaited<
 ReturnType<T>
@@ -355,15 +357,15 @@ export async function applyBeforeToolCall<TMetaData extends DefineMetaData<any>,
     events: registeredEvent<"before:toolCall", TMetaData, TGlobalStore, TStore>[],
     context: AgentContext<TMetaData, TGlobalStore, TStore>,
     _params: applyEventParams<"before:toolCall", TMetaData>,
-    accumulate?: AccumulateCallback<ReturnType<EventBeforeToolCall<any, TMetaData, TGlobalStore, TStore>>>
+    accumulate?: AccumulateCallback<ReturnType<EventBeforeToolCall<TMetaData, TGlobalStore, TStore>>>
 ) {
-    let result: ApplyEventResult<EventBeforeToolCall<any, TMetaData, TGlobalStore, TStore>> = {
+    let result: ApplyEventResult<EventBeforeToolCall<TMetaData, TGlobalStore, TStore>> = {
         signal: undefined,
         value: _params.config
     }
-    let configTmp: ToolCallConfig<any>;
+    let configTmp: ToolCallConfig;
     for (let i = 0; i < events.length; i++) {
-        const callback = events[i].callback as EventBeforeToolCall<any, TMetaData, TGlobalStore, TStore>;
+        const callback = events[i].callback as EventBeforeToolCall<TMetaData, TGlobalStore, TStore>;
         const payload = { toolCall: _params.toolCall, config: result.value, tool: _params.tool, context };
         configTmp = await callback(payload) as any;
         if (accumulate)
@@ -384,14 +386,14 @@ export async function applyToolCall<TMetaData extends DefineMetaData<any>, TGlob
     events: registeredEvent<"toolCall", TMetaData, TGlobalStore, TStore>[],
     context: AgentContext<TMetaData, TGlobalStore, TStore>,
     _params: applyEventParams<"toolCall", TMetaData>,
-    accumulate?: AccumulateCallback<ReturnType<EventToolCall<any, TMetaData, TGlobalStore, TStore>>>
+    accumulate?: AccumulateCallback<ReturnType<EventToolCall<TMetaData, TGlobalStore, TStore>>>
 ) {
-    let result: ApplyEventResult<EventToolCall<any, TMetaData, TGlobalStore, TStore>> = {
+    let result: ApplyEventResult<EventToolCall<TMetaData, TGlobalStore, TStore>> = {
         signal: undefined,
         value: _params.result as any
     }
     for (let i = 0; i < events.length; i++) {
-        const callback = events[i].callback as EventToolCall<any, TMetaData, TGlobalStore, TStore>;
+        const callback = events[i].callback as EventToolCall<TMetaData, TGlobalStore, TStore>;
         const payload = { toolCall: _params.toolCall, result: result.value, params: _params.params, tool: _params.tool, context };
         const res = await callback(payload) as any;
         if (accumulate)
@@ -412,14 +414,14 @@ export async function applyAfterToolCall<TMetaData extends DefineMetaData<any>, 
     events: registeredEvent<"after:toolCall", TMetaData, TGlobalStore, TStore>[],
     context: AgentContext<TMetaData, TGlobalStore, TStore>,
     _params: applyEventParams<"after:toolCall", TMetaData>,
-    accumulate?: AccumulateCallback<ReturnType<EventAfterToolCall<any, TMetaData, TGlobalStore, TStore>>>
+    accumulate?: AccumulateCallback<ReturnType<EventAfterToolCall<TMetaData, TGlobalStore, TStore>>>
 ) {
-    let result: ApplyEventResult<EventAfterToolCall<any, TMetaData, TGlobalStore, TStore>> = {
+    let result: ApplyEventResult<EventAfterToolCall<TMetaData, TGlobalStore, TStore>> = {
         signal: undefined,
         value: undefined
     }
     for (let i = 0; i < events.length; i++) {
-        const callback = events[i].callback as EventAfterToolCall<any, TMetaData, TGlobalStore, TStore>;
+        const callback = events[i].callback as EventAfterToolCall<TMetaData, TGlobalStore, TStore>;
         const payload = { toolCall: _params.toolCall, result: _params.result, params: _params.params, tool: _params.tool, context };
         const res = await callback(payload) as any;
         if (accumulate)

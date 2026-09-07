@@ -142,7 +142,7 @@ export type applyEventParams<K extends AgentEventId, TMetaData extends DefineMet
     K extends "before:modelInvocation" ? { config: ModelInvocationConfig<TMetaData> } :
     K extends "after:modelInvocation" ? { message: ChatCompletionAssistantMessageParam<TMetaData> } :
     K extends "toolCall" ? { toolCall: { readonly name: string, readonly id: string }, result: ToolCallPayload, params: any, tool: Tool<any> | undefined } :
-    K extends "before:toolCall" ? { toolCall: { readonly name: string, readonly id: string }, config: ToolCallConfig<any>, tool: Tool<any> | undefined } :
+    K extends "before:toolCall" ? { toolCall: { readonly name: string, readonly id: string }, config: ToolCallConfig, tool: Tool<any> | undefined } :
     K extends "after:toolCall" ? { toolCall: { readonly name: string, readonly id: string }, result: ToolCallPayload, params: any, tool: Tool<any> | undefined } :
     K extends "state" ? null :
     never;
@@ -156,9 +156,9 @@ export type appliedEvent<K extends AgentEventId, TMetaData extends DefineMetaDat
     K extends "after:step" ? ApplyEventResult<EventAfterStep<TMetaData, TGlobalStore, TStore>> :
     K extends "before:modelInvocation" ? ApplyEventResult<EventBeforeModelInvocation<TMetaData, TGlobalStore, TStore>> :
     K extends "after:modelInvocation" ? ApplyEventResult<EventAfterModelInvocation<TMetaData, TGlobalStore, TStore>> :
-    K extends "toolCall" ? ApplyEventResult<EventToolCall<any, TMetaData, TGlobalStore, TStore>> :
-    K extends "before:toolCall" ? ApplyEventResult<EventBeforeToolCall<any, TMetaData, TGlobalStore, TStore>> :
-    K extends "after:toolCall" ? ApplyEventResult<EventAfterToolCall<any, TMetaData, TGlobalStore, TStore>> :
+    K extends "toolCall" ? ApplyEventResult<EventToolCall<TMetaData, TGlobalStore, TStore>> :
+    K extends "before:toolCall" ? ApplyEventResult<EventBeforeToolCall<TMetaData, TGlobalStore, TStore>> :
+    K extends "after:toolCall" ? ApplyEventResult<EventAfterToolCall<TMetaData, TGlobalStore, TStore>> :
     K extends "state" ? ApplyEventResult<EventWatchState<TMetaData, TGlobalStore, TStore>> :
     never;
 
@@ -1222,9 +1222,6 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      * and may transform it before it is exposed to later `toolCall` handlers, `after:toolCall`,
      * and the tool message appended to state.
      *
-     * Return `skip()` to keep the current result unchanged, or `context.stop()` to stop the
-     * remaining `toolCall` / `after:toolCall` pipeline for the current tool call.
-     *
      * @example
     * agent.onToolCall(({ result, params, tool }) => {
      *   if (tool.name !== "getWeather") return result;
@@ -1238,7 +1235,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      *   };
      * });
      */
-    onToolCall<TParams = Record<any, any>>(callback: EventToolCall<TParams, TMetaData, TGlobalStore, TStore>) { return this.on("toolCall", callback) }
+    onToolCall(callback: EventToolCall<TMetaData, TGlobalStore, TStore>) { return this.on("toolCall", callback) }
 
     /**
      * Register an assistant message handler.
@@ -1246,8 +1243,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      * This event runs for streamed partial assistant messages and for the final assistant message.
      * During streaming, `finish_reason` is `null` until the stream completes.
      *
-     * Return a new assistant message to replace the current one, `skip()` to leave it unchanged,
-     * or `context.stop()` to stop processing the current assistant message.
+     * Return a new assistant message to replace the current one.
      *
      * @example
      * agent.onAiMessage(({ message, finish_reason }) => {
@@ -1306,8 +1302,6 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
          * - return `{ modelSettings, clientOptions }` to override the request settings
          * - return `{ injectMessage }` to bypass the API call with a final assistant message
          * - return `{ injectResponse }` to provide a custom SDK response
-         * - return `skip()` to leave the current config unchanged
-         * - return `context.stop()` to cancel the invocation
      *
      * @example
          * agent.onBeforeModelInvocation(() => ({
@@ -1333,8 +1327,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
       *
       * The callback receives `{ params }` before the tool handler runs. It may return a new
         * `{ params }` object to rewrite validated arguments or `{ injectConfig }` with a full
-        * `ToolCallPayload` to bypass the handler entirely. `skip()` preserves the current config,
-        * and `context.stop()` aborts the current tool call.
+        * `ToolCallPayload` to bypass the handler entirely.
       *
       * @example
       * agent.onBeforeToolCall(({ config, tool }) => {
@@ -1342,7 +1335,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
       *   return { params: { ...config.params, limit: 5 } };
       * });
       */
-    onBeforeToolCall<TParams = Record<any, any>>(callback: EventBeforeToolCall<TParams, TMetaData, TGlobalStore, TStore>) { return this.on("before:toolCall", callback) }
+    onBeforeToolCall(callback: EventBeforeToolCall<TMetaData, TGlobalStore, TStore>) { return this.on("before:toolCall", callback) }
 
     /**
      * Register an after tool call event handler.
@@ -1354,7 +1347,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      *   console.log('After tool call', tool.name, result);
      * });
      */
-    onAfterToolCall<TParams = Record<any, any>>(callback: EventAfterToolCall<TParams, TMetaData, TGlobalStore, TStore>) { return this.on("after:toolCall", callback) }
+    onAfterToolCall(callback: EventAfterToolCall<TMetaData, TGlobalStore, TStore>) { return this.on("after:toolCall", callback) }
 
      /**
       * Register a model invocation handler.
@@ -1376,15 +1369,12 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
       * - return `{ injectDelta, merge?: true }` to update `choices[0].delta`
       * - set `merge: false` on any `inject*` object to replace that target instead of merge-patching it
       *
-      * For `kind === "completion"`, return the assistant message unchanged or return an
-      * updated message object.
-      *
-      * In both branches, you can also return `skip()` to leave the payload unchanged or
-      * `context.stop()` to abort further processing.
+      * For `kind === "completion"`, return an updated message object to replace it.
       *
       * @example
       * agent.onModelInvocation((payload) => {
       *   if (payload.kind === "completion") {
+      *     // payload.data.content can be in some cases an array
       *     if (typeof payload.data.content !== "string") return payload.data;
       *     return {
       *       ...payload.data,

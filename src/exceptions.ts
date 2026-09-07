@@ -1,5 +1,3 @@
-import type { AgentAny } from "./agent";
-
 // Base exception class
 export class FragolaError extends Error {
     constructor(message: string) {

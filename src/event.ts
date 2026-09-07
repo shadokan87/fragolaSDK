@@ -12,7 +12,7 @@ export type AgentDefaultEventId =
 
 export const stop = () => ({[STOP]: true});
 
-export type eventResult<T> = T | ReturnType<typeof stop>; //TODO: fix stop not imported
+export type eventResult<T> = T | ReturnType<typeof stop> | void; //TODO: fix stop not imported
 
 export type AgentOnEventId = AgentDefaultEventId | AgentAfterEventId | AgentBeforeEventId;
 
@@ -30,4 +30,4 @@ export type EventDefaultCallbackPayload<TMetaData extends DefineMetaData<any>, T
 
 export type EventDefaultCallback<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = (
   payload: EventDefaultCallbackPayload<TMetaData, TGlobalStore, TStore>
-) => maybePromise<void>;
+) => maybePromise<eventResult<void>>;

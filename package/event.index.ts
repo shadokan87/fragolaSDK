@@ -11,15 +11,35 @@ export type {
 } from "@src/event";
 
 export type {
-    ToolCallPayload
+    ToolCallPayload,
+    EventModelInvocationPayload,
+    EventModelInvocation,
+    EventToolCallPayload,
+    EventToolCall,
+    EventAiMessagePayload,
+    EventAiMessage,
+    EventUserMessagePayload,
+    EventUserMessage
 } from "@src/eventDefault";
 
 export type {
-    AgentAfterEventId
+    AgentAfterEventId,
+    EventAfterStepPayload,
+    EventAfterStep,
+    EventAfterModelInvocationPayload,
+    EventAfterModelInvocation,
+    EventAfterToolCallPayload,
+    EventAfterToolCall
 } from "@src/eventAfter";
 
 export type {
-    AgentBeforeEventId
+    AgentBeforeEventId,
+    EventBeforeStepPayload,
+    EventBeforeStep,
+    EventBeforeModelInvocationPayload,
+    EventBeforeModelInvocation,
+    EventBeforeToolCallPayload,
+    EventBeforeToolCall
 } from "@src/eventBefore";
 
 export type {

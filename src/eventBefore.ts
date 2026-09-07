@@ -1,6 +1,5 @@
 import type { AgentDefaultEventId, eventResult, EventPayloadBase } from "./event";
 import type { maybePromise, StoreLike } from "./types";
-import type { AgentContext } from "@src/agentContext";
 import type { OpenaiClientOptions, DefineMetaData, Tool, ChatCompletionAssistantMessageParam } from "./fragola";
 import type { ToolCallPayload } from "./eventDefault";
 import type { CreateAgentOptions, StepOptions } from "./agent";
@@ -37,27 +36,27 @@ export type EventBeforeModelInvocationPayload<TMetaData extends DefineMetaData<a
 
 export type EventBeforeModelInvocation<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = (
     payload: EventBeforeModelInvocationPayload<TMetaData, TGlobalStore, TStore>
-) => maybePromise<ModelInvocationConfig<TMetaData>>;
+) => maybePromise<eventResult<ModelInvocationConfig<TMetaData>>>;
 
-export type ToolCallConfig<TParams = Record<any, any>> =
-    | { params: TParams }
+export type ToolCallConfig =
+    | { params: Record<string, any> }
     | { injectConfig: ToolCallPayload };
 
-export type EventBeforeToolCallPayload<TParams = Record<any, any>, TMetaData extends DefineMetaData<any> = {}, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> = EventPayloadBase<TMetaData, TGlobalStore, TStore> & {
+export type EventBeforeToolCallPayload<TMetaData extends DefineMetaData<any> = {}, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> = EventPayloadBase<TMetaData, TGlobalStore, TStore> & {
     toolCall: { readonly name: string, readonly id: string };
-    config: ToolCallConfig<TParams>;
+    config: ToolCallConfig;
     tool: Tool<any> | undefined;
 };
 
-export type EventBeforeToolCall<TParams = Record<any, any>, TMetaData extends DefineMetaData<any> = {}, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> = (
-    payload: EventBeforeToolCallPayload<TParams, TMetaData, TGlobalStore, TStore>
-) => maybePromise<ToolCallConfig<TParams>>;
+export type EventBeforeToolCall<TMetaData extends DefineMetaData<any> = {}, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> = (
+    payload: EventBeforeToolCallPayload<TMetaData, TGlobalStore, TStore>
+) => maybePromise<eventResult<ToolCallConfig>>;
 
 //@prettier-ignore
 export type callbackMap<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = {
     [K in AgentBeforeEventId]:
     K extends "before:step" ? EventBeforeStep<TMetaData, TGlobalStore, TStore> :
     K extends "before:modelInvocation" ? EventBeforeModelInvocation<TMetaData, TGlobalStore, TStore> :
-    K extends "before:toolCall" ? EventBeforeToolCall<any, TMetaData, TGlobalStore, TStore> :
+    K extends "before:toolCall" ? EventBeforeToolCall<TMetaData, TGlobalStore, TStore> :
     never;
 };

@@ -42,8 +42,4 @@ export class EventMap<
         get<TKey extends K>(key: TKey): registeredEvent<TKey, TMetaData, TGlobalStore, TStore>[] | undefined {
             return super.get(key) as unknown as registeredEvent<TKey, TMetaData, TGlobalStore, TStore>[] | undefined;
         }
-        // get<TEventId extends AgentEventId>(key: TEventId): registeredEvent<TEventId, TMetaData, TGlobalStore, TStore> | undefined {
-        //     const v  = super.get(key as any);
-        //     return v as unknown as registeredEvent<TEventId, TMetaData, TGlobalStore, TStore> | undefined ;
-        // }
     }

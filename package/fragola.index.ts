@@ -30,3 +30,4 @@ export type {
 } from "@src/fragola";
 
 export * from "@src/stateUtils";
+export * from "@src/exceptions";

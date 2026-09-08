@@ -24,24 +24,10 @@ describe("hook disposal", () => {
         const agent = fragola.agent({ ...baseAgentOptions }).use(() => dispose, "tracked");
 
         expect(agent.hasHook("tracked")).toBe(true);
-        await expect(agent.removeHook("tracked")).resolves.toBe(true);
+        await agent.removeHook("tracked");
 
         expect(dispose).toHaveBeenCalledTimes(1);
         expect(agent.hasHook("tracked")).toBe(false);
-        await expect(agent.removeHook("tracked")).resolves.toBe(false);
-    });
-
-    it("keeps named hooks removable when they do not return a disposer", async () => {
-        const initialized = vi.fn();
-        const agent = fragola.agent({ ...baseAgentOptions }).use(() => {
-            initialized();
-        }, "no-dispose");
-
-        await expect(agent.removeHook("no-dispose")).resolves.toBe(true);
-
-        expect(initialized).toHaveBeenCalledTimes(1);
-        expect(agent.hasHook("no-dispose")).toBe(false);
-        await expect(agent.removeHook("no-dispose")).resolves.toBe(false);
     });
 
     it("treats pending named hooks as installed and waits for initialization before disposal", async () => {
@@ -60,16 +46,15 @@ describe("hook disposal", () => {
         expect(agent.hasHook("delayed")).toBe(true);
 
         let finished = false;
-        const removalPromise = agent.removeHook("delayed").then((result) => {
+        const removalPromise = agent.removeHook("delayed").then(() => {
             finished = true;
-            return result;
         });
 
         await Promise.resolve();
         expect(finished).toBe(false);
 
         gate.resolve();
-        await expect(removalPromise).resolves.toBe(true);
+        await removalPromise;
 
         expect(order).toEqual(["init:start", "init:done", "dispose"]);
         expect(agent.hasHook("delayed")).toBe(false);

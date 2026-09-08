@@ -163,6 +163,64 @@ describe("after:modelInvocation — callback behavior", () => {
         await agent.userMessage({ content: "hi" });
         expect(called).not.toHaveBeenCalled();
     });
+
+    it("receives usage and finish_reason in non-streaming response", async () => {
+        let receivedPayload: any;
+        const agent = fragola.agent({ name: "a", instructions: "", description: "" });
+
+        const mockUsage = { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 };
+        agent.onBeforeModelInvocation(() => ({
+            injectResponse: (() => Promise.resolve({
+                id: "mock-1",
+                object: "chat.completion",
+                created: 1,
+                model: "mock-model",
+                choices: [{
+                    index: 0,
+                    message: { role: "assistant", content: "response with usage" },
+                    finish_reason: "stop",
+                    logprobs: null,
+                }],
+                usage: mockUsage,
+            })) as any,
+        }));
+
+        agent.onAfterModelInvocation((payload) => {
+            receivedPayload = payload;
+        });
+
+        await agent.userMessage({ content: "hi" });
+        expect(receivedPayload).toBeDefined();
+        expect(receivedPayload.message.content).toBe("response with usage");
+        expect(receivedPayload.finish_reason).toBe("stop");
+        expect(receivedPayload.usage).toEqual(mockUsage);
+    });
+
+    it("receives usage and finish_reason in streaming response", async () => {
+        let receivedPayload: any;
+        const agent = fragola.agent({ name: "a", instructions: "", description: "" });
+
+        const mockUsage = { prompt_tokens: 12, completion_tokens: 8, total_tokens: 20 };
+        const chunks: OpenAI.ChatCompletionChunk[] = [
+            createChunk({ id: "c-1", role: "assistant", content: "streamed " }),
+            {
+                ...createChunk({ id: "c-2", content: "reply", finishReason: "stop" }),
+                usage: mockUsage as any,
+            },
+        ];
+
+        injectChunkStream(agent, chunks);
+
+        agent.onAfterModelInvocation((payload) => {
+            receivedPayload = payload;
+        });
+
+        await agent.userMessage({ content: "hi" });
+        expect(receivedPayload).toBeDefined();
+        expect(receivedPayload.message.content).toBe("streamed reply");
+        expect(receivedPayload.finish_reason).toBe("stop");
+        expect(receivedPayload.usage).toEqual(mockUsage);
+    });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

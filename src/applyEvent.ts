@@ -276,7 +276,7 @@ export async function applyAfterModelInvocation<TMetaData extends DefineMetaData
     }
     for (let i = 0; i < events.length; i++) {
         const callback = events[i].callback as EventAfterModelInvocation<TMetaData, TGlobalStore, TStore>;
-        const payload = { message: _params.message, context };
+        const payload = { message: _params.message, finish_reason: _params.finish_reason, usage: _params.usage, context };
         const res = await callback(payload) as any;
         if (accumulate)
             await accumulate(res);

@@ -140,7 +140,7 @@ export type applyEventParams<K extends AgentEventId, TMetaData extends DefineMet
     K extends "before:step" ? { options: StepOptions } :
     K extends "after:step" ? { options: Required<StepOptions>, newMessages: ChatCompletionMessageParam<TMetaData>[], stepsTaken: number, error?: any } :
     K extends "before:modelInvocation" ? { config: ModelInvocationConfig<TMetaData> } :
-    K extends "after:modelInvocation" ? { message: ChatCompletionAssistantMessageParam<TMetaData> } :
+    K extends "after:modelInvocation" ? { message: ChatCompletionAssistantMessageParam<TMetaData>, finish_reason: OpenAI.Chat.Completions.ChatCompletionChunk.Choice['finish_reason'], usage: OpenAI.Chat.Completions.ChatCompletionChunk['usage'] } :
     K extends "toolCall" ? { toolCall: { readonly name: string, readonly id: string }, result: ToolCallPayload, params: any, tool: Tool<any> | undefined } :
     K extends "before:toolCall" ? { toolCall: { readonly name: string, readonly id: string }, config: ToolCallConfig, tool: Tool<any> | undefined } :
     K extends "after:toolCall" ? { toolCall: { readonly name: string, readonly id: string }, result: ToolCallPayload, params: any, tool: Tool<any> | undefined } :
@@ -228,7 +228,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
     private abortController: AbortController | undefined = undefined;
     private stopRequested: boolean = false;
     //TODO: maybe replace with a map for better perf
-    private hooks: Array<{ hook: FragolaHook, name?: string, sourceHookId: string, dispose: FragolaHookDispose }> = [];
+    private hooks: Array<{ hook: FragolaHook, name?: string, sourceHookId: string, dispose?: FragolaHookDispose }> = [];
     private hookDisposeMap: Map<string, FragolaHookDispose> = new Map();
     private pendingHookNames: Set<string> = new Set();
     private pendingHookSourceIds: Set<string> = new Set();
@@ -836,6 +836,9 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                 })();
 
                 this.setGenerating();
+                let usage: OpenAI.Chat.Completions.ChatCompletionChunk['usage'] = undefined;
+                let finish_reason: OpenAI.Chat.Completions.ChatCompletionChunk.Choice['finish_reason'] = null;
+
                 // Handle streaming vs non-streaming
                 if (Symbol.asyncIterator in response) {
                     let partialMessage: Partial<OpenAI.Chat.ChatCompletionMessageParam> = {
@@ -861,15 +864,20 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                     }
                     const processchunk = createProcesschunk();
                     for await (const chunk of response) {
-                        let _chunk = await processchunk(chunk); console.log("CHUNK:", JSON.stringify(_chunk));
-                        if (isStopEvent(_chunk))
+                        let _chunk = await processchunk(chunk); if (isStopEvent(_chunk))
                             break;
                         if (_chunk.choices.length > 0)
                             partialMessage = streamChunkToMessage(_chunk, partialMessage);
-                        const finish_reason = _chunk.choices[0]?.finish_reason ?? null;
+                        const chunk_finish_reason = _chunk.choices[0]?.finish_reason ?? null;
+                        if (chunk_finish_reason) {
+                            finish_reason = chunk_finish_reason;
+                        }
+                        if (_chunk.usage) {
+                            usage = _chunk.usage;
+                        }
                         const partialMessageFinal = await this.applyEvents("aiMessage", {
                             message: partialMessage as typeof aiMessage,
-                            finish_reason,
+                            finish_reason: chunk_finish_reason,
                             usage: _chunk.usage
                         });
                         if (isStopEvent(partialMessageFinal.signal))
@@ -881,6 +889,8 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                     aiMessage = (partialMessage) as typeof aiMessage;
                 } else {
                     this.abortController = undefined;
+                    finish_reason = response.choices[0]?.finish_reason ?? null;
+                    usage = response.usage;
                     const messageProcessed = await this.applyEvents("aiMessage", {
                         message: (response.choices[0]?.message || emptyAssistantMessage) as typeof aiMessage,
                         finish_reason: response.choices[0]?.finish_reason,
@@ -897,7 +907,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                 if (stepEventOptions)
                     stepEventOptions = stepEventOptions;
 
-                await this.applyEvents("after:modelInvocation", { message: aiMessage });
+                await this.applyEvents("after:modelInvocation", { message: aiMessage, finish_reason, usage });
                 if (aiMessage.role == "assistant" && aiMessage.tool_calls && aiMessage.tool_calls.length)
                     toolCalls = aiMessage.tool_calls;
                 return aiMessage;
@@ -1322,19 +1332,19 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      */
     onAfterModelInvocation(callback: EventAfterModelInvocation<TMetaData, TGlobalStore, TStore>) { return this.on("after:modelInvocation", callback) }
 
-     /**
-      * Register a handler that can alter a tool call before execution.
-      *
-      * The callback receives `{ params }` before the tool handler runs. It may return a new
-        * `{ params }` object to rewrite validated arguments or `{ injectConfig }` with a full
-        * `ToolCallPayload` to bypass the handler entirely.
-      *
-      * @example
-      * agent.onBeforeToolCall(({ config, tool }) => {
-      *   if (tool.name !== "search" || !("params" in config)) return config;
-      *   return { params: { ...config.params, limit: 5 } };
-      * });
-      */
+    /**
+     * Register a handler that can alter a tool call before execution.
+     *
+     * The callback receives `{ params }` before the tool handler runs. It may return a new
+       * `{ params }` object to rewrite validated arguments or `{ injectConfig }` with a full
+       * `ToolCallPayload` to bypass the handler entirely.
+     *
+     * @example
+     * agent.onBeforeToolCall(({ config, tool }) => {
+     *   if (tool.name !== "search" || !("params" in config)) return config;
+     *   return { params: { ...config.params, limit: 5 } };
+     * });
+     */
     onBeforeToolCall(callback: EventBeforeToolCall<TMetaData, TGlobalStore, TStore>) { return this.on("before:toolCall", callback) }
 
     /**
@@ -1349,48 +1359,48 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      */
     onAfterToolCall(callback: EventAfterToolCall<TMetaData, TGlobalStore, TStore>) { return this.on("after:toolCall", callback) }
 
-     /**
-      * Register a model invocation handler.
-      *
-      * Use this event to inspect or transform data produced by the model before it is
-      * turned into the assistant message stored in state.
-      *
-      * Handle the payload as a discriminated union by checking `invocation.kind`:
-      * - `"chunk"`: streamed delta payload. The callback receives
-      *   `{ kind, chunk, primaryChoice, delta }` before that chunk is merged into the
-      *   partial assistant message.
-      * - `"completion"`: full assistant message payload. The callback receives
-      *   `{ kind: "completion", data }`, where `data` is the complete assistant message.
-      *
-      * For `kind === "chunk"`, you may:
-      * - return the raw chunk to replace it directly
-      * - return `{ injectChunk, merge?: true }` to update the whole chunk
-      * - return `{ injectPrimary, merge?: true }` to update `choices[0]`
-      * - return `{ injectDelta, merge?: true }` to update `choices[0].delta`
-      * - set `merge: false` on any `inject*` object to replace that target instead of merge-patching it
-      *
-      * For `kind === "completion"`, return an updated message object to replace it.
-      *
-      * @example
-      * agent.onModelInvocation((payload) => {
-      *   if (payload.kind === "completion") {
-      *     // payload.data.content can be in some cases an array
-      *     if (typeof payload.data.content !== "string") return payload.data;
-      *     return {
-      *       ...payload.data,
-      *       content: payload.data.content.trim(),
-      *     };
-      *   }
-      *
-      *   if (!payload.delta?.content) return payload.chunk;
-      *
-      *   return {
-      *     injectDelta: {
-      *       content: invocation.delta.content.replace("[DEBUG]", ""),
-      *     },
-      *   };
-      * });
-      */
+    /**
+     * Register a model invocation handler.
+     *
+     * Use this event to inspect or transform data produced by the model before it is
+     * turned into the assistant message stored in state.
+     *
+     * Handle the payload as a discriminated union by checking `invocation.kind`:
+     * - `"chunk"`: streamed delta payload. The callback receives
+     *   `{ kind, chunk, primaryChoice, delta }` before that chunk is merged into the
+     *   partial assistant message.
+     * - `"completion"`: full assistant message payload. The callback receives
+     *   `{ kind: "completion", data }`, where `data` is the complete assistant message.
+     *
+     * For `kind === "chunk"`, you may:
+     * - return the raw chunk to replace it directly
+     * - return `{ injectChunk, merge?: true }` to update the whole chunk
+     * - return `{ injectPrimary, merge?: true }` to update `choices[0]`
+     * - return `{ injectDelta, merge?: true }` to update `choices[0].delta`
+     * - set `merge: false` on any `inject*` object to replace that target instead of merge-patching it
+     *
+     * For `kind === "completion"`, return an updated message object to replace it.
+     *
+     * @example
+     * agent.onModelInvocation((payload) => {
+     *   if (payload.kind === "completion") {
+     *     // payload.data.content can be in some cases an array
+     *     if (typeof payload.data.content !== "string") return payload.data;
+     *     return {
+     *       ...payload.data,
+     *       content: payload.data.content.trim(),
+     *     };
+     *   }
+     *
+     *   if (!payload.delta?.content) return payload.chunk;
+     *
+     *   return {
+     *     injectDelta: {
+     *       content: invocation.delta.content.replace("[DEBUG]", ""),
+     *     },
+     *   };
+     * });
+     */
     onModelInvocation(callback: EventModelInvocation<TMetaData, TGlobalStore, TStore>) { return this.on("modelInvocation", callback) }
 
     //TODO: check dispose logic might be overengineered
@@ -1462,15 +1472,15 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                     return;
                 }
 
-                const hookDispose = dispose ?? NOOP_HOOK_DISPOSE;
-                this.hooks.push({ hook, name, sourceHookId, dispose: hookDispose });
+                this.hooks.push({ hook, name, sourceHookId, dispose: dispose ?? undefined });
 
                 if (!name) {
                     return;
                 }
 
                 this.pendingHookNames.delete(name);
-                this.hookDisposeMap.set(name, hookDispose);
+                if (dispose)
+                    this.hookDisposeMap.set(name, dispose);
             })
             .catch((err) => {
                 this.pendingHookSourceIds.delete(sourceHookId);
@@ -1493,14 +1503,13 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
 
     /**
      * Removes a named hook, waits for pending setup to finish, and runs its disposer.
-     * Returns `false` if no hook is registered under that name.
      */
-    async removeHook(name: string): Promise<boolean> {
+    async removeHook(name: string): Promise<void> {
         await this.hooksLoaded;
 
         const dispose = this.hookDisposeMap.get(name);
         if (!dispose)
-            return false;
+            return;
 
         this.hookDisposeMap.delete(name);
         const hookEntry = this.hooks.find((entry) => entry.name === name);
@@ -1511,7 +1520,6 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
             this.removeHookScopedEvents(hookEntry.sourceHookId);
 
         await dispose();
-        return true;
     }
 
     /**
@@ -1530,7 +1538,8 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
             }
 
             this.removeHookScopedEvents(hookEntry.sourceHookId);
-            await hookEntry.dispose();
+            if (hookEntry.dispose)
+                await hookEntry.dispose();
             this.hooks = this.hooks.filter((entry) => entry.sourceHookId !== hookEntry.sourceHookId);
         }
     }

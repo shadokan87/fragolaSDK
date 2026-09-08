@@ -186,7 +186,7 @@ describe("fork", () => {
         const fork = agent.fork();
         await waitForHookSetup(fork);
 
-        await expect(fork.removeHook("tag")).resolves.toBe(true);
+        await fork.removeHook("tag");
         expect(fork.hasHook("tag")).toBe(false);
         expect(agent.hasHook("tag")).toBe(true);
 

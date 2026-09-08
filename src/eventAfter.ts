@@ -1,9 +1,9 @@
 import type { maybePromise, StoreLike } from "./types";
-import type { AgentDefaultEventId, EventDefaultCallback, EventDefaultCallbackPayload, EventPayloadBase, eventResult } from "./event";
-import type { AgentContext } from "@src/agentContext";
+import type { EventPayloadBase, eventResult } from "./event";
 import type { ChatCompletionAssistantMessageParam, ChatCompletionMessageParam, DefineMetaData, Tool } from "./fragola";
 import type { ToolCallPayload } from "./eventDefault";
 import type { StepOptions } from "./agent";
+import type OpenAI from "openai/index.js";
 
 export type AgentAfterEventId = "after:modelInvocation" | "after:toolCall" | "after:aiMessage" | "after:step";
 
@@ -20,6 +20,8 @@ export type EventAfterStep<TMetaData extends DefineMetaData<any>, TGlobalStore e
 
 export type EventAfterModelInvocationPayload<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = EventPayloadBase<TMetaData, TGlobalStore, TStore> & {
     message: ChatCompletionAssistantMessageParam<TMetaData>;
+    finish_reason: OpenAI.Chat.Completions.ChatCompletionChunk.Choice['finish_reason'];
+    usage: OpenAI.Chat.Completions.ChatCompletionChunk['usage'];
 };
 
 export type EventAfterModelInvocation<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = (

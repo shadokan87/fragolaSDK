@@ -153,7 +153,7 @@ export interface FragolaEvents {
     /**
      * Runs after `fragola.agent(...)` instantiates and returns a new agent.
      */
-    agentCreated?: AgentCreatedCallback
+    agentCreated?: AgentCreatedCallback,
 }
 
 export type ClientOptions = OpenaiClientOptions & PreferedModel & {events?: FragolaEvents};

@@ -4,14 +4,14 @@ This document outlines the structure and sections for the left-hand navigation s
 
 ---
 
-## 1. Getting Started
-- [ ] **Overview & Philosophy**
-  - [ ] Introduction to Fragola (Event-driven AI agent SDK)
-  - [ ] Why Fragola? (Predictable state, composable primitives, extensible hooks)
-  - [ ] Architecture at a Glance
+## 1. Introduction
+- [] **Overview & Philosophy**
+  - [] Introduction to Fragola (Event-driven AI agent SDK)
+  - [] Why Fragola? (Design philosophy, Predictable state, minimal building blocks, extensible hooks)
+
 - [ ] **Installation & Setup**
   - [ ] Package installation (`@fragola-ai/agent`)
-  - [ ] Client configuration (OpenAI API key, baseURL, Portkey, custom SDK instances)
+  - [ ] Client convufiguration (OpenAI API key, baseURL, custom SDK instances)
   - [ ] Environment requirements & TypeScript configuration
 - [ ] **Quickstart**
   - [ ] Creating your first agent
@@ -64,7 +64,7 @@ This document outlines the structure and sections for the left-hand navigation s
   - [ ] Validation errors & automatic reporting to the model
 - [ ] **Dynamic Tools & Custom Resolution**
   - [ ] `handler: "dynamic"` for server-side / proxy delegation
-  - [ ] Injecting results in `before:toolCall`
+  - [ ] Injecting results in `onBeforeToolCall`
 - [ ] **Runtime Tool Management**
   - [ ] Updating agent tools dynamically (`context.updateTools`)
   - [ ] Enabling/disabling tools per step
@@ -74,25 +74,24 @@ This document outlines the structure and sections for the left-hand navigation s
 ## 4. Event System & Lifecycle
 - [ ] **Event System Overview**
   - [ ] Event pipeline & execution order
-  - [ ] Registering event handlers (`on`, `watch`)
-  - [ ] Flow control: `stop()`, `skip()`, and event accumulation
+  - [ ] Registering event handlers (`on`, `watch`, inline methods)
+  - [ ] Flow control: `stop()` and `stopSync()`
 - [ ] **User Message Lifecycle**
-  - [ ] `userMessage` event (Intercepting, enriching, or transforming user input)
+  - [ ] `onUserMessage` (Intercepting, enriching, or transforming user input)
 - [ ] **Step Lifecycle**
-  - [ ] `before:step` (Modifying step parameters before turn starts)
-  - [ ] `after:step` (Inspecting results, new messages, steps taken, or errors)
+  - [ ] `onBeforeStep` (Modifying step parameters before turn starts)
+  - [ ] `onAfterStep` (Inspecting results, new messages, steps taken, or errors)
 - [ ] **Model Invocation Lifecycle**
-  - [ ] `before:modelInvocation` (Overriding model settings, `injectMessage`, `injectResponse`)
-  - [ ] `modelInvocation` (Chunk-level stream manipulation, delta injection, chunk merge patches)
-  - [ ] `aiMessage` (Transforming partial/final assistant messages)
-  - [ ] `after:modelInvocation` (Inspecting assistant message, `finish_reason`, and token `usage`)
+  - [ ] `onBeforeModelInvocation` (Overriding model settings, `injectMessage`, `injectResponse`)
+  - [ ] `onModelInvocation` (Chunk-level stream manipulation, delta injection, chunk merge patches)
+  - [ ] `onAiMessage` (Transforming partial/final assistant messages)
+  - [ ] `onAfterModelInvocation` (Inspecting assistant message, `finish_reason`, and token `usage`)
 - [ ] **Tool Call Lifecycle**
-  - [ ] `before:toolCall` (Parameter rewriting, injecting tool responses via `injectConfig`)
-  - [ ] `toolCall` (Transforming tool outputs before appending to history)
-  - [ ] `after:toolCall` (Tool execution post-processing and logging)
+  - [ ] `onBeforeToolCall` (Parameter rewriting, injecting tool responses via `injectConfig`)
+  - [ ] `onToolCall` (Transforming tool outputs before appending to history)
+  - [ ] `onAfterToolCall` (Tool execution post-processing and logging)
 - [ ] **State Watchers**
-  - [ ] `agent.watchState(...)` / `agent.watch('state', ...)`
-  - [ ] Reactive state observation for UI, metrics, and logging
+  - [ ] `watchState` (Reactive state observation for UI, metrics, and logging)
 
 ---
 
@@ -118,7 +117,7 @@ This document outlines the structure and sections for the left-hand navigation s
 
 ## 6. State & Stores
 - [ ] **Store Primitives**
-  - [ ] Creating stores (`createStore(initialValue, namespace?)`)
+  - [ ] Creating stores (`createStore(initialValue, scope?)`)
   - [ ] Reactive state updates and subscribers (`store.subscribe`, `store.set`, `store.update`)
 - [ ] **Local Stores**
   - [ ] Attaching agent-scoped stores via `fragola.agent({ store, ... })`
@@ -126,9 +125,9 @@ This document outlines the structure and sections for the left-hand navigation s
 - [ ] **Global Stores**
   - [ ] Sharing state across all agents via `new Fragola({ store, ... })`
   - [ ] Accessing global store in context
-- [ ] **Namespaced Stores**
+- [ ] **Scoped Stores**
   - [ ] Registering multiple stores (`context.addStore`)
-  - [ ] Querying namespaced stores (`context.getStore("namespace")`)
+  - [ ] Querying scoped stores (`context.getStore("scope")`)
   - [ ] Removing stores (`context.removeStore`)
 - [ ] **Message Metadata Typing**
   - [ ] Defining type-safe metadata with `DefineMetaData<{ user, ai, tool }>`
@@ -190,7 +189,7 @@ This document outlines the structure and sections for the left-hand navigation s
   - [ ] Responding with informative error payloads
 - [ ] **Debugging & Tracing**
   - [ ] Inspecting state transitions with `watchState`
-  - [ ] Logging chunks & model payloads with `modelInvocation` events
+  - [ ] Logging chunks & model payloads with `ModelInvocation` events
 
 ---
 

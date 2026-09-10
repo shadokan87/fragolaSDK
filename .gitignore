@@ -180,3 +180,4 @@ dist
 # Verdaccio
 verdaccioStorage
 verdaccioStorage/*.playwright
+.playwright-mcp

@@ -21,27 +21,41 @@ By default, the underlying OpenAI client looks for the `OPENAI_API_KEY` environm
 import { Fragola } from "@fragola-ai/agent";
 
 // Create a Fragola instance
+// Ensure your OpenAI API key is set in your .env file as OPENAI_API_KEY
 const fragola = new Fragola({
-    apiKey: process.env.OPENAI_API_KEY,
+    model: "gpt-6-astra",
+    // apiKey: "<your_api_key>" Alternatively add your apiKey without using .env
 });
 ```
 
-### Advanced Setup (Custom Base URL, Portkey, Custom SDK)
-If you are using a proxy, an OpenAI-compatible provider (like LocalAI or vLLM), or a gateway like Portkey, you can pass standard `OpenaiClientOptions`:
+### Advanced Setup (LiteLLM, different baseUrl, Custom SDK)
+Because Fragola is built on top of the official `openai-node` SDK, the `Fragola` instance options are exactly the same as the `OpenAI` client constructor options (with some additions).
 
+**Example: Using LiteLLM**
 ```typescript
 import { Fragola } from "@fragola-ai/agent";
 
+// Using LiteLLM to proxy to Claude or other models
 const fragola = new Fragola({
-    apiKey: process.env.OPENAI_API_KEY,
-    baseURL: "https://api.portkey.ai/v1", // Example: Using Portkey
-    defaultHeaders: {
-        "x-portkey-provider": "openai"
-    }
+    model: "claude-3-5-sonnet", // The model configured in your LiteLLM proxy
+    baseURL: "http://0.0.0.0:4000", // Your LiteLLM proxy URL
+    apiKey: process.env.LITELLM_API_KEY || "your-litellm-api-key" // API key if required
 });
 ```
 
-If you need complete control over the SDK initialization, you can provide a custom SDK constructor:
+**Example: Using Ollama**
+```typescript
+import { Fragola } from "@fragola-ai/agent";
+
+// Using a local Ollama model
+const fragola = new Fragola({
+    model: "llama3", // Your local Ollama model
+    baseURL: "http://localhost:11434/v1", // Ollama's OpenAI-compatible endpoint
+    apiKey: "ollama" // The SDK requires an API key string, even though Ollama doesn't enforce it
+});
+```
+
+You can also provide a custom SDK constructor, as long as it extends OpenAI:
 
 ```typescript
 import OpenAI from "openai";
@@ -52,7 +66,7 @@ class CustomOpenAI extends OpenAI {
 }
 
 const fragola = new Fragola(
-    { apiKey: "sk-..." }, 
+    { model: "gpt-4o-mini" }, 
     undefined, // globalStore
     CustomOpenAI // Custom SDK constructor
 );

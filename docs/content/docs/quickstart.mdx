@@ -14,19 +14,17 @@ An agent requires at minimum a name, a description, and system instructions.
 import { Fragola } from "@fragola-ai/agent";
 
 // 1. Initialize the Fragola SDK
+// Ensure your OpenAI API key is set in your .env file as OPENAI_API_KEY
 const fragola = new Fragola({
-    apiKey: process.env.OPENAI_API_KEY
+    model: "gpt-6-astra",
+    // apiKey: "<your_api_key>" Alternatively add your apiKey without using .env
 });
 
 // 2. Create the Agent
 const agent = fragola.agent({
     name: "CalculatorAgent",
     description: "A simple assistant that helps with math",
-    instructions: "You are a helpful and concise math assistant. Always be polite.",
-    modelSettings: {
-        model: "gpt-4o-mini", // Optionally override the model for this specific agent
-        temperature: 0.2
-    }
+    instructions: "You are a helpful and concise math assistant. Always be polite."
 });
 ```
 

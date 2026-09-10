@@ -50,8 +50,8 @@ Create a simple agent that responds to user messages:
 ```typescript
 import { Fragola } from "@fragola-ai/agent";
 
+// Ensure your OpenAI API key is set in your .env file as OPENAI_API_KEY
 const fragola = new Fragola({
-	apiKey: process.env.OPENAI_API_KEY, // Can also be set in your environment
 	model: "gpt-4o-mini"
 });
 

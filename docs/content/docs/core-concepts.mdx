@@ -13,6 +13,18 @@ When you trigger an agent via `agent.userMessage()` or `agent.step()`, it enters
 3. Keep looping (up to a `maxStep` limit) until the LLM provides a final text response.
 4. Return to an `idle` state and yield the updated state.
 
+```typescript
+const agent = fragola.agent({
+    name: "SearchAgent",
+    description: "Agent that searches the web",
+    instructions: "You are a helpful search assistant."
+});
+
+// Trigger an execution turn
+const state = await agent.userMessage({ content: "Find the latest news" });
+console.log(state.status); // "idle"
+```
+
 ## Events & Lifecycle Pipeline
 Fragola is **Event-Driven**. Everything that happens inside the execution turn emits an event. 
 Instead of fighting the framework, you can hook into explicit stages of the lifecycle:
@@ -24,6 +36,20 @@ Instead of fighting the framework, you can hook into explicit stages of the life
 
 Events allow you to observe, mutate, or short-circuit (`stop()`) the agent's behavior cleanly.
 
+```typescript
+agent.onUserMessage(({ message }) => {
+    // Intercept and mutate the incoming message
+    message.content = `${message.content} (Reply in Spanish)`;
+    return message;
+});
+
+agent.onBeforeModelInvocation(({ config }) => {
+    // Dynamically adjust temperature before calling the LLM
+    config.temperature = 0.5;
+    return config;
+});
+```
+
 ## Agent Context & Instructions
 Every agent exposes an **`AgentContext`** (`agent.context`). This context is passed into tool handlers and event callbacks.
 
@@ -33,6 +59,14 @@ The context provides safe access to:
 - Update the list of available tools mid-conversation.
 - Access local or global stores.
 
+```typescript
+agent.onBeforeModelInvocation(({ context, config }) => {
+    // Dynamically inject context-aware instructions
+    context.instructions.add("temp-rule", "Always mention the current date.");
+    return config;
+});
+```
+
 ## Stores & State Management
 Often, agents need to remember data that doesn't belong strictly inside the LLM prompt, like user IDs, retrieved database rows, or internal counters. 
 
@@ -41,8 +75,51 @@ Often, agents need to remember data that doesn't belong strictly inside the LLM 
 - Stores support **Scopes** (formerly namespaces), allowing you to partition data (e.g., `context.getStore("metrics")`).
 - Because they are reactive, you can subscribe to store changes to trigger side effects in your app.
 
-## Hooks & Plugins
-**Hooks** (`Hook(...)`) are Fragola's primary mechanism for composability and reuse. 
-A hook is simply a function that receives an agent and attaches a mix of event listeners, stores, and tools to it.
+```typescript
+import { createStore, tool } from "@fragola-ai/agent";
 
-If you find yourself writing the same safety checks, API logging, or tool-registration logic repeatedly, you package that logic into a Hook. When you call `agent.use(myHook)`, the agent absorbs all those behaviors. You can also dynamically remove hooks when they are no longer needed.
+const userStore = createStore({ userId: "123", name: "Alice" }, "user-data");
+fragola.addStore(userStore); // Available to all agents on this instance
+
+const greetUser = tool({
+    name: "greetUser",
+    description: "Greets the user by name",
+    handler: (params, context) => {
+        // Access the store safely from within a tool
+        const userData = context.getStore("user-data")?.get();
+        return `Hello ${userData?.name}!`;
+    }
+});
+```
+
+## Hooks & Plugins
+**Hooks** (`FragolaHook`) are Fragola's primary mechanism for composability and reuse. 
+A hook is simply a function that receives an agent and attaches a mix of event listeners, stores, and tools to it, and returns an optional cleanup function.
+
+If you find yourself writing the same safety checks, API logging, or tool-registration logic repeatedly, you package that logic into a Hook. When you call `agent.use(myHook, "my-hook-id")`, the agent absorbs all those behaviors. You can also dynamically remove hooks when they are no longer needed.
+
+```typescript
+import { type FragolaHook, type FragolaEvent } from "@fragola-ai/agent";
+
+// Define a custom hook
+const withLogger: FragolaHook = (agent) => {
+    let events: FragolaEvent[] = [];
+
+    events.push(agent.onUserMessage(({ message }) => {
+        console.log(`[USER]: ${message.content}`);
+        return message;
+    }));
+    
+    events.push(agent.onAiMessage(({ message }) => {
+        console.log(`[AI]: ${message.content}`);
+    }));
+
+    // Return a cleanup function
+    return () => {
+        events.forEach(event => event.remove());
+    }
+};
+
+// Apply the hook to the agent, providing a custom ID
+agent.use(withLogger, "logger-hook");
+```

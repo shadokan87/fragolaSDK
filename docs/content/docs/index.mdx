@@ -3,13 +3,13 @@ title: Overview & Philosophy
 ---
 
 ## Introduction to Fragola
-Fragola is a hyperextensible SDK for building AI agents in Typescript, it uses an event-drivent model and is built on top of `openai-node`. It gives you a small set of core primitives: `Agents, Tools, Stores, Events` and lets you use them individually or combine them inside hooks to create re-usable logic for your agents: exactly like you would create reusable functions in any programming language.
+Fragola is a hyperextensible SDK for building AI agents in Typescript, it uses an event-drivent model and is built on top of `openai-node`. It gives you a small set of core primitives: `Agents, Tools, Stores, Events` and lets you use them individually or combine them inside hooks to create re-usable logic for your agents.
 
 ## Why Fragola?
 Fragola is designed to start small and grow to fit your project:
 
 - **Event-driven core:** Every stage of an agent's lifecycle (`onUserMessage`, `onBeforeModelInvocation`, `onToolCall`, etc.) is an explicit event you can observe, pause, or mutate. You always know what's in the conversation history and what state the agent is in (`idle`, `generating`, `waiting`).
-- **Hyper-extensible via hooks:** Features aren't baked into the core - they're hooks. MCP support, multi-agent orchestration, guardrails - each is a self-contained hook that listens to events and attaches behavior. Don't need orchestration? Don't add the hook. The core SDK stays lean regardless of how much you build on top of it.
+- **Hyper-extensible via hooks:** Features aren't baked into the core - they're hooks. You can drop in pre-built hook presets (like MCP support, multi-agent orchestration, or guardrails) or easily implement your own custom hooks. Hooks can be nested to keep complex logic organized and combined to enable highly customized agent behavior. Don't need orchestration? Don't add the hook. The core SDK stays lean regardless of how much you build on top of it.
 - **Minimal building blocks:** Agents, Tools, Stores, and Events compose directly, with no abstract chains or graphs to learn - just concrete pieces you wire together.
 
 ## Architecture at a Glance
@@ -18,4 +18,4 @@ Fragola is designed to start small and grow to fit your project:
 2. **Events:** Lifecycle interceptors that let you pause, mutate, or observe execution at any stage.
 3. **Context:** `AgentContext` exposes the agent's state, tools, and instructions to handlers, tools, and hooks.
 4. **Stores:** Reactive state containers (`global`, `local`, or `scoped`) for data outside the LLM context - retrieved documents, sessions, metrics - with reactive change tracking.
-5. **Hooks:** The extension mechanism. A hook registers event listeners and modify the agent base behaviour (and optionally scoped stores) to package a whole feature - like `mcp-client` or `orchestration` - as an independent, pluggable unit. You can easily write your own custom hooks, nest them to keep complex logic organized, and combine multiple hooks together to enable highly customized agent behavior.
+5. **Hooks:** The extension mechanism. A hook registers event listeners (and optionally scoped stores) to package a feature as an independent, pluggable unit that modifies or extends the agent's behavior.

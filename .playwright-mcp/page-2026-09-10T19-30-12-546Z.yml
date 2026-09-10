@@ -1,0 +1,214 @@
+- generic [active] [ref=f1e1]:
+  - generic [ref=f1e2]:
+    - complementary [ref=f1e3]:
+      - generic [ref=f1e4]:
+        - generic [ref=f1e5]:
+          - link "My App" [ref=f1e6] [cursor=pointer]:
+            - /url: /
+          - button "Collapse Sidebar" [ref=f1e7]
+        - button "Search ⌘ K" [ref=f1e10]:
+          - text: Search
+          - generic [ref=f1e14]:
+            - generic [ref=f1e15]: ⌘
+            - generic [ref=f1e16]: K
+      - generic [ref=f1e18]:
+        - paragraph [ref=f1e19]: Introduction
+        - link "Overview & Philosophy" [ref=f1e20] [cursor=pointer]:
+          - /url: /docs/overview
+        - link "Installation & Setup" [ref=f1e21] [cursor=pointer]:
+          - /url: /docs/installation
+        - link "Quickstart" [ref=f1e22] [cursor=pointer]:
+          - /url: /docs/quickstart
+        - link "Core Concepts" [ref=f1e23] [cursor=pointer]:
+          - /url: /docs/core-concepts
+        - paragraph [ref=f1e24]: Agents & Execution
+        - link "Creating & Configuring Agents" [ref=f1e25] [cursor=pointer]:
+          - /url: /docs/creating-agents
+        - link "Execution & Stepping" [ref=f1e26] [cursor=pointer]:
+          - /url: /docs/execution-stepping
+        - link "Structured Outputs (agent.json)" [ref=f1e27] [cursor=pointer]:
+          - /url: /docs/structured-outputs
+        - link "State & Lifecycle Management" [ref=f1e28] [cursor=pointer]:
+          - /url: /docs/state-lifecycle
+        - link "Agent Forking (agent.fork)" [ref=f1e29] [cursor=pointer]:
+          - /url: /docs/agent-forking
+        - paragraph [ref=f1e30]: Tools & Function Calling
+        - link "Defining Tools" [ref=f1e31] [cursor=pointer]:
+          - /url: /docs/defining-tools
+        - link "Schema & Validation" [ref=f1e32] [cursor=pointer]:
+          - /url: /docs/schema-validation
+        - link "Dynamic Tools & Custom Resolution" [ref=f1e33] [cursor=pointer]:
+          - /url: /docs/dynamic-tools
+        - link "Runtime Tool Management" [ref=f1e34] [cursor=pointer]:
+          - /url: /docs/runtime-tool-management
+        - paragraph [ref=f1e35]: Event System & Lifecycle
+        - link "Event System Overview" [ref=f1e36] [cursor=pointer]:
+          - /url: /docs/event-system-overview
+        - link "User Message Lifecycle" [ref=f1e37] [cursor=pointer]:
+          - /url: /docs/user-message-lifecycle
+        - link "Step Lifecycle" [ref=f1e38] [cursor=pointer]:
+          - /url: /docs/step-lifecycle
+        - link "Model Invocation Lifecycle" [ref=f1e39] [cursor=pointer]:
+          - /url: /docs/model-invocation-lifecycle
+        - link "Tool Call Lifecycle" [ref=f1e40] [cursor=pointer]:
+          - /url: /docs/tool-call-lifecycle
+        - link "State Watchers" [ref=f1e41] [cursor=pointer]:
+          - /url: /docs/state-watchers
+        - paragraph [ref=f1e42]: Agent Context
+        - link "Understanding AgentContext" [ref=f1e43] [cursor=pointer]:
+          - /url: /docs/understanding-context
+        - link "Dynamic & Scoped Instructions" [ref=f1e44] [cursor=pointer]:
+          - /url: /docs/dynamic-instructions
+        - link "Message History Manipulation" [ref=f1e45] [cursor=pointer]:
+          - /url: /docs/message-history
+        - link "Runtime Agent Mutation" [ref=f1e46] [cursor=pointer]:
+          - /url: /docs/runtime-mutation
+        - paragraph [ref=f1e47]: State & Stores
+        - link "Store Primitives" [ref=f1e48] [cursor=pointer]:
+          - /url: /docs/store-primitives
+        - link "Local Stores" [ref=f1e49] [cursor=pointer]:
+          - /url: /docs/local-stores
+        - link "Global Stores" [ref=f1e50] [cursor=pointer]:
+          - /url: /docs/global-stores
+        - link "Scoped Stores" [ref=f1e51] [cursor=pointer]:
+          - /url: /docs/scoped-stores
+        - link "Message Metadata Typing" [ref=f1e52] [cursor=pointer]:
+          - /url: /docs/metadata-typing
+        - paragraph [ref=f1e53]: Hooks & Extensibility
+        - link "Hook System Overview" [ref=f1e54] [cursor=pointer]:
+          - /url: /docs/hook-system-overview
+        - link "Creating Custom Hooks" [ref=f1e55] [cursor=pointer]:
+          - /url: /docs/creating-custom-hooks
+        - link "Managing Hooks on Agents" [ref=f1e56] [cursor=pointer]:
+          - /url: /docs/managing-hooks
+        - link "Hook Scoping & Lifecycle" [ref=f1e57] [cursor=pointer]:
+          - /url: /docs/hook-scoping
+        - paragraph [ref=f1e58]: Built-in Hook Presets
+        - link "MCP Client Preset" [ref=f1e59] [cursor=pointer]:
+          - /url: /docs/mcp-client-preset
+        - link "Orchestration Preset" [ref=f1e60] [cursor=pointer]:
+          - /url: /docs/orchestration-preset
+        - link "Guardrail Preset" [ref=f1e61] [cursor=pointer]:
+          - /url: /docs/guardrail-preset
+        - link "Human-In-The-Loop Preset" [ref=f1e62] [cursor=pointer]:
+          - /url: /docs/hitl-preset
+        - paragraph [ref=f1e63]: Error Handling & Troubleshooting
+        - link "Error Hierarchy & Exceptions" [ref=f1e64] [cursor=pointer]:
+          - /url: /docs/error-hierarchy
+        - link "Tool Call Failures & Recovery" [ref=f1e65] [cursor=pointer]:
+          - /url: /docs/tool-failures
+        - link "Debugging & Tracing" [ref=f1e66] [cursor=pointer]:
+          - /url: /docs/debugging-tracing
+        - paragraph [ref=f1e67]: TypeScript & Generics Guide
+        - link "Generic Parameters Reference" [ref=f1e68] [cursor=pointer]:
+          - /url: /docs/generic-parameters
+        - link "Tool Parameter & Return Types" [ref=f1e69] [cursor=pointer]:
+          - /url: /docs/tool-types
+        - link "Typing Hooks & Contexts" [ref=f1e70] [cursor=pointer]:
+          - /url: /docs/typing-hooks
+        - paragraph [ref=f1e71]: API Reference
+        - link "Fragola Class" [ref=f1e72] [cursor=pointer]:
+          - /url: /docs/fragola-class
+        - link "Agent Class" [ref=f1e73] [cursor=pointer]:
+          - /url: /docs/agent-class
+        - link "AgentContext Class" [ref=f1e74] [cursor=pointer]:
+          - /url: /docs/agent-context-class
+        - link "Events & Payloads" [ref=f1e75] [cursor=pointer]:
+          - /url: /docs/events-payloads
+        - link "Store & Utility Functions" [ref=f1e76] [cursor=pointer]:
+          - /url: /docs/store-utilities
+      - generic [ref=f1e78]:
+        - link "GitHub" [ref=f1e79] [cursor=pointer]:
+          - /url: https://github.com/fuma-nama/fumadocs
+        - button "Toggle Theme" [ref=f1e82]
+    - generic:
+      - button "Collapse Sidebar"
+      - button "Open Search"
+    - banner [ref=f1e92]:
+      - button "0 Overview & Philosophy" [ref=f1e93]:
+        - progressbar [ref=f1e94]
+        - generic [ref=f1e97]: Overview & Philosophy
+    - main [ref=f1e101]:
+      - article [ref=f1e102]:
+        - heading "Overview & Philosophy" [level=1] [ref=f1e103]
+        - generic [ref=f1e104]:
+          - button "Copy Markdown" [ref=f1e105]
+          - button "Open" [ref=f1e109]
+        - generic [ref=f1e112]:
+          - heading [level=1] [ref=f1e113]:
+            - link "Overview & Philosophy" [ref=f1e114] [cursor=pointer]:
+              - /url: "#overview--philosophy"
+            - button "Copy Anchor Link" [ref=f1e115]
+          - heading [level=2] [ref=f1e119]:
+            - link "Introduction to Fragola" [ref=f1e120] [cursor=pointer]:
+              - /url: "#introduction-to-fragola"
+            - button "Copy Anchor Link" [ref=f1e121]
+          - paragraph [ref=f1e125]: Fragola is an event-driven SDK for building AI-first software and custom agents. Unlike heavy orchestration frameworks that force you into fixed directed acyclic graphs (DAGs) or black-box workflows, Fragola focuses on predictable state, explicit lifecycles, and a minimal set of powerful primitives.
+          - paragraph [ref=f1e126]: Whether you are building a simple chat interface, a complex multi-agent orchestration system, or integrating external tools via the Model Context Protocol (MCP), Fragola provides the control and visibility you need to build production-ready AI applications.
+          - heading [level=2] [ref=f1e127]:
+            - link "Why Fragola?" [ref=f1e128] [cursor=pointer]:
+              - /url: "#why-fragola"
+            - button "Copy Anchor Link" [ref=f1e129]
+          - paragraph [ref=f1e133]: "When building AI applications, developers often face a trade-off between inflexible high-level frameworks and boilerplate-heavy low-level API wrappers. Fragola bridges this gap with three core principles:"
+          - list [ref=f1e134]:
+            - listitem [ref=f1e135]:
+              - strong [ref=f1e136]: "Predictable State:"
+              - text: State is explicitly managed and mutable only through well-defined events. You always know exactly what is in the conversation history and what the agent is currently doing (
+              - code [ref=f1e137]: idle
+              - text: ","
+              - code [ref=f1e138]: generating
+              - text: ", or"
+              - code [ref=f1e139]: waiting
+              - text: ).
+            - listitem [ref=f1e140]:
+              - strong [ref=f1e141]: "Minimal Building Blocks:"
+              - text: "Instead of abstract \"chains\" or \"graphs\", Fragola gives you concrete pieces: Agents, Tools, Stores, Events, and Hooks. These components snap together cleanly, giving you ultimate flexibility to build the architecture your product actually needs."
+            - listitem [ref=f1e142]:
+              - strong [ref=f1e143]: "Extensible Hooks:"
+              - text: Need to add logging, safety guardrails, human-in-the-loop approvals, or connect to an MCP server? You don't need a massive framework plugin. Fragola's hook system allows you to package standard event listeners and scoped stores into reusable, pluggable behaviors.
+          - heading [level=2] [ref=f1e144]:
+            - link "Architecture at a Glance" [ref=f1e145] [cursor=pointer]:
+              - /url: "#architecture-at-a-glance"
+            - button "Copy Anchor Link" [ref=f1e146]
+          - paragraph [ref=f1e150]: "The Fragola SDK is built around a few central concepts working in harmony:"
+          - list [ref=f1e151]:
+            - listitem [ref=f1e152]:
+              - strong [ref=f1e153]: "Agent:"
+              - text: The core loop. It maintains state (messages, step count, execution status) and handles the turn-by-turn interactions with the LLM.
+            - listitem [ref=f1e154]:
+              - strong [ref=f1e155]: "Events:"
+              - text: Explicit lifecycle interceptors (e.g.,
+              - code [ref=f1e156]: onUserMessage
+              - text: ","
+              - code [ref=f1e157]: onBeforeModelInvocation
+              - text: ","
+              - code [ref=f1e158]: onToolCall
+              - text: ). Events drive the agent's workflow and allow you to pause, mutate, or observe operations at any stage.
+            - listitem [ref=f1e159]:
+              - strong [ref=f1e160]: "Context:"
+              - text: The
+              - code [ref=f1e161]: AgentContext
+              - text: exposes the agent's state, tools, and scoped instructions to handlers, tools, and hooks, allowing them to dynamically interact with the execution flow.
+            - listitem [ref=f1e162]:
+              - strong [ref=f1e163]: "Stores:"
+              - text: Reactive state containers (
+              - code [ref=f1e164]: global
+              - text: ","
+              - code [ref=f1e165]: local
+              - text: ", or"
+              - code [ref=f1e166]: scoped
+              - text: ). Stores track data outside of the LLM context (like retrieved documents, user sessions, or metrics) and let you watch for changes reactively.
+            - listitem [ref=f1e167]:
+              - strong [ref=f1e168]: "Hooks:"
+              - text: Functions that receive an agent and attach behaviors. Fragola provides powerful built-in hook presets (like
+              - code [ref=f1e169]: mcp-client
+              - text: ","
+              - code [ref=f1e170]: guardrail
+              - text: ", and"
+              - code [ref=f1e171]: orchestration
+              - text: ), but creating your own is as simple as registering an event listener.
+        - link [ref=f1e173] [cursor=pointer]:
+          - /url: /docs/installation
+          - paragraph [ref=f1e177]: Installation & Setup
+          - paragraph [ref=f1e178]: Next Page
+  - button "Open Next.js Dev Tools" [ref=f1e184] [cursor=pointer]

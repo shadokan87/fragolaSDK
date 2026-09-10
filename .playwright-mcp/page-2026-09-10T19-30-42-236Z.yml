@@ -1,0 +1,26 @@
+- generic [active] [ref=f2e1]:
+  - main [ref=f2e2]:
+    - navigation [ref=f2e4]:
+      - generic [ref=f2e5]:
+        - link "My App" [ref=f2e6] [cursor=pointer]:
+          - /url: /
+        - list
+        - generic [ref=f2e7]:
+          - button "Search ⌘ K" [ref=f2e8]:
+            - text: Search
+            - generic [ref=f2e12]:
+              - generic [ref=f2e13]: ⌘
+              - generic [ref=f2e14]: K
+          - button "Toggle Theme" [ref=f2e15]
+          - list [ref=f2e24]:
+            - listitem [ref=f2e25]:
+              - link "GitHub" [ref=f2e26] [cursor=pointer]:
+                - /url: https://github.com/fuma-nama/fumadocs
+    - generic [ref=f2e29]:
+      - heading "Hello World" [level=1] [ref=f2e30]
+      - paragraph [ref=f2e31]:
+        - text: You can open
+        - link "/docs" [ref=f2e32] [cursor=pointer]:
+          - /url: /docs
+        - text: and see the documentation.
+  - button "Open Next.js Dev Tools" [ref=f2e38] [cursor=pointer]

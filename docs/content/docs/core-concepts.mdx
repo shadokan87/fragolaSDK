@@ -1,0 +1,49 @@
+---
+title: Core Concepts
+---
+# Core Concepts
+
+To build effectively with Fragola, it's helpful to understand the primary concepts and primitives that power the SDK.
+
+## Agents & Execution Turns
+An **Agent** is the central loop. It holds its own isolated conversation history (`messages`), an execution status, and configuration (instructions, tools, model settings). 
+
+When you trigger an agent via `agent.userMessage()` or `agent.step()`, it enters an **Execution Turn**. During this turn, the agent will:
+1. Pass the prompt and tools to the LLM.
+2. Intercept and resolve any requested tool calls automatically.
+3. Keep looping (up to a `maxStep` limit) until the LLM provides a final text response.
+4. Return to an `idle` state and yield the updated state.
+
+## Events & Lifecycle Pipeline
+Fragola is **Event-Driven**. Everything that happens inside the execution turn emits an event. 
+Instead of fighting the framework, you can hook into explicit stages of the lifecycle:
+
+- Modify the user prompt before the turn starts (`onUserMessage`).
+- Change model settings dynamically before an API call (`onBeforeModelInvocation`).
+- Stream data to a UI in real-time (`onModelInvocation`, `onAiMessage`).
+- Rewrite tool parameters or handle tool errors gracefully (`onBeforeToolCall`, `onAfterToolCall`).
+
+Events allow you to observe, mutate, or short-circuit (`stop()`) the agent's behavior cleanly.
+
+## Agent Context & Instructions
+Every agent exposes an **`AgentContext`** (`agent.context`). This context is passed into tool handlers and event callbacks.
+
+The context provides safe access to:
+- Read or manipulate the agent's message history.
+- Manage dynamically scoped instructions (e.g., mixing a core persona with temporary rules).
+- Update the list of available tools mid-conversation.
+- Access local or global stores.
+
+## Stores & State Management
+Often, agents need to remember data that doesn't belong strictly inside the LLM prompt, like user IDs, retrieved database rows, or internal counters. 
+
+**Stores** (`createStore(...)`) are reactive state containers. 
+- You can attach a Store globally (shared across all agents) or locally (scoped to one agent).
+- Stores support **Scopes** (formerly namespaces), allowing you to partition data (e.g., `context.getStore("metrics")`).
+- Because they are reactive, you can subscribe to store changes to trigger side effects in your app.
+
+## Hooks & Plugins
+**Hooks** (`Hook(...)`) are Fragola's primary mechanism for composability and reuse. 
+A hook is simply a function that receives an agent and attaches a mix of event listeners, stores, and tools to it.
+
+If you find yourself writing the same safety checks, API logging, or tool-registration logic repeatedly, you package that logic into a Hook. When you call `agent.use(myHook)`, the agent absorbs all those behaviors. You can also dynamically remove hooks when they are no longer needed.

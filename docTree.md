@@ -5,24 +5,24 @@ This document outlines the structure and sections for the left-hand navigation s
 ---
 
 ## 1. Introduction
-- [] **Overview & Philosophy**
-  - [] Introduction to Fragola (Event-driven AI agent SDK)
-  - [] Why Fragola? (Design philosophy, Predictable state, minimal building blocks, extensible hooks)
-
-- [ ] **Installation & Setup**
-  - [ ] Package installation (`@fragola-ai/agent`)
-  - [ ] Client convufiguration (OpenAI API key, baseURL, custom SDK instances)
-  - [ ] Environment requirements & TypeScript configuration
-- [ ] **Quickstart**
-  - [ ] Creating your first agent
-  - [ ] Sending user messages (`userMessage`)
-  - [ ] Inspecting state & conversation history
-- [ ] **Core Concepts**
-  - [ ] Agents & Execution Turns
-  - [ ] Events & Lifecycle Pipeline
-  - [ ] Agent Context & Instructions
-  - [ ] Stores & State Management
-  - [ ] Hooks & Plugins
+- [x] **Overview & Philosophy**
+  - [x] Introduction to Fragola (Event-driven AI agent SDK)
+  - [x] Why Fragola? (Predictable state, minimal building blocks, extensible hooks)
+  - [x] Architecture at a Glance
+- [x] **Installation & Setup**
+  - [x] Package installation (`@fragola-ai/agent`)
+  - [x] Client configuration (OpenAI API key, baseURL, custom SDK instances)
+  - [x] Environment requirements & TypeScript configuration
+- [x] **Quickstart**
+  - [x] Creating your first agent
+  - [x] Sending user messages (`userMessage`)
+  - [x] Inspecting state & conversation history
+- [x] **Core Concepts**
+  - [x] Agents & Execution Turns
+  - [x] Events & Lifecycle Pipeline
+  - [x] Agent Context & Instructions
+  - [x] Stores & State Management
+  - [x] Hooks & Plugins
 
 ---
 

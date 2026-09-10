@@ -1,0 +1,5 @@
+[    1312ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/05lm_next_dist_1vm3ojh._.js:776
+[    1537ms] [LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/05lm_next_dist_1vm3ojh._.js:776
+[    1592ms] [WARNING] %c%s%c [33m[1m⚠[22m[39m metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px  Server   @ http://localhost:3000/_next/static/chunks/05lm_next_dist_1vm3ojh._.js:776
+[    1970ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/05lm_next_dist_1vm3ojh._.js:776
+[    1999ms] [LOG] [Fast Refresh] done in 305ms @ http://localhost:3000/_next/static/chunks/05lm_next_dist_1vm3ojh._.js:776

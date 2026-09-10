@@ -1,13 +1,25 @@
 ---
-title: Hello World
-description: Your first document
+title: Overview & Philosophy
 ---
+# Overview & Philosophy
 
-Welcome to the docs! You can start writing documents in `/content/docs`.
+## Introduction to Fragola
+Fragola is an event-driven SDK for building AI-first software and custom agents. Unlike heavy orchestration frameworks that force you into fixed directed acyclic graphs (DAGs) or black-box workflows, Fragola focuses on predictable state, explicit lifecycles, and a minimal set of powerful primitives.
 
-## What is Next?
+Whether you are building a simple chat interface, a complex multi-agent orchestration system, or integrating external tools via the Model Context Protocol (MCP), Fragola provides the control and visibility you need to build production-ready AI applications.
 
-<Cards>
-  <Card title="Learn more about Next.js" href="https://nextjs.org/docs" />
-  <Card title="Learn more about Fumadocs" href="https://fumadocs.dev" />
-</Cards>
+## Why Fragola?
+When building AI applications, developers often face a trade-off between inflexible high-level frameworks and boilerplate-heavy low-level API wrappers. Fragola bridges this gap with three core principles:
+
+- **Predictable State:** State is explicitly managed and mutable only through well-defined events. You always know exactly what is in the conversation history and what the agent is currently doing (`idle`, `generating`, or `waiting`).
+- **Minimal Building Blocks:** Instead of abstract "chains" or "graphs", Fragola gives you concrete pieces: Agents, Tools, Stores, Events, and Hooks. These components snap together cleanly, giving you ultimate flexibility to build the architecture your product actually needs.
+- **Extensible Hooks:** Need to add logging, safety guardrails, human-in-the-loop approvals, or connect to an MCP server? You don't need a massive framework plugin. Fragola's hook system allows you to package standard event listeners and scoped stores into reusable, pluggable behaviors.
+
+## Architecture at a Glance
+The Fragola SDK is built around a few central concepts working in harmony:
+
+1. **Agent:** The core loop. It maintains state (messages, step count, execution status) and handles the turn-by-turn interactions with the LLM.
+2. **Events:** Explicit lifecycle interceptors (e.g., `onUserMessage`, `onBeforeModelInvocation`, `onToolCall`). Events drive the agent's workflow and allow you to pause, mutate, or observe operations at any stage.
+3. **Context:** The `AgentContext` exposes the agent's state, tools, and scoped instructions to handlers, tools, and hooks, allowing them to dynamically interact with the execution flow.
+4. **Stores:** Reactive state containers (`global`, `local`, or `scoped`). Stores track data outside of the LLM context (like retrieved documents, user sessions, or metrics) and let you watch for changes reactively.
+5. **Hooks:** Functions that receive an agent and attach behaviors. Fragola provides powerful built-in hook presets (like `mcp-client`, `guardrail`, and `orchestration`), but creating your own is as simple as registering an event listener.

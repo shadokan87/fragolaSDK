@@ -1,0 +1,90 @@
+---
+title: Installation & Setup
+---
+# Installation & Setup
+
+Get up and running with the Fragola SDK in your project.
+
+## Package Installation
+Fragola is available on npm. You can install it using your preferred package manager.
+
+```bash
+# npm
+npm install @fragola-ai/agent
+
+# yarn
+yarn add @fragola-ai/agent
+
+# pnpm
+pnpm add @fragola-ai/agent
+
+# bun
+bun add @fragola-ai/agent
+```
+
+## Client Configuration
+To use Fragola, you need to create an instance of the `Fragola` class. This instance manages the underlying OpenAI SDK and provides the shared global context for all agents created from it.
+
+### Basic Setup (OpenAI API Key)
+By default, the underlying OpenAI client looks for the `OPENAI_API_KEY` environment variable.
+
+```typescript
+import { Fragola } from "@fragola-ai/agent";
+
+// Create a Fragola instance
+const fragola = new Fragola({
+    apiKey: process.env.OPENAI_API_KEY,
+});
+```
+
+### Advanced Setup (Custom Base URL, Portkey, Custom SDK)
+If you are using a proxy, an OpenAI-compatible provider (like LocalAI or vLLM), or a gateway like Portkey, you can pass standard `OpenaiClientOptions`:
+
+```typescript
+import { Fragola } from "@fragola-ai/agent";
+
+const fragola = new Fragola({
+    apiKey: process.env.OPENAI_API_KEY,
+    baseURL: "https://api.portkey.ai/v1", // Example: Using Portkey
+    defaultHeaders: {
+        "x-portkey-provider": "openai"
+    }
+});
+```
+
+If you need complete control over the SDK initialization, you can provide a custom SDK constructor:
+
+```typescript
+import OpenAI from "openai";
+import { Fragola } from "@fragola-ai/agent";
+
+class CustomOpenAI extends OpenAI {
+    // Custom interceptors or behaviors
+}
+
+const fragola = new Fragola(
+    { apiKey: "sk-..." }, 
+    undefined, // globalStore
+    CustomOpenAI // Custom SDK constructor
+);
+```
+
+## Environment Requirements & TypeScript Configuration
+Fragola relies on modern JavaScript features. Ensure your environment meets these requirements:
+
+- **Node.js**: v18.0.0 or later (or Bun / Deno).
+- **TypeScript**: If using TypeScript, version 5.0 or later is recommended.
+
+In your `tsconfig.json`, we recommend the following settings for the best experience (especially for strict type-checking of `Zod` schemas and metadata):
+
+```json
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "skipLibCheck": true
+  }
+}
+```

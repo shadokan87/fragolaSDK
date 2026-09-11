@@ -1,6 +1,39 @@
 ---
 title: Global Stores
 ---
-# Global Stores
 
-*Coming soon.*
+A Global Store is a state container that is attached to the parent `Fragola` instance. Any agent created by that instance automatically shares the same global store.
+
+This is highly effective for sharing resources like database connection pools, global application configurations, or shared metrics counters across multiple agents.
+
+## Attaching a Global Store
+You pass a store to the `Fragola` constructor as the second argument.
+
+```typescript
+import { Fragola, createStore } from "@fragola-ai/agent";
+
+const appConfigStore = createStore({ apiLimit: 100, maintenanceMode: false });
+
+// Pass the global store during initialization
+const fragola = new Fragola(
+    { model: "__DEFAULT_MODEL__" },
+    appConfigStore
+);
+
+// Both agents share `appConfigStore`
+const agentA = fragola.agent({ name: "AgentA" });
+const agentB = fragola.agent({ name: "AgentB" });
+```
+
+## Accessing the Global Store
+Inside tools or events, you can access the global store through `context.instance.store`.
+
+```typescript
+agentA.onBeforeModelInvocation(({ context }) => {
+    const config = context.instance.store?.value;
+    
+    if (config?.maintenanceMode) {
+        context.stopSync();
+    }
+});
+```

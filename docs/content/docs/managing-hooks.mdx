@@ -1,6 +1,50 @@
 ---
 title: Managing Hooks on Agents
 ---
-# Managing Hooks on Agents
 
-*Coming soon.*
+Fragola provides a set of dedicated methods on the `Agent` class to safely manage the lifecycle of your hooks.
+
+## `agent.use()`
+Applies a hook to the agent. It takes the hook function and a unique string identifier (`name`). Providing a name is strongly recommended so you can reference or remove the hook later.
+
+```typescript
+agent.use(myCustomHook, "my-hook-id");
+```
+
+## `agent.hasHook()`
+Checks if a hook with the given identifier is currently active on the agent.
+
+```typescript
+if (!agent.hasHook("moderator")) {
+    agent.use(moderatorHook, "moderator");
+}
+```
+
+## `agent.removeHook()`
+Safely detaches a hook from the agent. This triggers the hook's internal cleanup/disposal function (if one was provided) and immediately removes any tracked event listeners associated with it.
+
+```typescript
+agent.removeHook("my-hook-id");
+```
+
+## `agent.dispose()`
+Tears down the agent entirely. This iterates through *all* registered hooks on the agent, running their cleanup functions and disconnecting them, effectively returning the agent to its base state.
+
+```typescript
+await agent.dispose();
+```
+
+## `agent.init()`
+Because `agent.use()` can apply hooks that do asynchronous setup (like connecting to an external database or an MCP server), you might need to ensure all hooks have finished their setup before calling the LLM. 
+
+`agent.init()` returns a Promise that resolves when all currently registered hooks have completed their initialization logic.
+
+```typescript
+agent.use(asyncDatabaseHook, "db");
+
+// Wait for the async hook to finish establishing connections
+await agent.init();
+
+// Safe to start talking
+await agent.userMessage({ content: "Hello" });
+```

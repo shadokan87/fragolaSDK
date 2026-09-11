@@ -1,6 +1,661 @@
 ---
 title: Agent Class
 ---
-# Agent Class
 
-*Coming soon.*
+# `Agent` API Reference
+
+## Constructor [#agent-constructor]
+
+```typescript
+constructor(
+        private opts: CreateAgentOptions<TStore>,
+        private globalStore: Store<TGlobalStore> | undefined = undefined,
+        openai: OpenAI,
+        forkOf: string | undefined = undefined,
+        instance: Fragola,
+        state = Agent.defaultAgentState as AgentState<TMetaData>,
+    )
+```
+
+## Properties [#agent-properties]
+
+### defaultAgentState [#agent-defaultagentstate]
+```typescript
+public static defaultAgentState: AgentState = {
+        messages: [],
+        stepCount: 0,
+        status: "idle"
+    }
+```
+
+### forkOf [#agent-forkof]
+Returns the parent agent id when this agent was created with fork().
+
+```typescript
+get forkOf()
+```
+
+### context [#agent-context]
+```typescript
+public context = (() => {
+        const _this = this;
+        return new class extends AgentContext<TMetaData, TGlobalStore, TStore> {
+            get state() { return _this.state; }
+            get options() { return _this.options; }
+            get raw() {
+                return {
+                    updateMessages: (...args: Parameters<typeof _this.updateMessages>) => _this.updateMessages(...args)
+                };
+            }
+            get store() { return _this.opts.store as Store<TStore>; }
+            get messagesParser() { return messagesUtils<TMetaData>(() => _this.state.messages); }
+            get instance() { return _this.#instance }
+            getStore<T extends StoreLike<any>>(namespace?: string): Store<T> | undefined {
+                let context = namespace ? _this.#namespaceStore.get(namespace) : _this.options.store;
+                if (context)
+                    return context as unknown as Store<T>;
+                return undefined;
+            }
+            addStore(store: Store<any>): void {
+                _this.addStore(store);
+            }
+            removeStore(namespace: string): void {
+                _this.removeStore(namespace);
+            }
+            get systemPrompt(): string {
+                return _this.mergedInstructions;
+            }
+            setInstructions(instructions: string, scope?: string): void {
+                // If a scope is provided, context scoped instructions, otherwise update the default instructions
+                if (scope) {
+                    if (scope == '*')
+                        throw new BadUsage("'*' is a reserved instructions scope and cannot be used.");
+                    _this.instructionScopes.set(scope, instructions);
+                } else {
+                    _this.opts.instructions = instructions;
+                }
+                // Refresh cached merged instructions
+                _this.updateMergedInstructionsCache();
+            }
+            instructions(scope?: string): string | undefined {
+                if (scope) {
+                    if (scope == '*')
+                        return _this.mergedInstructions;
+                    return _this.instructionScopes.get(scope);
+                }
+                return _this.opts.instructions ?? undefined;
+            }
+            removeInstructions(scope: string): boolean {
+                if (scope == '*')
+                    throw new BadUsage("'*' is a reserved instructions scope and cannot be removed.");
+                const existed = _this.instructionScopes.delete(scope);
+                if (existed)
+                    _this.updateMergedInstructionsCache();
+                return existed;
+            }
+            setOptions(options: SetOptionsParams): void {
+                _this.setOptions(options);
+            }
+            async stop(): Promise<{ [STOP]: true }> {
+                await _this.stop();
+                return {
+                    [STOP]: true
+                }
+            }
+            stopSync(): { [STOP]: true } {
+                _this.stopSync();
+                return {
+                    [STOP]: true
+                }
+            }
+            updateTools(callback: (prev: Tool[]) => Tool[]): void {
+
+                const updatedTools = callback(_this.opts.tools ?? []);
+                _this.opts.tools = updatedTools;
+                _this.toolsToModelSettingsTools();
+            }
+        }
+    })()
+```
+
+### [FORK_FRIEND] [#agent-fork-friend]
+```typescript
+[FORK_FRIEND] = {
+        setRegisteredEvents: this.setRegisteredEvents,
+        getRegisteredEvents: () => this.registeredEvents
+    }
+```
+
+### id [#agent-id]
+Returns the unique id of this agent instance.
+
+```typescript
+get id()
+```
+
+### state [#agent-state]
+Returns the current in-memory state for this agent.
+
+```typescript
+get state()
+```
+
+### options [#agent-options]
+Returns the current configuration options for this agent.
+
+```typescript
+get options()
+```
+
+## Methods [#agent-methods]
+
+### fork [#agent-fork]
+Creates a new agent from the current one.
+
+The fork gets a new id, copies the current options, state, hooks, and registered
+events, and sets `forkOf` to this agent's id. The OpenAI client and global context
+are shared. If this agent has a local context, the fork receives a new context
+instance seeded with the same value.
+
+**Returns:** `A new agent initialized from the current agent.`
+
+```typescript
+fork()
+```
+
+### setOptions [#agent-setoptions]
+Updates the agent's options.
+**Note**: Can only be called when agent status is "idle". 
+The `name` and `messages` properties are omitted.
+
+- `options`: The new options to set, as a SetOptionsParams object.
+**Throws:** `BadUsage` When called while agent is not idle (generating or waiting).
+
+```typescript
+setOptions(options: SetOptionsParams)
+```
+
+### init [#agent-init]
+Waits for all pending hook setup to finish without executing a step.
+
+```typescript
+async init()
+```
+
+### step [#agent-step]
+Continues execution from the current message history for one or more steps.
+
+Use this when messages were seeded manually or when you want to continue an
+in-progress model/tool loop without appending a new user message first.
+
+- `stepParams`: Optional per-call limits and step overrides.
+**Returns:** `The updated agent state after execution completes.`
+
+**Example**
+
+```typescript
+```ts
+const agent = fragola.agent({
+  name: "assistant",
+  description: "Minimal assistant",
+  instructions: "You are a helpful assistant",
+  messages: [{ role: "user", content: "Say hello once." }],
+});
+
+await agent.step();
+```
+     
+```
+
+```typescript
+async step(stepParams?: StepParams)
+```
+
+### resetStepCount [#agent-resetstepcount]
+Resets the internal step counter to 0 without changing messages or status.
+
+```typescript
+resetStepCount()
+```
+
+### reset [#agent-reset]
+Resets the agent to an idle state and replaces its message history.
+
+- `params`: Optional replacement messages for the new state.
+**Throws:** `BadUsage` When called while the agent is not idle.
+
+```typescript
+reset(params: ResetParams = { messages: [] })
+```
+
+### stop [#agent-stop]
+Stops the current agent execution.
+This will abort any ongoing API calls and prevent further tool execution.
+
+```typescript
+async stop()
+```
+
+### stopSync [#agent-stopsync]
+Requests cancellation of the current run without awaiting completion.
+
+```typescript
+stopSync()
+```
+
+### json [#agent-json]
+Appends a user message, requests structured JSON output, and validates it against a Zod schema.
+
+- `query`: The user prompt, schema, and optional per-call step overrides.
+**Returns:** `The schema validation result together with the final agent state.`
+
+**Example**
+
+```typescript
+```ts
+const result = await agent.json({
+  content: "my name is Ada",
+  name: "extract_person",
+  schema,
+});
+
+if (result.success) {
+  console.log(result.data);
+}
+```
+     
+```
+
+```typescript
+async json<S extends ZodSchema = ZodSchema>(query: JsonQuery<S>): Promise<JsonResult<S, TMetaData>>
+```
+
+### userMessage [#agent-usermessage]
+Appends a user message to the messages and executes the agent for one or more steps.
+Parameters:
+- `query`: The user message and optional per-call step controls.
+               See `UserMessageQuery`
+
+**Returns:** `Promise<AgentState> - The updated agent state after processing the message and any model/tool steps.`
+**Example**
+
+```typescript
+// 1) Minimal text message
+await agent.userMessage({ content: "Say hello" });
+
+// 2) Multi-part content (text + image)
+await agent.userMessage({
+  content: [
+    { type: "text", text: "What's in this image?" },
+    { type: "image_url", image_url: { url: "https://example.com/cat.png" } }
+  ]
+});
+
+// 3) Limit the number of steps for this turn
+await agent.userMessage({
+  content: "Compute 2+2, then stop.",
+  step: { by: 1 } // will stop execution after 1 turn (1 llm response maximum)
+});
+
+// 4) Override model settings for this call (without changing agent defaults)
+await agent.userMessage({
+  content: "Answer concisely.",
+  step: { modelSettings: { temperature: 0 } }
+});
+     
+```
+
+```typescript
+async userMessage(query: UserMessageQuery<TMetaData>): Promise<AgentState>
+```
+
+### watch [#agent-watch]
+Register a state watcher for a given watch event id.
+Returns an unsubscribe function that removes the registered watcher.
+
+**Example**
+
+```typescript
+const off = agent.watch('state', ({ context }) => {
+  console.log('State updated:', context.state);
+});
+// later
+off();
+     
+```
+
+```typescript
+watch<TEventId extends AgentEventWatchId>(eventId: TEventId, callback: eventIdToCallback<TEventId, TMetaData, TGlobalStore, TStore>)
+```
+
+### watchState [#agent-watchstate]
+Register a handler that watches agent state updates.
+
+State watchers do not return a value and cannot intercept or mutate state.
+Use these for side-effects such as metrics, logging, or UI updates.
+
+**Example**
+
+```typescript
+agent.watchState(({ context }) => {
+  console.log('stepCount', context.state.stepCount);
+});
+     
+```
+
+```typescript
+watchState(callback: EventWatchState<TMetaData, TGlobalStore, TStore>)
+```
+
+### on [#agent-on]
+Register a handler for a given event id.
+Returns an unsubscribe function that removes the registered handler.
+
+**Example**
+
+```typescript
+// listen to userMessage events
+const off = agent.on('userMessage', (message, context) => {
+  // inspect or transform the message
+  return { ...message, content: message.content.trim() };
+});
+// later
+off();
+     
+```
+
+```typescript
+on<TEventId extends AgentOnEventId>(eventId: TEventId, callback: eventIdToCallback<TEventId, TMetaData, TGlobalStore, TStore>)
+```
+
+### onToolCall [#agent-ontoolcall]
+Register a tool result handler.
+
+This event runs after `before:toolCall` resolves the current config and after the tool
+handler (or an injected result) produces a payload. Each callback receives the current payload
+and may transform it before it is exposed to later `toolCall` handlers, `after:toolCall`,
+and the tool message appended to state.
+
+**Example**
+
+```typescript
+agent.onToolCall(({ result, params, tool }) => {
+  if (tool.name !== "getWeather") return result;
+  if (!result.success) return result;
+  return {
+    success: true,
+    data: {
+      requestedLocation: params.location,
+      data: result.data,
+    },
+  };
+});
+     
+```
+
+```typescript
+onToolCall(callback: EventToolCall<TMetaData, TGlobalStore, TStore>)
+```
+
+### onAiMessage [#agent-onaimessage]
+Register an assistant message handler.
+
+This event runs for streamed partial assistant messages and for the final assistant message.
+During streaming, `finish_reason` is `null` until the stream completes.
+
+Return a new assistant message to replace the current one.
+
+**Example**
+
+```typescript
+agent.onAiMessage(({ message, finish_reason }) => {
+  if (finish_reason === null) return message;
+  if (typeof message.content !== "string") return message;
+  return {
+    ...message,
+    content: message.content.trim() + "\n\n(checked)",
+  };
+});
+     
+```
+
+```typescript
+onAiMessage(callback: EventAiMessage<TMetaData, TGlobalStore, TStore>)
+```
+
+### onUserMessage [#agent-onusermessage]
+Register a user message event handler.
+
+Called when a user message is appended to the messages. Handlers may return a modified
+user message which will be used instead of the original.
+
+**Example**
+
+```typescript
+agent.onUserMessage(({ message, context }) => {
+  // enrich user message with metadata
+  return { ...message, content: message.content.trim() };
+});
+     
+```
+
+```typescript
+onUserMessage(callback: EventUserMessage<TMetaData, TGlobalStore, TStore>)
+```
+
+### onBeforeStep [#agent-onbeforestep]
+Register a before step event handler.
+
+Called before a step is executed.
+
+**Example**
+
+```typescript
+agent.onBeforeStep(({ options, context }) => {
+  console.log('Before step', options);
+});
+     
+```
+
+```typescript
+onBeforeStep(callback: EventBeforeStep<TMetaData, TGlobalStore, TStore>)
+```
+
+### onAfterStep [#agent-onafterstep]
+Register an after step event handler.
+
+Called after a step is executed.
+
+**Example**
+
+```typescript
+agent.onAfterStep(({ options, newMessages, stepsTaken, context }) => {
+  console.log('After step', options, newMessages, stepsTaken);
+});
+     
+```
+
+```typescript
+onAfterStep(callback: EventAfterStep<TMetaData, TGlobalStore, TStore>)
+```
+
+### onBeforeModelInvocation [#agent-onbeforemodelinvocation]
+Register a handler that can alter model invocation config before the request is made.
+
+The callback receives the current invocation config and may:
+- return `{ modelSettings, clientOptions }` to override the request settings
+- return `{ injectMessage }` to bypass the API call with a final assistant message
+- return `{ injectResponse }` to provide a custom SDK response
+
+**Example**
+
+```typescript
+agent.onBeforeModelInvocation(() => ({
+  injectMessage: { content: "hello from cache" },
+}));
+     
+```
+
+```typescript
+onBeforeModelInvocation(callback: EventBeforeModelInvocation<TMetaData, TGlobalStore, TStore>)
+```
+
+### onAfterModelInvocation [#agent-onaftermodelinvocation]
+Register an after model invocation event handler.
+
+Called after the model is invoked.
+
+**Example**
+
+```typescript
+agent.onAfterModelInvocation(({ message, context }) => {
+  console.log('After model invocation', message);
+});
+     
+```
+
+```typescript
+onAfterModelInvocation(callback: EventAfterModelInvocation<TMetaData, TGlobalStore, TStore>)
+```
+
+### onBeforeToolCall [#agent-onbeforetoolcall]
+Register a handler that can alter a tool call before execution.
+
+The callback receives `{ params }` before the tool handler runs. It may return a new
+`{ params }` object to rewrite validated arguments or `{ injectConfig }` with a full
+`ToolCallPayload` to bypass the handler entirely.
+
+**Example**
+
+```typescript
+agent.onBeforeToolCall(({ config, tool }) => {
+  if (tool.name !== "search" || !("params" in config)) return config;
+  return { params: { ...config.params, limit: 5 } };
+});
+     
+```
+
+```typescript
+onBeforeToolCall(callback: EventBeforeToolCall<TMetaData, TGlobalStore, TStore>)
+```
+
+### onAfterToolCall [#agent-onaftertoolcall]
+Register an after tool call event handler.
+
+Called after a tool payload is finalized.
+
+**Example**
+
+```typescript
+agent.onAfterToolCall(({ result, params, tool, context }) => {
+  console.log('After tool call', tool.name, result);
+});
+     
+```
+
+```typescript
+onAfterToolCall(callback: EventAfterToolCall<TMetaData, TGlobalStore, TStore>)
+```
+
+### onModelInvocation [#agent-onmodelinvocation]
+Register a model invocation handler.
+
+Use this event to inspect or transform data produced by the model before it is
+turned into the assistant message stored in state.
+
+Handle the payload as a discriminated union by checking `invocation.kind`:
+- `"chunk"`: streamed delta payload. The callback receives
+  `{ kind, chunk, primaryChoice, delta }` before that chunk is merged into the
+  partial assistant message.
+- `"completion"`: full assistant message payload. The callback receives
+  `{ kind: "completion", data }`, where `data` is the complete assistant message.
+
+For `kind === "chunk"`, you may:
+- return the raw chunk to replace it directly
+- return `{ injectChunk, merge?: true }` to update the whole chunk
+- return `{ injectPrimary, merge?: true }` to update `choices[0]`
+- return `{ injectDelta, merge?: true }` to update `choices[0].delta`
+- set `merge: false` on any `inject*` object to replace that target instead of merge-patching it
+
+For `kind === "completion"`, return an updated message object to replace it.
+
+**Example**
+
+```typescript
+agent.onModelInvocation((payload) => {
+  if (payload.kind === "completion") {
+    // payload.data.content can be in some cases an array
+    if (typeof payload.data.content !== "string") return payload.data;
+    return {
+      ...payload.data,
+      content: payload.data.content.trim(),
+    };
+  }
+
+  if (!payload.delta?.content) return payload.chunk;
+
+  return {
+    injectDelta: {
+      content: invocation.delta.content.replace("[DEBUG]", ""),
+    },
+  };
+});
+     
+```
+
+```typescript
+onModelInvocation(callback: EventModelInvocation<TMetaData, TGlobalStore, TStore>)
+```
+
+### use [#agent-use]
+Attach a hook to this agent.
+
+Hooks receive the agent instance and may register event handlers
+or otherwise augment the agent's behavior.
+
+- `hook`: A FragolaHook to attach to the agent
+**Returns:** `The agent instance (chainable)`
+
+**Example**
+
+```typescript
+```ts
+import { Hook } from "@fragola-ai/agent/hook";
+
+const loggingHook = Hook((agent) => {
+  agent.watchState(({ context }) => {
+    console.log(context.state.status);
+  });
+});
+
+const agent = fragola.agent({...}).use(loggingHook, "logging");
+// agent is returned so additional configuration/calls can be chained
+```
+     
+```
+
+```typescript
+use(hook: FragolaHook, name?: string)
+```
+
+### hasHook [#agent-hashook]
+Returns whether a named hook is registered. Pending hooks count as registered.
+
+```typescript
+hasHook(name: string): boolean
+```
+
+### removeHook [#agent-removehook]
+Removes a named hook, waits for pending setup to finish, and runs its disposer.
+
+```typescript
+async removeHook(name: string): Promise<void>
+```
+
+### dispose [#agent-dispose]
+Removes every hook currently registered on the agent.
+
+```typescript
+async dispose(): Promise<void>
+```
+

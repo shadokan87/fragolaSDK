@@ -1,0 +1,23 @@
+▲ Next.js 16.3.4 (Turbopack)
+✓ Running next.config took 18ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 20.0s
+  Running TypeScript ...
+app/docs/[[...slug]]/page.tsx(55,41): error TS18048: 'lastPageInSection' is possibly 'undefined'.
+app/docs/[[...slug]]/page.tsx(59,46): error TS2532: Object is possibly 'undefined'.
+app/docs/[[...slug]]/page.tsx(64,49): error TS18048: 'p' is possibly 'undefined'.
+app/docs/[[...slug]]/page.tsx(74,21): error TS18048: 'p' is possibly 'undefined'.
+app/docs/[[...slug]]/page.tsx(75,48): error TS2345: Argument of type 'Page<undefined, MacroDocEntry<{ title: string; description?: string | undefined; icon?: string | undefined; full?: boolean | undefined; _openapi?: Record<string, _JSONType> | undefined; }, { ...; }>> | undefined' is not assignable to parameter of type '{ slugs: string[]; locale?: string | undefined; }'.
+  Type 'undefined' is not assignable to type '{ slugs: string[]; locale?: string | undefined; }'.
+app/docs/[[...slug]]/page.tsx(78,21): error TS18048: 'p' is possibly 'undefined'.
+app/docs/[[...slug]]/page.tsx(78,38): error TS18048: 'p' is possibly 'undefined'.
+app/docs/[[...slug]]/page.tsx(81,29): error TS18048: 'p' is possibly 'undefined'.
+app/docs/[[...slug]]/page.tsx(82,52): error TS18048: 'p' is possibly 'undefined'.
+app/docs/[[...slug]]/page.tsx(88,126): error TS18048: 'p' is possibly 'undefined'.
+app/docs/[[...slug]]/page.tsx(88,128): error TS2339: Property 'file' does not exist on type 'Page<undefined, MacroDocEntry<{ title: string; description?: string | undefined; icon?: string | undefined; full?: boolean | undefined; _openapi?: Record<string, _JSONType> | undefined; }, { ...; }>>'.
+app/docs/[[...slug]]/page.tsx(88,142): error TS18048: 'p' is possibly 'undefined'.
+app/docs/[[...slug]]/page.tsx(95,49): error TS2345: Argument of type 'Page<undefined, MacroDocEntry<{ title: string; description?: string | undefined; icon?: string | undefined; full?: boolean | undefined; _openapi?: Record<string, _JSONType> | undefined; }, { ...; }>> | undefined' is not assignable to parameter of type 'Page<undefined, MacroDocEntry<{ title: string; description?: string | undefined; icon?: string | undefined; full?: boolean | undefined; _openapi?: Record<string, _JSONType> | undefined; }, { ...; }>> | Page<...>'.
+  Type 'undefined' is not assignable to type 'Page<undefined, MacroDocEntry<{ title: string; description?: string | undefined; icon?: string | undefined; full?: boolean | undefined; _openapi?: Record<string, _JSONType> | undefined; }, { ...; }>> | Page<...>'.
+app/test.ts(1,24): error TS2307: Cannot find module './lib/source' or its corresponding type declarations.
+app/test.ts(5,49): error TS7006: Parameter 'c' implicitly has an 'any' type.

@@ -1,6 +1,49 @@
 ---
-title: Message Metadata Typing
+title: Message Metadata & Typing
 ---
-# Message Metadata Typing
 
-*Coming soon.*
+Fragola extends the default OpenAI message types to allow attaching custom `meta` properties to messages. This is incredibly useful for UI rendering (e.g., hiding hidden steps, displaying tool call latencies) or for internal bookkeeping.
+
+## The `DefineMetaData` Generic
+To ensure type safety, Fragola requires you to define the exact shape of your metadata using the `DefineMetaData` utility type. It strictly categorizes metadata based on the message role: `user`, `ai`, or `tool`.
+
+```typescript
+import type { DefineMetaData } from "@fragola-ai/agent";
+
+// Define custom shapes for each role
+type MyMetaData = DefineMetaData<{
+    user: { source: "web" | "sms" };
+    ai: { confidenceScore: number; tokensUsed: number };
+    tool: { latencyMs: number };
+}>;
+
+// Apply it when creating an agent
+const agent = fragola.agent<MyMetaData>({
+    name: "TypedAgent"
+});
+```
+
+Now, whenever you interact with `context.state.messages` or fire an event, TypeScript will enforce these metadata structures!
+
+```typescript
+agent.onAiMessage(({ message }) => {
+    // Strongly typed based on `MyMetaData["ai"]`!
+    message.meta = { 
+        confidenceScore: 0.95, 
+        tokensUsed: 120 
+    };
+    return message;
+});
+```
+
+## Stripping Metadata
+OpenAI's API does not understand the `meta` field. If you send a message with `meta` attached, the OpenAI endpoint will return a 400 Bad Request.
+
+Fragola handles this automatically under the hood: when an execution turn initiates, it uses the `stripMessagesMeta` helper to cleanly remove all custom metadata before transmitting the payload to the LLM. You never have to manually strip metadata from the conversation history.
+
+```typescript
+import { stripMeta } from "@fragola-ai/agent";
+
+const rawMsg = { role: "user", content: "Hi", meta: { source: "web" } };
+const cleaned = stripMeta(rawMsg); // { role: "user", content: "Hi" }
+```

@@ -1,6 +1,18 @@
 ---
 title: Hook System Overview
 ---
-# Hook System Overview
 
-*Coming soon.*
+In Fragola, a **Hook** is the primary unit of extensibility. Because the core SDK is kept deliberately lean, complex features (like routing, moderation, or remote protocol execution) are packaged as Hooks rather than bloated base classes.
+
+## What is a Hook?
+A hook is simply a function that takes an `Agent` instance as an argument. Inside the function, you use the standard SDK primitives to mutate the agent:
+- Attach `on*` event listeners.
+- Add scoped `Stores` for feature-specific state.
+- Register new `Tools` to the agent.
+
+By bundling these together, a hook provides a plug-and-play capability. You use `agent.use(myHook, "hook-id")` to apply the capability, and `agent.removeHook("hook-id")` to tear it down.
+
+## Why use Hooks?
+1. **Reusability**: Write a logging system or a safety guardrail once, and apply it to dozens of distinct agents.
+2. **Encapsulation**: Hooks keep agent configuration clean. The logic for connecting to a Model Context Protocol (MCP) server involves event rewriting, dynamic tool injection, and custom state watchers. By wrapping it in a hook, the end-user only writes one line of code.
+3. **Dynamic Compositions**: Because hooks can be added and removed at runtime, agents can gain or lose superpowers dynamically as they traverse different parts of your application architecture.

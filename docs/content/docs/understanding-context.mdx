@@ -1,6 +1,45 @@
 ---
 title: Understanding AgentContext
 ---
-# Understanding AgentContext
 
-*Coming soon.*
+The `AgentContext` object (`agent.context`) is the connective tissue of Fragola. It is passed into every event listener and every tool handler, giving you safe, consistent access to the agent's internal state.
+
+## What is in the Context?
+The `AgentContext` exposes several key properties:
+
+- `context.state`: Read-only access to the agent's current state (`messages`, `stepCount`, `status`).
+- `context.options`: Read-only access to the agent's configured options (e.g., its name, description, and available tools).
+- `context.store`: The agent's default local store.
+- `context.instance`: A reference back to the parent `Fragola` SDK instance that created the agent.
+
+## Access in Event Listeners
+Every lifecycle event (`onUserMessage`, `onBeforeToolCall`, etc.) receives the `context` as part of its payload. This allows you to write listeners that react conditionally based on the agent's state or options.
+
+```typescript
+agent.onBeforeModelInvocation(({ config, context }) => {
+    // Check the agent's current state via context
+    if (context.state.stepCount > 3) {
+        console.log(`Agent ${context.options.name} is taking a long time...`);
+    }
+    return config;
+});
+```
+
+## Access in Tool Handlers
+The true power of the context shines in tool handlers. Tools are often isolated functions, but with Fragola, they can reach back into the agent to read history or modify state.
+
+```typescript
+import { tool } from "@fragola-ai/agent";
+import { z } from "zod";
+
+const myTool = tool({
+    name: "inspectHistory",
+    description: "Looks at what the user said previously.",
+    schema: z.object({}),
+    handler: (params, context) => {
+        // A tool has full access to the agent's conversation history!
+        const userMessages = context.state.messages.filter(m => m.role === "user");
+        return `You have spoken ${userMessages.length} times.`;
+    }
+});
+```

@@ -1,6 +1,35 @@
 ---
 title: Message History Manipulation
 ---
-# Message History Manipulation
 
-*Coming soon.*
+While you can read the agent's history via `context.state.messages`, modifying it directly requires using the provided manipulation utilities to ensure the state remains stable.
+
+## `context.messagesParser`
+Fragola provides `context.messagesParser`, a set of utilities securely bound to the current agent's message history. It allows you to search, filter, and extract specific interactions safely.
+
+```typescript
+agent.onAfterStep(({ context }) => {
+    // Use the parser to find specific messages easily
+    const allToolCalls = context.messagesParser.getTools();
+    const lastUserMessage = context.messagesParser.getLastUserMessage();
+});
+```
+
+## Advanced Mutations with `context.raw`
+If you are building complex orchestrators or recovery mechanisms, you may need to fundamentally rewrite the history (e.g., pruning old messages to save tokens).
+
+You can access `context.raw.updateMessages()` to safely override the history array.
+
+```typescript
+agent.onBeforeModelInvocation(({ context, config }) => {
+    const messages = context.state.messages;
+    
+    // Naive token management: If history is too long, keep only the system prompt and the last 10 messages
+    if (messages.length > 50) {
+        const recentMessages = messages.slice(-10);
+        context.raw.updateMessages(recentMessages);
+    }
+    
+    return config;
+});
+```

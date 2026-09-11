@@ -1,6 +1,47 @@
 ---
 title: Scoped Stores
 ---
-# Scoped Stores
 
-*Coming soon.*
+Agents and `Fragola` instances aren't limited to a single store. Using Scoped Stores, you can attach and retrieve multiple disjoint stores based on a `namespace` string.
+
+Scoped stores are especially useful when developing generic [Hooks](/docs/hook-system-overview) that need to persist their own private data alongside the user's data.
+
+## Registering Scoped Stores
+Stores must be created with a namespace to be added dynamically to an agent or instance.
+
+```typescript
+const telemetryStore = createStore({ active: true }, "telemetry");
+
+// Add it to the agent's context
+agent.context.addStore(telemetryStore);
+```
+
+## Querying Scoped Stores
+You retrieve the store by passing the namespace string to `getStore()`.
+
+```typescript
+import { tool } from "@fragola-ai/agent";
+import { z } from "zod";
+
+const pingTool = tool({
+    name: "ping",
+    description: "Check status.",
+    schema: z.object({}),
+    handler: (params, context) => {
+        // Retrieve the scoped store safely
+        const telemetry = context.getStore("telemetry");
+        
+        if (telemetry?.value.active) {
+            return "Pong!";
+        }
+        return "Offline.";
+    }
+});
+```
+
+## Removing Stores
+You can dynamically detach stores when they are no longer needed, which is a common cleanup pattern when removing a Hook.
+
+```typescript
+agent.context.removeStore("telemetry");
+```

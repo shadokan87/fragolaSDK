@@ -1,6 +1,53 @@
 ---
 title: Store Primitives
 ---
-# Store Primitives
 
-*Coming soon.*
+A `Store` in Fragola is a reactive state container used to persist information outside of the LLM context. You use stores to hold things like application state, user sessions, connection pools, or retrieved database rows.
+
+## Creating Stores
+You create a store using the `createStore` helper. A store requires an initial value, and optionally, a string namespace.
+
+```typescript
+import { createStore } from "@fragola-ai/agent";
+
+const sessionStore = createStore(
+    { userId: "123", role: "admin" }, // initial value
+    "session" // optional namespace (required if passing to addStore later)
+);
+```
+
+## Reading and Writing
+Stores expose a simple API to read, replace, or partially update data.
+
+### `store.value`
+Access the current value synchronously.
+
+```typescript
+console.log(sessionStore.value.userId); // "123"
+```
+
+### `store.set(data)`
+Completely replaces the store's value.
+
+```typescript
+sessionStore.set({ userId: "456", role: "user" });
+```
+
+### `store.update(callback)`
+Updates the value based on the previous state.
+
+```typescript
+sessionStore.update(prev => ({
+    ...prev,
+    role: "superadmin"
+}));
+```
+
+## Reactive Updates
+Stores are reactive. You can attach listeners that fire whenever the value is modified using `set` or `update`.
+
+```typescript
+sessionStore.onChange((newValue) => {
+    console.log("Session updated!", newValue);
+});
+```

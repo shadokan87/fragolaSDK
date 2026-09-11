@@ -1,6 +1,32 @@
 ---
 title: Generic Parameters Reference
 ---
-# Generic Parameters Reference
 
-*Coming soon.*
+Fragola is built from the ground up for strict TypeScript environments. Most core classes in Fragola (`Agent`, `AgentContext`) accept up to three generic type parameters to enforce strict type checking across your entire agent configuration.
+
+## Agent Generics
+The `Agent` signature looks like this:
+```typescript
+class Agent<TMetaData, TGlobalStore, TStore>
+```
+
+### `TMetaData`
+Defines the strict shape of custom metadata attached to messages. See [Message Metadata Typing](/docs/metadata-typing) for an in-depth guide on how to configure this using `DefineMetaData`.
+
+### `TGlobalStore`
+Defines the expected shape of the global store shared across the `Fragola` instance. By specifying this, calls to `context.instance.store` will be strongly typed.
+
+### `TStore`
+Defines the expected shape of the agent's local store.
+
+```typescript
+type MyGlobalData = { dbUrl: string };
+type MyLocalData = { queryCount: number };
+
+// The agent requires a store matching { queryCount: number } and 
+// will expect the global store to have { dbUrl: string }
+const agent = fragola.agent<{}, MyGlobalData, MyLocalData>({
+    name: "TypedAgent",
+    store: createStore({ queryCount: 0 })
+});
+```

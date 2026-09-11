@@ -96,63 +96,63 @@ This document outlines the structure and sections for the left-hand navigation s
 ---
 
 ## 5. Agent Context
-- [ ] **Understanding `AgentContext`**
-  - [ ] Context availability in tools, events, and hooks
-  - [ ] Accessing agent state & options
-  - [ ] Accessing parent SDK instance
-- [ ] **Dynamic & Scoped Instructions**
-  - [ ] Global instructions vs scoped instructions
-  - [ ] `context.setInstructions(instructions, scope?)`
-  - [ ] `context.instructions(scope?)` (Reading single scope or merged `'*'`)
-  - [ ] `context.removeInstructions(scope)`
-- [ ] **Message History Manipulation**
-  - [ ] `context.raw.updateMessages(...)` (Custom message mutations)
-  - [ ] `context.messagesParser` utilities
-- [ ] **Runtime Agent Mutation**
-  - [ ] Dynamic options update (`context.setOptions`)
-  - [ ] Tool updates (`context.updateTools`)
-  - [ ] Controlled early exits (`context.stop()`, `context.stopSync()`)
+- [x] **Understanding `AgentContext`**
+  - [x] Context availability in tools, events, and hooks
+  - [x] Accessing agent state & options
+  - [x] Accessing parent SDK instance
+- [x] **Dynamic & Scoped Instructions**
+  - [x] Global instructions vs scoped instructions
+  - [x] `context.setInstructions(instructions, scope?)`
+  - [x] `context.instructions(scope?)` (Reading single scope or merged `'*'`)
+  - [x] `context.removeInstructions(scope)`
+- [x] **Message History Manipulation**
+  - [x] `context.raw.updateMessages(...)` (Custom message mutations)
+  - [x] `context.messagesParser` utilities
+- [x] **Runtime Agent Mutation**
+  - [x] Dynamic options update (`context.setOptions`)
+  - [x] Tool updates (`context.updateTools`)
+  - [x] Controlled early exits (`context.stop()`, `context.stopSync()`)
 
 ---
 
 ## 6. State & Stores
-- [ ] **Store Primitives**
-  - [ ] Creating stores (`createStore(initialValue, scope?)`)
-  - [ ] Reactive state updates and subscribers (`store.subscribe`, `store.set`, `store.update`)
-- [ ] **Local Stores**
-  - [ ] Attaching agent-scoped stores via `fragola.agent({ store, ... })`
-  - [ ] Accessing store via `context.store`
-- [ ] **Global Stores**
-  - [ ] Sharing state across all agents via `new Fragola({ store, ... })`
-  - [ ] Accessing global store in context
-- [ ] **Scoped Stores**
-  - [ ] Registering multiple stores (`context.addStore`)
-  - [ ] Querying scoped stores (`context.getStore("scope")`)
-  - [ ] Removing stores (`context.removeStore`)
-- [ ] **Message Metadata Typing**
-  - [ ] Defining type-safe metadata with `DefineMetaData<{ user, ai, tool }>`
-  - [ ] Accessing `message.meta`
-  - [ ] Stripping metadata before LLM calls (`stripMeta`, `stripMessagesMeta`)
+- [x] **Store Primitives**
+  - [x] Creating stores (`createStore(initialValue, scope?)`)
+  - [x] Reactive state updates and subscribers (`store.subscribe`, `store.set`, `store.update`)
+- [x] **Local Stores**
+  - [x] Attaching agent-scoped stores via `fragola.agent({ store, ... })`
+  - [x] Accessing store via `context.store`
+- [x] **Global Stores**
+  - [x] Sharing state across all agents via `new Fragola({ store, ... })`
+  - [x] Accessing global store in context
+- [x] **Scoped Stores**
+  - [x] Registering multiple stores (`context.addStore`)
+  - [x] Querying scoped stores (`context.getStore("scope")`)
+  - [x] Removing stores (`context.removeStore`)
+- [x] **Message Metadata Typing**
+  - [x] Defining type-safe metadata with `DefineMetaData<{ user, ai, tool }>`
+  - [x] Accessing `message.meta`
+  - [x] Stripping metadata before LLM calls (`stripMeta`, `stripMessagesMeta`)
 
 ---
 
 ## 7. Hooks & Extensibility
-- [ ] **Hook System Overview**
-  - [ ] The Hook concept (`Hook(...)`, `FragolaHook`)
-  - [ ] Reusable behaviors, logging, and third-party integrations
-- [ ] **Creating Custom Hooks**
-  - [ ] Writing synchronous and asynchronous hooks
-  - [ ] Subscribing to events within hooks
-  - [ ] Teardown logic: returning a disposal function (`FragolaHookDispose`)
-- [ ] **Managing Hooks on Agents**
-  - [ ] Registering hooks (`agent.use(hook, name?)`)
-  - [ ] Checking hook presence (`agent.hasHook(name)`)
-  - [ ] Removing named hooks (`agent.removeHook(name)`)
-  - [ ] Disposing all agent hooks (`agent.dispose()`)
-  - [ ] Waiting for async hook initialization (`agent.init()`)
-- [ ] **Hook Scoping & Lifecycle**
-  - [ ] Automatic cleanup of hook-registered events upon removal
-  - [ ] Hook preservation during agent forking
+- [x] **Hook System Overview**
+  - [x] The Hook concept (`Hook(...)`, `FragolaHook`)
+  - [x] Reusable behaviors, logging, and third-party integrations
+- [x] **Creating Custom Hooks**
+  - [x] Writing synchronous and asynchronous hooks
+  - [x] Subscribing to events within hooks
+  - [x] Teardown logic: returning a disposal function (`FragolaHookDispose`)
+- [x] **Managing Hooks on Agents**
+  - [x] Registering hooks (`agent.use(hook, name?)`)
+  - [x] Checking hook presence (`agent.hasHook(name)`)
+  - [x] Removing named hooks (`agent.removeHook(name)`)
+  - [x] Disposing all agent hooks (`agent.dispose()`)
+  - [x] Waiting for async hook initialization (`agent.init()`)
+- [x] **Hook Scoping & Lifecycle**
+  - [x] Automatic cleanup of hook-registered events upon removal
+  - [x] Hook preservation during agent forking
 
 ---
 
@@ -194,32 +194,32 @@ This document outlines the structure and sections for the left-hand navigation s
 ---
 
 ## 10. TypeScript & Generics Guide
-- [ ] **Generic Parameters Reference**
-  - [ ] `TMetaData` (Message metadata definitions)
-  - [ ] `TGlobalStore` (Global store state type)
-  - [ ] `TStore` (Local agent store state type)
-- [ ] **Tool Parameter & Return Types**
-  - [ ] Type inference with `Infer<TSchema>`
-  - [ ] Handler return types (`ToolHandlerReturnType`)
-- [ ] **Typing Hooks & Contexts**
-  - [ ] Using `AgentAny` for generalized hooks
-  - [ ] Strictly typed hooks with explicit agent generics
+- [x] **Generic Parameters Reference**
+  - [x] `TMetaData` (Message metadata definitions)
+  - [x] `TGlobalStore` (Global store state type)
+  - [x] `TStore` (Local agent store state type)
+- [x] **Tool Parameter & Return Types**
+  - [x] Type inference with `Infer<TSchema>`
+  - [x] Handler return types (`ToolHandlerReturnType`)
+- [x] **Typing Hooks & Contexts**
+  - [x] Using `AgentAny` for generalized hooks
+  - [x] Strictly typed hooks with explicit agent generics
 
 ---
 
 ## 11. API Reference
-- [ ] **`Fragola` Class**
-  - [ ] `constructor(options)`
-  - [ ] `fragola.agent(options)`
-  - [ ] `fragola.store`
-- [ ] **`Agent` Class**
-  - [ ] Properties (`id`, `state`, `options`, `context`, `forkOf`)
-  - [ ] Execution methods (`userMessage`, `step`, `json`, `reset`, `stop`, `stopSync`, `fork`)
-  - [ ] Event methods (`on`, `watch`, `watchState`, `onUserMessage`, `onBeforeStep`, `onAfterStep`, `onBeforeModelInvocation`, `onModelInvocation`, `onAiMessage`, `onAfterModelInvocation`, `onBeforeToolCall`, `onToolCall`, `onAfterToolCall`)
-  - [ ] Hook methods (`use`, `hasHook`, `removeHook`, `dispose`, `init`)
-- [ ] **`AgentContext` Class**
-  - [ ] Properties (`state`, `options`, `store`, `systemPrompt`, `instance`, `messagesParser`, `raw`)
-  - [ ] Methods (`instructions`, `setInstructions`, `removeInstructions`, `getStore`, `addStore`, `removeStore`, `setOptions`, `updateTools`, `stop`, `stopSync`)
+- [x] **`Fragola` Class**
+  - [x] `constructor(options)`
+  - [x] `fragola.agent(options)`
+  - [x] `fragola.store`
+- [x] **`Agent` Class**
+  - [x] Properties (`id`, `state`, `options`, `context`, `forkOf`)
+  - [x] Execution methods (`userMessage`, `step`, `json`, `reset`, `stop`, `stopSync`, `fork`)
+  - [x] Event methods (`on`, `watch`, `watchState`, `onUserMessage`, `onBeforeStep`, `onAfterStep`, `onBeforeModelInvocation`, `onModelInvocation`, `onAiMessage`, `onAfterModelInvocation`, `onBeforeToolCall`, `onToolCall`, `onAfterToolCall`)
+  - [x] Hook methods (`use`, `hasHook`, `removeHook`, `dispose`, `init`)
+- [x] **`AgentContext` Class**
+  - [x] Properties (`state`, `options`, `store`, `systemPrompt`, `instance`, `messagesParser`, `raw`)
+  - [x] Methods (`instructions`, `setInstructions`, `removeInstructions`, `getStore`, `addStore`, `removeStore`, `setOptions`, `updateTools`, `stop`, `stopSync`)
 - [ ] **Events & Payloads**
   - [ ] Default event payloads (`EventUserMessagePayload`, `EventModelInvocationPayload`, `EventAiMessagePayload`, `EventToolCallPayload`)
   - [ ] Before event payloads (`EventBeforeStepPayload`, `EventBeforeModelInvocationPayload`, `EventBeforeToolCallPayload`)

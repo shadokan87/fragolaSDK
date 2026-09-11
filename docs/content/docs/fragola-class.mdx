@@ -1,6 +1,137 @@
 ---
 title: Fragola Class
 ---
-# Fragola Class
 
-*Coming soon.*
+# `Fragola` API Reference
+
+## Constructor [#fragola-constructor]
+
+```typescript
+constructor(private clientOptions: ClientOptions, private globalStore: Store<TGlobalStore> | undefined = undefined, sdkClass: typeof OpenAI = OpenAI)
+```
+
+## Properties [#fragola-properties]
+
+### sdkClass [#fragola-sdkclass]
+Returns the OpenAI SDK constructor used by this Fragola instance.
+
+```typescript
+get sdkClass()
+```
+
+### sdk [#fragola-sdk]
+Returns the OpenAI client instance created from this Fragola configuration.
+
+```typescript
+get sdk()
+```
+
+### options [#fragola-options]
+Returns the client options configured on this Fragola instance.
+
+```typescript
+get options()
+```
+
+### store [#fragola-store]
+Acess the instance default global store.
+
+```typescript
+get store(): Store<TGlobalStore> | undefined
+```
+
+## Methods [#fragola-methods]
+
+### setSdkOpts [#fragola-setsdkopts]
+Set the options for the underlying sdk. Can be used to refresh the options. Will re-instanciate the sdk
+
+```typescript
+setSdkOpts(clientOptions: OpenaiClientOptions)
+```
+
+### agent [#fragola-agent]
+Create a new agent attached to this Fragola instance.
+
+The returned agent uses this instance's client configuration and can
+access its global store.
+
+- `opts`: Agent configuration.
+**Returns:** `A new agent instance.`
+
+**Example**
+
+```typescript
+```ts
+const fragola = new Fragola({
+  model: "gpt-5.4"
+});
+
+const agent = fragola.agent({
+  name: "assistant",
+  description: "Minimal assistant",
+  instructions: "You are a helpful assistant."
+});
+```
+     
+```
+
+```typescript
+agent<TMetaData extends DefineMetaData<any> = {}, TStore = {}>(opts: CreateAgentOptions<TStore>): Agent<TMetaData, TGlobalStore, TStore>
+```
+
+### getStore [#fragola-getstore]
+Returns the instance (global) store or a namespaced store casted as T.
+Recommended when accessing the store from outside an agent store.
+- `namespace`: The namespace of the store to access (optional).
+
+```typescript
+getStore<T extends StoreLike<any> = {}>(namespace?: string): Store<T> | undefined
+```
+
+### addStore [#fragola-addstore]
+Add a namespaced store to the Fragola instance so agents can access it via getStore(namespace).
+- `store`: The store to add (must have a namespace defined).
+
+```typescript
+addStore(store: Store<any>): void
+```
+
+### removeStore [#fragola-removestore]
+Remove a namespaced store from the Fragola instance.
+- `namespace`: The namespace of the store to remove
+
+```typescript
+removeStore(namespace: string): void
+```
+
+### json [#fragola-json]
+Runs a one-off JSON extraction with a temporary agent.
+
+If `options` is omitted, Fragola creates a minimal extraction agent for
+this call and returns only the schema parse result.
+
+- `query`: The extraction prompt and Zod schema.
+- `options`: Optional agent options to use instead of the default extraction agent.
+**Returns:** `The Zod safe-parse result for the assistant response.`
+
+**Example**
+
+```typescript
+```ts
+const result = await fragola.json({
+  content: "my name is Ada",
+  name: "extract_person",
+  schema,
+});
+
+if (result.success) {
+  console.log(result.data);
+}
+```
+     
+```
+
+```typescript
+async json<S extends ZodSchema = ZodSchema>(query: JsonQuery<S>, options: CreateAgentOptions | undefined = undefined): Promise<SafeParseResult<unknown, Infer<S>>>
+```
+

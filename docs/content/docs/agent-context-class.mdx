@@ -1,6 +1,148 @@
 ---
 title: AgentContext Class
 ---
-# AgentContext Class
 
-*Coming soon.*
+# `AgentContext` API Reference
+
+## Properties [#agentcontext-properties]
+
+### state [#agentcontext-state]
+The current state of the agent.
+
+```typescript
+abstract get state(): AgentState<TMetaData>
+```
+
+### options [#agentcontext-options]
+The configuration options for the agent.
+
+```typescript
+abstract get options(): AgentOptions
+```
+
+### raw [#agentcontext-raw]
+Raw methods for advanced context manipulation
+
+```typescript
+abstract get raw(): ContextRaw<TMetaData>
+```
+
+### store [#agentcontext-store]
+Acess the agent's default local store.
+
+```typescript
+abstract get store(): Store<TStore>
+```
+
+### messagesParser [#agentcontext-messagesparser]
+Live parser helpers bound to the current `state.messages`.
+
+```typescript
+abstract get messagesParser(): MessagesParser<TMetaData>
+```
+
+### instance [#agentcontext-instance]
+Return the Fragola instance which created this agent
+
+```typescript
+abstract get instance(): Fragola<TGlobalStore>
+```
+
+### systemPrompt [#agentcontext-systemprompt]
+Returns the agent system prompt exactly as sent to the llm. The system prompt is the result of all the instructions scopes merged
+
+```typescript
+abstract get systemPrompt(): string
+```
+
+## Methods [#agentcontext-methods]
+
+### addStore [#agentcontext-addstore]
+Add a store that has a namespace. Can be accessed with `getStore` method.
+- `store`: The store to add
+
+```typescript
+abstract addStore(store: Store<any>): void
+```
+
+### updateTools [#agentcontext-updatetools]
+Updates the agent's tool list using a callback.
+
+- `callback`: Function that receives the current tools and returns the updated list.
+
+**Example**
+
+```typescript
+agent.context.updateTools(prev => [...prev, newTool]);
+agent.context.updateTools(prev => prev.filter(tool => tool.name !== "oldTool"));
+     
+```
+
+```typescript
+abstract updateTools(callback: (prev: Tool[]) => Tool[]): void
+```
+
+### removeStore [#agentcontext-removestore]
+Remove a store by its namespace.
+- `namespace`: The namespace of the store to remove
+
+```typescript
+abstract removeStore(namespace: string): void
+```
+
+### getStore [#agentcontext-getstore]
+Returns the agent's local store or namespace store casted as T. Recommended when accessing the store from a hook.
+- `namespace`: The namespace of the store to access (optional).
+
+```typescript
+abstract getStore<T extends StoreLike<any> = {}>(namespace?: string): Store<T> | undefined
+```
+
+### setInstructions [#agentcontext-setinstructions]
+Sets the current instructions for the agent.
+- `instructions`: The new instructions as a string.
+
+```typescript
+abstract setInstructions(instructions: string, scope?: string): void
+```
+
+### instructions [#agentcontext-instructions]
+Returns the instructions for a given scope.
+- `scope`: The instructions scope, leave empty to get the default scope (optional)
+
+```typescript
+abstract instructions(scope?: string): string | undefined
+```
+
+### removeInstructions [#agentcontext-removeinstructions]
+Remove the instructions for a given scope. 
+- `scope`: The instructions scope to remove
+**Returns:** `a boolean, true = removed, false = scope do not exist`
+
+```typescript
+abstract removeInstructions(scope: string): boolean
+```
+
+### setOptions [#agentcontext-setoptions]
+Updates the agent's options.
+**note**: the `name`, `fork` and `messages` properties are ommited
+- `options`: The new options to set, as a SetOptionsParams object.
+
+```typescript
+abstract setOptions(options: SetOptionsParams): void
+```
+
+### stop [#agentcontext-stop]
+Stop the agent execution
+
+```typescript
+abstract stop(): Promise<{[STOP]: true}>
+```
+
+### stopSync [#agentcontext-stopsync]
+Stop the agent execution - Sync
+
+```typescript
+abstract stopSync(): {[STOP]: true}
+```
+

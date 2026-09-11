@@ -1,6 +1,43 @@
 ---
 title: Runtime Agent Mutation
 ---
-# Runtime Agent Mutation
 
-*Coming soon.*
+The `AgentContext` provides methods to mutate the agent's fundamental configuration on the fly. 
+
+## Updating Options
+You can update basic agent options like description or model settings using `context.setOptions()`. Note that some properties like `name` or `messages` cannot be updated through this method.
+
+```typescript
+context.setOptions({
+    description: "Updated description based on new context",
+    modelSettings: {
+        temperature: 0.8
+    }
+});
+```
+
+## Updating Tools
+As covered in [Runtime Tool Management](/docs/runtime-tool-management), you can dynamically swap the tools available to the model using `context.updateTools()`.
+
+```typescript
+context.updateTools((previousTools) => {
+    return [...previousTools, newTool];
+});
+```
+
+## Controlled Early Exits
+Sometimes, an event listener or a tool handler determines that the agent should immediately stop what it is doing.
+
+- **`context.stop()`**: Signals the agent to cleanly halt execution at the end of the current asynchronous boundary.
+- **`context.stopSync()`**: Instantly aborts the execution loop by throwing an internal signal.
+
+```typescript
+const emergencyStopTool = tool({
+    name: "halt",
+    description: "Halts the agent.",
+    schema: z.object({}),
+    handler: (params, context) => {
+        context.stopSync();
+    }
+});
+```

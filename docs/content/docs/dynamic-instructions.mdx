@@ -1,6 +1,33 @@
 ---
 title: Dynamic & Scoped Instructions
 ---
-# Dynamic & Scoped Instructions
 
-*Coming soon.*
+Agent instructions (system prompts) do not have to be static. Fragola uses a scoped instructions system, allowing you to inject, update, and remove rules dynamically without losing the core persona.
+
+## Scoped Instructions
+When you set `instructions` during agent creation, Fragola assigns them to the default scope. 
+
+You can add instructions to new scopes using `context.instructions.add(scope, text)` (or via the underlying Map/Set API depending on the exact implementation, usually manipulated via `setInstructions(text, scope)`).
+
+### Setting and Removing Instructions
+```typescript
+agent.onBeforeModelInvocation(({ context, config }) => {
+    // Inject a temporary instruction into a specific scope
+    context.setInstructions("Always reply in French.", "language-rule");
+
+    return config;
+});
+```
+
+To remove a scoped instruction once it's no longer needed:
+```typescript
+context.removeInstructions("language-rule");
+```
+
+## The Final System Prompt
+When the LLM is invoked, Fragola merges all scoped instructions together. You can preview exactly what the LLM will see using the `systemPrompt` getter.
+
+```typescript
+console.log(context.systemPrompt); 
+// Returns the merged string of the default instructions + any custom scopes
+```

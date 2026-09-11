@@ -1,6 +1,41 @@
 ---
 title: Typing Hooks & Contexts
 ---
-# Typing Hooks & Contexts
 
-*Coming soon.*
+When writing reusable Hooks for Fragola, you must decide how strictly to type the agent that the hook receives.
+
+## Using `AgentAny` for Generalized Hooks
+If your hook performs general-purpose logic (like logging events, measuring execution time, or interacting with generic tools), you should type the incoming agent as `AgentAny`. 
+
+`AgentAny` is an exported utility type that strips away the specific generics (`TMetaData`, `TGlobalStore`, `TStore`) so your hook can be applied to *any* agent.
+
+```typescript
+import { type FragolaHook, type AgentAny } from "@fragola-ai/agent";
+
+const loggerHook: FragolaHook = (agent: AgentAny) => {
+    agent.onUserMessage(({ message }) => {
+        console.log("Message received!");
+        return message;
+    });
+};
+```
+
+## Strictly Typed Hooks
+If your hook relies on specific shapes of data—for instance, it needs the agent to have a local store with a `cache` property—you must explicitly define the generics in the hook's signature.
+
+```typescript
+import type { Agent } from "@fragola-ai/agent";
+
+// We require an agent that has a specific local store shape
+type CachingAgent = Agent<any, any, { cache: Map<string, string> }>;
+
+const cacheHook = (agent: CachingAgent) => {
+    agent.onBeforeModelInvocation(({ context, config }) => {
+        // Typescript knows `context.store.value.cache` is a Map!
+        console.log("Cache size:", context.store.value.cache.size);
+        return config;
+    });
+};
+
+// This hook can ONLY be passed to agent.use() if the agent matches the type.
+```

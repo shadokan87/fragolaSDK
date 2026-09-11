@@ -1,6 +1,20 @@
 ---
 title: Hook Scoping & Lifecycle
 ---
-# Hook Scoping & Lifecycle
 
-*Coming soon.*
+When building complex agent architectures, you need guarantees about how hooks behave when agents are modified or duplicated.
+
+## Automatic Event Cleanup
+Fragola is designed to prevent memory leaks when managing event-heavy hooks. 
+
+Even if you forget to return a cleanup function from your hook, Fragola tracks all `agent.on*` listeners that are registered *while* a hook's function is executing. When you call `agent.removeHook("id")`, Fragola automatically purges those specific event listeners from the pipeline. 
+
+Returning a custom cleanup function is only strictly necessary when you need to remove custom stores, clear scoped instructions, or close external network connections (like WebSockets).
+
+## Hook Preservation During Forking
+As detailed in the [Agent Forking](/docs/agent-forking) guide, creating a branch of an agent via `agent.fork()` creates a deep clone of the runtime state.
+
+Hooks follow strict inheritance rules:
+1. **Cloned Registration:** The forked agent instantly registers the exact same hooks as the parent, preserving their identifiers.
+2. **Re-bound Listeners:** The event listeners established by the hooks are deeply cloned and re-bound to the *forked* agent context, guaranteeing that the hook logic fires for the fork independently.
+3. **Independent Cleanup:** Calling `fork.removeHook("id")` will tear down the hook on the fork without affecting the parent agent's hook instance.

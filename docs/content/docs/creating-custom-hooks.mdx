@@ -1,6 +1,50 @@
 ---
 title: Creating Custom Hooks
 ---
-# Creating Custom Hooks
 
-*Coming soon.*
+Writing a custom hook is straightforward. You define a function that adheres to the `FragolaHook` signature.
+
+## A Basic Hook
+Here is an example of a hook that injects a specific instruction into the agent and logs all tool calls.
+
+```typescript
+import { type FragolaHook, type FragolaEvent } from "@fragola-ai/agent";
+
+const toolLoggerHook: FragolaHook = (agent) => {
+    // 1. Add instructions dynamically
+    agent.context.instructions.add("logger", "Please use tools frequently.");
+
+    // 2. Attach an event listener
+    agent.onAfterToolCall(({ name }) => {
+        console.log(`[ToolLogger]: Executed ${name}`);
+    });
+};
+
+// Usage:
+agent.use(toolLoggerHook, "tool-logger");
+```
+
+## The Teardown Function
+Hooks often leave a footprint: they add event listeners, they add stores, or they mutate instructions. If a hook is removed dynamically, it needs a way to clean up after itself.
+
+A `FragolaHook` can return a teardown function (synchronous or asynchronous). Fragola will call this function automatically when the hook is removed or when the agent is disposed.
+
+```typescript
+const robustLoggerHook: FragolaHook = (agent) => {
+    // Keep track of the events we create so we can remove them later
+    const listeners: FragolaEvent[] = [];
+
+    listeners.push(
+        agent.onAfterToolCall(() => { /* ... */ })
+    );
+
+    // Return the cleanup function
+    return () => {
+        // Clean up events
+        listeners.forEach(event => event.remove());
+        
+        // Clean up instructions
+        agent.context.removeInstructions("logger");
+    };
+};
+```

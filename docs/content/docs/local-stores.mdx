@@ -1,6 +1,33 @@
 ---
 title: Local Stores
 ---
-# Local Stores
 
-*Coming soon.*
+A Local Store is a state container that belongs exclusively to a single Agent. It is isolated from the rest of your application and from other agents.
+
+## Attaching a Local Store
+You can provide an initial, default local store to an agent during creation via the `store` option.
+
+```typescript
+import { Fragola, createStore } from "@fragola-ai/agent";
+
+const fragola = new Fragola({ model: "__DEFAULT_MODEL__" });
+
+const myLocalStore = createStore({ queryCount: 0 });
+
+const agent = fragola.agent({
+    name: "QueryAgent",
+    store: myLocalStore // Attach the store locally to this agent
+});
+```
+
+## Accessing the Local Store
+Once attached, the local store can be accessed from the `AgentContext` via `context.store`. This makes it instantly available inside any tool handler or event listener without needing to lookup a namespace.
+
+```typescript
+agent.onAfterModelInvocation(({ context }) => {
+    // Increment the query counter after every LLM call
+    context.store.update(prev => ({
+        queryCount: prev.queryCount + 1
+    }));
+});
+```

@@ -1,6 +1,42 @@
 ---
 title: Tool Parameter & Return Types
 ---
-# Tool Parameter & Return Types
 
-*Coming soon.*
+Fragola provides deep type integration for Tools, specifically bridging the gap between Zod schemas and function handlers.
+
+## Type Inference with `Infer<TSchema>`
+When you define a tool using the `tool()` helper and provide a Zod schema, Fragola uses a utility type called `Infer<TSchema>` to automatically derive the TypeScript interface for your `handler`'s arguments.
+
+You never have to define an interface manually if you already wrote a Zod schema.
+
+```typescript
+import { tool } from "@fragola-ai/agent";
+import { z } from "zod";
+
+const mySchema = z.object({
+    id: z.string(),
+    tags: z.array(z.string())
+});
+
+const myTool = tool({
+    name: "process",
+    description: "...",
+    schema: mySchema,
+    handler: (params) => {
+        // params is strictly typed as:
+        // { id: string, tags: string[] }
+        return params.id;
+    }
+});
+```
+
+## `ToolHandlerReturnType`
+Fragola is highly permissive regarding what a tool handler can return. The internal `ToolHandlerReturnType` allows you to return:
+- Strings
+- Numbers
+- Booleans
+- Arrays
+- Objects (JSON serializable)
+- Promises resolving to any of the above
+
+If a handler returns a non-string object, Fragola automatically serializes it to a JSON string using `JSON.stringify` before sending it to the LLM. This prevents OpenAI endpoint crashes.

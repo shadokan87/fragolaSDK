@@ -1,0 +1,25 @@
+---
+title: onToolCall
+---
+
+The `onToolCall` event fires immediately after the tool's handler has finished executing, but *before* the result is appended to the agent's message history.
+
+## Usage
+This event is your chance to transform the raw output of the tool before the LLM sees it.
+
+### Payload Details
+```typescript
+agent.onToolCall(({ message, name, id, context }) => {
+    // `message` contains the raw result from the handler
+    if (name === "fetchDatabase") {
+        // Redact sensitive fields before the LLM reads it
+        const data = JSON.parse(message);
+        delete data.user_password;
+        
+        // Return the mutated string
+        return JSON.stringify(data);
+    }
+    
+    return message;
+});
+```

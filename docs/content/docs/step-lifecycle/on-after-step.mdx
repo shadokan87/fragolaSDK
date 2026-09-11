@@ -1,0 +1,20 @@
+---
+title: onAfterStep
+---
+
+The `onAfterStep` event fires at the end of each iteration of the agent's execution loop, after the model has returned a response and any tools have been executed.
+
+## Usage
+This event is the last hook to run before the agent either loops again (if tools were called) or transitions to `idle`.
+
+It is useful for:
+- Evaluating the result of the entire step.
+- Cleaning up temporary states.
+- Logging the total cost or duration of the step.
+
+### Payload Details
+```typescript
+agent.onAfterStep(({ params, context }) => {
+    console.log(`Finished step ${context.state.stepCount}. Moving to next state: ${context.state.status}`);
+});
+```

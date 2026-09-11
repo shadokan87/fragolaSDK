@@ -1,0 +1,16 @@
+---
+title: onAfterModelInvocation
+---
+
+The `onAfterModelInvocation` event fires after the AI message has been fully processed, added to the history, and token usage statistics are available.
+
+## Usage
+This event provides the final snapshot of the LLM call. It is the primary location for extracting token metrics for billing or observability.
+
+### Payload Details
+```typescript
+agent.onAfterModelInvocation(({ message, usage, finish_reason, context }) => {
+    console.log("Tokens used:", usage?.total_tokens);
+    console.log("Finish reason:", finish_reason);
+});
+```

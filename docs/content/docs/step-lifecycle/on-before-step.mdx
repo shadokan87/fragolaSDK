@@ -1,0 +1,24 @@
+---
+title: onBeforeStep
+---
+
+The `onBeforeStep` event fires at the beginning of each iteration of the agent's execution loop, right before a request is sent to the model.
+
+## Usage
+Because an agent can loop multiple times within a single `userMessage()` call (e.g., to process multiple tool calls sequentially), this event may fire multiple times.
+
+It is useful for:
+- Checking the remaining step budget.
+- Modifying the step parameters.
+- Aborting the execution early if specific conditions are met.
+
+### Payload Details
+```typescript
+agent.onBeforeStep(({ params, context }) => {
+    // `params` contains the current step parameters, including the remaining step budget
+    console.log(`Starting step ${context.state.stepCount}. Remaining budget: ${params.maxStep}`);
+    
+    // You must return the parameters
+    return params;
+});
+```

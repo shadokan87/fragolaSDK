@@ -1,0 +1,21 @@
+---
+title: onModelInvocation
+---
+
+The `onModelInvocation` event gives you raw access to the streaming chunks returned by the LLM as they arrive over the network.
+
+## Usage
+Because Fragola manages the stream processing internally, you rarely need to modify the stream here. However, this event is essential for:
+- Piping the raw stream to a UI or WebSocket.
+- Monitoring generation speed or logging raw deltas.
+
+### Payload Details
+```typescript
+agent.onModelInvocation(async ({ stream, context }) => {
+    // You can iterate over the stream if you want to inspect chunks
+    // Note: Fragola uses `tee()` under the hood, so consuming this stream does not break the internal parser.
+    for await (const chunk of stream) {
+        process.stdout.write(chunk.choices[0]?.delta?.content || "");
+    }
+});
+```

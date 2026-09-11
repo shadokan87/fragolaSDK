@@ -1,0 +1,29 @@
+---
+title: watchState
+---
+
+In addition to standard lifecycle events, Fragola provides a dedicated `watchState` listener. This allows you to reactively observe changes to the agent's internal state machine independently of the turn-by-turn execution loop.
+
+## Usage
+`watchState` triggers whenever the agent's `status` transitions between `idle`, `generating`, or `waiting`. 
+
+This is incredibly useful for building UIs where you need to show a loading spinner, disable input fields, or notify a user that the agent requires human input.
+
+### Payload Details
+```typescript
+agent.watchState((state, context) => {
+    switch (state.status) {
+        case "generating":
+            console.log("Agent is thinking...");
+            break;
+        case "waiting":
+            console.log("Agent paused. Waiting for user authorization.");
+            break;
+        case "idle":
+            console.log("Agent finished its turn.");
+            break;
+    }
+});
+```
+
+Unlike `on*` events which fire at specific points within `userMessage()` or `step()`, `watchState` provides a macroscopic view of the agent's current operational phase.

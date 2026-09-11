@@ -1,0 +1,8 @@
+{
+  "title": "Step Lifecycle",
+  "defaultOpen": true,
+  "pages": [
+    "on-before-step",
+    "on-after-step"
+  ]
+}

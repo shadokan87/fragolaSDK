@@ -71,27 +71,27 @@ This document outlines the structure and sections for the left-hand navigation s
 
 ---
 
-## 4. Event System & Lifecycle
-- [ ] **Event System Overview**
-  - [ ] Event pipeline & execution order
-  - [ ] Registering event handlers (`on`, `watch`, inline methods)
-  - [ ] Flow control: `stop()` and `stopSync()`
-- [ ] **User Message Lifecycle**
-  - [ ] `onUserMessage` (Intercepting, enriching, or transforming user input)
-- [ ] **Step Lifecycle**
-  - [ ] `onBeforeStep` (Modifying step parameters before turn starts)
-  - [ ] `onAfterStep` (Inspecting results, new messages, steps taken, or errors)
-- [ ] **Model Invocation Lifecycle**
-  - [ ] `onBeforeModelInvocation` (Overriding model settings, `injectMessage`, `injectResponse`)
-  - [ ] `onModelInvocation` (Chunk-level stream manipulation, delta injection, chunk merge patches)
-  - [ ] `onAiMessage` (Transforming partial/final assistant messages)
-  - [ ] `onAfterModelInvocation` (Inspecting assistant message, `finish_reason`, and token `usage`)
-- [ ] **Tool Call Lifecycle**
-  - [ ] `onBeforeToolCall` (Parameter rewriting, injecting tool responses via `injectConfig`)
-  - [ ] `onToolCall` (Transforming tool outputs before appending to history)
-  - [ ] `onAfterToolCall` (Tool execution post-processing and logging)
-- [ ] **State Watchers**
-  - [ ] `watchState` (Reactive state observation for UI, metrics, and logging)
+## 4. Events
+- [x] **Event System Overview**
+  - [x] Event pipeline & execution order
+  - [x] Registering event handlers (`on`, `watch`, inline methods)
+  - [x] Flow control: `stop()` and `stopSync()`
+  - [x] **User Message Lifecycle**
+    - [x] `onUserMessage` (Intercepting, enriching, or transforming user input)
+  - [x] **Step Lifecycle**
+    - [x] `onBeforeStep` (Modifying step parameters before turn starts)
+    - [x] `onAfterStep` (Inspecting results, new messages, steps taken, or errors)
+  - [x] **Model Invocation Lifecycle**
+    - [x] `onBeforeModelInvocation` (Overriding model settings, `injectMessage`, `injectResponse`)
+    - [x] `onModelInvocation` (Chunk-level stream manipulation, delta injection, chunk merge patches)
+    - [x] `onAiMessage` (Transforming partial/final assistant messages)
+    - [x] `onAfterModelInvocation` (Inspecting assistant message, `finish_reason`, and token `usage`)
+  - [x] **Tool Call Lifecycle**
+    - [x] `onBeforeToolCall` (Parameter rewriting, injecting tool responses via `injectConfig`)
+    - [x] `onToolCall` (Transforming tool outputs before appending to history)
+    - [x] `onAfterToolCall` (Tool execution post-processing and logging)
+- [x] **State Watchers**
+  - [x] `watchState` (Reactive state observation for UI, metrics, and logging)
 
 ---
 

@@ -1,0 +1,34 @@
+---
+title: onUserMessage
+---
+
+The `onUserMessage` event is triggered exactly once whenever you invoke `agent.userMessage({ content: "..." })`.
+
+## Usage
+This event fires before the user's message is officially appended to the agent's history and before the step loop begins. 
+
+It is the ideal place to:
+- Intercept and rewrite user input.
+- Enrich the prompt with external context (like RAG results).
+- Run safety/moderation checks on user input and abort if necessary.
+
+### Payload Details
+```typescript
+agent.onUserMessage(async ({ message, context }) => {
+    // message is an object containing `role: "user"` and the `content`
+    
+    // Example: Moderation Check
+    if (message.content.includes("hack")) {
+        context.stopSync();
+    }
+    
+    // Example: RAG Enrichment
+    const docs = await myVectorDB.search(message.content);
+    message.content = `User Query: ${message.content}\n\nContext: ${docs}`;
+    
+    // You MUST return the mutated message
+    return message;
+});
+```
+
+*Note: If you call `agent.step()` instead of `agent.userMessage()`, this event is bypassed completely.*

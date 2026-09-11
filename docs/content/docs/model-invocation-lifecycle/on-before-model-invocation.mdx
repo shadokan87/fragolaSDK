@@ -1,0 +1,27 @@
+---
+title: onBeforeModelInvocation
+---
+
+The `onBeforeModelInvocation` event fires immediately before the underlying LLM client makes a network request.
+
+## Usage
+This is your final opportunity to modify the payload sent to the LLM. 
+
+It is incredibly powerful for:
+- Changing the `model` or `temperature` dynamically based on the current agent state or recent conversation context.
+- Injecting a hardcoded `injectResponse` (bypassing the network call entirely).
+- Injecting a system `injectMessage` at the very end of the history array without saving it to the permanent state.
+
+### Payload Details
+```typescript
+agent.onBeforeModelInvocation(({ config, context }) => {
+    // If we've been running too long, switch to a cheaper/faster model
+    if (context.state.stepCount > 5) {
+        config.model = "gpt-4o-mini";
+        config.temperature = 0.1;
+    }
+    
+    // You MUST return the config object
+    return config;
+});
+```

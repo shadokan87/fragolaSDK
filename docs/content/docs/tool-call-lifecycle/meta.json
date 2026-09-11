@@ -1,0 +1,9 @@
+{
+  "title": "Tool Call Lifecycle",
+  "defaultOpen": true,
+  "pages": [
+    "on-before-tool-call",
+    "on-tool-call",
+    "on-after-tool-call"
+  ]
+}

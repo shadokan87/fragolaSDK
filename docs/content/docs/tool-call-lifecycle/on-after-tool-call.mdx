@@ -1,0 +1,19 @@
+---
+title: onAfterToolCall
+---
+
+The `onAfterToolCall` event fires after the tool's result has been finalized and appended to the agent's history as a `tool` role message.
+
+## Usage
+This event is strictly for side-effects. The tool execution is fully complete.
+
+It is useful for:
+- Logging tool performance and execution times.
+- Triggering external webhooks now that the data is confirmed in the agent's memory.
+
+### Payload Details
+```typescript
+agent.onAfterToolCall(({ message, name, id, context }) => {
+    console.log(`Tool ${name} (ID: ${id}) completed successfully.`);
+});
+```

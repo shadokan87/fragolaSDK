@@ -1,0 +1,10 @@
+{
+  "title": "Model Invocation Lifecycle",
+  "defaultOpen": true,
+  "pages": [
+    "on-before-model-invocation",
+    "on-model-invocation",
+    "on-ai-message",
+    "on-after-model-invocation"
+  ]
+}

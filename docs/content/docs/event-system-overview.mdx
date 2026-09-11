@@ -1,6 +1,69 @@
 ---
 title: Event System Overview
 ---
-# Event System Overview
 
-*Coming soon.*
+Fragola is fundamentally event-driven. Instead of relying on a monolithic execution graph, the agent progresses through a well-defined lifecycle during each execution turn. You can hook into specific stages of this lifecycle to mutate data, pause execution, or handle side effects.
+
+## Event Pipeline
+When you call `agent.userMessage()` or `agent.step()`, the following general sequence of events occurs:
+
+1. **User Message Phase:** If a message was provided, `onUserMessage` triggers.
+2. **Step Loop Starts:** `onBeforeStep` fires. The agent checks if it has reached its `maxStep` limit.
+3. **Model Invocation:** 
+   - `onBeforeModelInvocation` fires, allowing you to modify the API request.
+   - `onModelInvocation` streams the chunked response as it arrives.
+   - `onAiMessage` fires when the model finishes its response.
+   - `onAfterModelInvocation` fires with the final message and usage stats.
+4. **Tool Resolution (if requested by the model):**
+   - `onBeforeToolCall` fires for each requested tool.
+   - *The Tool Handler executes (if it's not marked as dynamic).*
+   - `onToolCall` fires, allowing you to mutate the tool's result before it is saved.
+   - `onAfterToolCall` fires for post-execution cleanup or logging.
+5. **Step Loop Ends:** `onAfterStep` fires. If tool calls occurred, the loop goes back to Step 2. Otherwise, the agent returns to an `idle` state.
+
+## Registering Event Handlers
+You register event listeners directly on the agent instance using the `on*` methods. 
+
+Every event listener receives a payload containing the relevant data for that stage, as well as the `AgentContext` object.
+
+```typescript
+// Register an inline method
+agent.onUserMessage(({ message, context }) => {
+    // Mutate the message before it gets processed
+    message.content = `[From Web]: ${message.content}`;
+    return message;
+});
+```
+
+You can also use the generic `on()` method if you prefer strings:
+```typescript
+agent.on("userMessage", ({ message }) => { ... });
+```
+
+### Removing Listeners
+When you register a listener, it returns an object containing a `remove()` method. This is useful for temporary listeners or cleanup inside custom hooks.
+
+```typescript
+const event = agent.onAiMessage(() => { console.log("AI Spoke!") });
+
+// Later...
+event.remove();
+```
+
+## Flow Control: `stop()` and `stopSync()`
+Events allow you to gracefully exit the agent's execution loop if certain conditions are met.
+
+- **`context.stop()`**: Signals the agent to stop at the end of the *current asynchronous phase*. It finishes writing the current tool result or message, then halts the step loop and returns to idle.
+- **`context.stopSync()`**: Immediately throws an internal exception, aborting the execution turn entirely without waiting.
+
+```typescript
+agent.onBeforeModelInvocation(({ context, config }) => {
+    const budget = context.getStore("token-budget")?.get();
+    
+    if (budget.remaining <= 0) {
+        context.stopSync(); // Immediately abort the generation
+    }
+    
+    return config;
+});
+```

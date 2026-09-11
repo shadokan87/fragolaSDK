@@ -16,7 +16,7 @@
     "schema-validation",
     "dynamic-tools",
     "runtime-tool-management",
-    "---Event System & Lifecycle---",
+    "---Events---",
     "event-system-overview",
     "user-message-lifecycle",
     "step-lifecycle",

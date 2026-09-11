@@ -124,8 +124,6 @@ export type JsonOptions<T extends ZodSchema = ZodSchema> = {
     message: string;
     /** A Zod schema describing the expected JSON shape returned by the AI/tool */
     schema: T;
-    /** prefer calling a tool instead of using the AI completion */
-    preferToolCall?: boolean;
     /** optional model settings passthrough */
     modelSettings?: AgentOptions["modelSettings"];
 };

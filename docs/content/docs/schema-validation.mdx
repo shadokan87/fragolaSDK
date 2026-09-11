@@ -1,6 +1,57 @@
 ---
 title: Schema & Validation
 ---
-# Schema & Validation
 
-*Coming soon.*
+When defining tools or using `agent.json()`, you must define the shape of the data you expect the LLM to provide. Fragola supports defining these schemas using either `Zod` or raw JSON Schema strings.
+
+## Zod Schema Validation
+The recommended approach is to use [Zod](https://zod.dev/). It provides strict runtime validation and automatically infers TypeScript types for your handler functions.
+
+Fragola supports both **Zod v3** and **Zod v4**.
+
+```typescript
+import { z } from "zod";
+import { tool } from "@fragola-ai/agent";
+
+const createEventTool = tool({
+    name: "createEvent",
+    description: "Creates a calendar event.",
+    schema: z.object({
+        title: z.string(),
+        date: z.string().date(),
+        attendees: z.array(z.string().email())
+    }),
+    handler: (params) => {
+        // Types are correctly inferred
+        // params.attendees is string[]
+        return "Event created!";
+    }
+});
+```
+
+### Automatic Error Reporting
+When you use a Zod schema, Fragola automatically intercepts the LLM's tool call request and validates the arguments against the schema *before* running your handler.
+
+If the LLM provides invalid arguments (e.g., passing a number instead of a string, or omitting a required field), **the handler is never executed**. Instead, Fragola catches the validation error, formats it nicely, and sends an error message back to the LLM automatically so the model can correct its mistake in the next step.
+
+## Raw JSON Schema Strings
+In some advanced use-cases—such as when schemas are generated dynamically by another system, or you are proxying requests—you can pass a raw JSON Schema string instead of a Zod object.
+
+```typescript
+const genericTool = tool({
+    name: "genericAction",
+    description: "Performs an action.",
+    // A stringified JSON Schema
+    schema: '{ "type": "object", "properties": { "id": { "type": "string" } }, "required": ["id"] }',
+    handler: (params) => {
+        // Because a raw string was used, `params` is `any` 
+        // You are responsible for validating the object manually inside the handler
+        if (typeof params.id !== "string") {
+            throw new Error("Invalid ID parameter");
+        }
+        return `Action ${params.id} completed.`;
+    }
+});
+```
+
+*Note: When using a raw JSON schema string, Fragola does **not** perform automatic validation before executing the handler. You must validate the input manually.*

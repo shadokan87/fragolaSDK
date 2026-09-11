@@ -1,6 +1,55 @@
 ---
 title: Runtime Tool Management
 ---
-# Runtime Tool Management
 
-*Coming soon.*
+In complex agents, you don't always want every tool available to the model at all times. Providing too many tools can confuse the model, burn unnecessary tokens, or expose secure actions before they are authorized.
+
+Fragola allows you to dynamically manage which tools are exposed to the LLM during an execution turn using the `AgentContext`.
+
+## Updating Tools Dynamically
+You can access the `context.updateTools` method from within an event listener to change the available tools on the fly. 
+
+This is highly effective when paired with state-machine patterns. For instance, if an agent is in an "auth" state, only provide the `login` tool. Once authenticated, swap them out for the primary tools.
+
+```typescript
+agent.onBeforeModelInvocation(({ context, config }) => {
+    const isLoggedIn = context.getStore("auth")?.get().isLoggedIn;
+
+    if (!isLoggedIn) {
+        // Only allow the login tool
+        context.updateTools([loginTool]);
+    } else {
+        // Allow the full suite of tools
+        context.updateTools([searchTool, databaseQueryTool, logoutTool]);
+    }
+
+    return config;
+});
+```
+
+When you call `context.updateTools()`, the underlying SDK client receives the updated tool schemas immediately before making the API call to OpenAI.
+
+## Adding and Removing Individual Tools
+`context.updateTools` expects a full array of tools, which completely overwrites the existing list. 
+
+If you want to append or remove a specific tool without losing the others, you can read the currently registered tools from `context.options.tools`, modify the array, and pass it back.
+
+```typescript
+// Example: Removing a specific tool after it has been used once
+const oneTimeTool = tool({
+    name: "initializeSetup",
+    description: "Runs once.",
+    schema: z.object({}),
+    handler: (params, context) => {
+        // Run logic...
+        
+        // Remove this tool from the agent so the model can't call it again
+        const currentTools = context.options.tools || [];
+        const filteredTools = currentTools.filter(t => t.name !== "initializeSetup");
+        
+        context.updateTools(filteredTools);
+        
+        return "Setup complete.";
+    }
+});
+```

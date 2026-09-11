@@ -27,47 +27,47 @@ This document outlines the structure and sections for the left-hand navigation s
 ---
 
 ## 2. Agents & Execution
-- [ ] **Creating & Configuring Agents**
-  - [ ] `fragola.agent(...)` options (`name`, `description`, `instructions`, `useDeveloperRole`)
-  - [ ] Model settings (`model`, `temperature`, parameters)
-  - [ ] Seeding initial messages history
-- [ ] **Execution & Stepping**
-  - [ ] `agent.userMessage(...)` (Single turn with user prompt)
-  - [ ] Multi-part user messages (Text, images, attachments)
-  - [ ] `agent.step(...)` (Executing steps without adding user messages)
-  - [ ] Step options (`maxStep`, `by`, `resetStepCountAfterUserMessage`, runtime overrides)
-- [ ] **Structured Outputs (`agent.json`)**
-  - [ ] Using Zod schemas for structured responses
-  - [ ] Handling JSON validation results (`success`, `data`, `error`)
-  - [ ] Bypassing user message events (`ignoreUserMessageEvents`)
-  - [ ] Error handling with `JsonModeError`
-- [ ] **State & Lifecycle Management**
-  - [ ] Agent state object (`messages`, `stepCount`, `status`)
-  - [ ] Status transitions (`idle` ↔ `generating` ↔ `waiting`)
-  - [ ] Resetting agents (`agent.reset()`, `agent.resetStepCount()`)
-  - [ ] Stopping executions (`agent.stop()`, `agent.stopSync()`)
-- [ ] **Agent Forking (`agent.fork`)**
-  - [ ] Forking concept & branching conversations
-  - [ ] State, stores, and hooks inheritance
-  - [ ] Isolated execution & fork hierarchy (`agent.forkOf`)
+- [x] **Creating & Configuring Agents**
+  - [x] `fragola.agent(...)` options (`name`, `description`, `instructions`, `useDeveloperRole`)
+  - [x] Model settings (`model`, `temperature`, parameters)
+  - [x] Seeding initial messages history
+- [x] **Execution & Stepping**
+  - [x] `agent.userMessage(...)` (Single turn with user prompt)
+  - [x] Multi-part user messages (Text, images, attachments)
+  - [x] `agent.step(...)` (Executing steps without adding user messages)
+  - [x] Step options (`maxStep`, `by`, `resetStepCountAfterUserMessage`, runtime overrides)
+- [x] **Structured Outputs (`agent.json`)**
+  - [x] Using Zod schemas for structured responses
+  - [x] Handling JSON validation results (`success`, `data`, `error`)
+  - [x] Bypassing user message events (`ignoreUserMessageEvents`)
+  - [x] Error handling with `JsonModeError`
+- [x] **State & Lifecycle Management**
+  - [x] Agent state object (`messages`, `stepCount`, `status`)
+  - [x] Status transitions (`idle` ↔ `generating` ↔ `waiting`)
+  - [x] Resetting agents (`agent.reset()`, `agent.resetStepCount()`)
+  - [x] Stopping executions (`agent.stop()`, `agent.stopSync()`)
+- [x] **Agent Forking (`agent.fork`)**
+  - [x] Forking concept & branching conversations
+  - [x] State, stores, and hooks inheritance
+  - [x] Isolated execution & fork hierarchy (`agent.forkOf`)
 
 ---
 
 ## 3. Tools & Function Calling
-- [ ] **Defining Tools**
-  - [ ] `tool(...)` helper function
-  - [ ] Tool metadata (`name`, `description`)
-  - [ ] Tool handlers (`handler: (params, context) => ...`)
-- [ ] **Schema & Validation**
-  - [ ] Zod schema validation (Zod v3 & v4 support)
-  - [ ] Raw JSON schema string definitions
-  - [ ] Validation errors & automatic reporting to the model
-- [ ] **Dynamic Tools & Custom Resolution**
-  - [ ] `handler: "dynamic"` for server-side / proxy delegation
-  - [ ] Injecting results in `onBeforeToolCall`
-- [ ] **Runtime Tool Management**
-  - [ ] Updating agent tools dynamically (`context.updateTools`)
-  - [ ] Enabling/disabling tools per step
+- [x] **Defining Tools**
+  - [x] `tool(...)` helper function
+  - [x] Tool metadata (`name`, `description`)
+  - [x] Tool handlers (`handler: (params, context) => ...`)
+- [x] **Schema & Validation**
+  - [x] Zod schema validation (Zod v3 & v4 support)
+  - [x] Raw JSON schema string definitions
+  - [x] Validation errors & automatic reporting to the model
+- [x] **Dynamic Tools & Custom Resolution**
+  - [x] `handler: "dynamic"` for server-side / proxy delegation
+  - [x] Injecting results in `onBeforeToolCall`
+- [x] **Runtime Tool Management**
+  - [x] Updating agent tools dynamically (`context.updateTools`)
+  - [x] Enabling/disabling tools per step
 
 ---
 

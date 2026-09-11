@@ -1,6 +1,67 @@
 ---
 title: Structured Outputs (agent.json)
 ---
-# Structured Outputs (agent.json)
 
-*Coming soon.*
+Fragola makes it easy to force the agent to return data matching a specific schema using `agent.json()`. This is incredibly useful for extraction tasks, data formatting, or anytime you need deterministic, machine-readable output rather than free-text.
+
+## Using Zod Schemas
+To request structured data, pass a prompt and a Zod schema to `agent.json()`. Fragola utilizes OpenAI's structured outputs and tool-calling capabilities under the hood to ensure the response adheres to the schema.
+
+```typescript
+import { z } from "zod";
+
+const UserSchema = z.object({
+    name: z.string(),
+    age: z.number(),
+    tags: z.array(z.string())
+});
+
+const result = await agent.json({
+    message: "Extract info from: John Doe is 30 years old and likes skiing and coding.",
+    schema: UserSchema
+});
+```
+
+## Handling Validation Results
+The `result` returned by `agent.json()` is a safe-parse object. It contains a `success` boolean that dictates whether the output successfully validated against your schema.
+
+```typescript
+if (result.success) {
+    // result.data is strictly typed as { name: string, age: number, tags: string[] }
+    console.log("Extracted User:", result.data.name);
+} else {
+    // The model failed to produce valid JSON matching the schema
+    console.error("Validation failed:", result.error);
+}
+```
+
+## Advanced Options
+
+### Bypassing User Message Events
+By default, the `message` string you pass to `agent.json()` triggers the standard `onUserMessage` lifecycle events. If you want this extraction to be "stealthy" (e.g., bypassing moderation hooks or custom event mutators), you can disable those events:
+
+```typescript
+const result = await agent.json({
+    message: "Extract the data...",
+    schema: DataSchema,
+    ignoreUserMessageEvents: true
+});
+```
+
+## Error Handling with `JsonModeError`
+If a fundamental error occurs during the structured output generation—such as the model completely failing to produce parseable JSON, or an API error—Fragola will throw a `JsonModeError`.
+
+```typescript
+import { JsonModeError } from "@fragola-ai/agent/exceptions";
+
+try {
+    const result = await agent.json({
+        message: "Extract data...",
+        schema: MySchema
+    });
+} catch (err) {
+    if (err instanceof JsonModeError) {
+        console.error("Critical failure during JSON generation:", err.message);
+    }
+}
+```

@@ -1,6 +1,67 @@
 ---
 title: State & Lifecycle Management
 ---
-# State & Lifecycle Management
 
-*Coming soon.*
+Fragola agents hold their own isolated state, tracking the entire conversation history, internal step counters, and their current execution status.
+
+## Agent State Object
+You can access the current state of an agent at any time via `agent.state`. It contains three primary properties:
+
+```typescript
+const currentState = agent.state;
+
+console.log(currentState.messages);  // The array of all conversation messages
+console.log(currentState.stepCount); // Current number of LLM invocations in this turn
+console.log(currentState.status);    // 'idle', 'generating', or 'waiting'
+```
+
+### Status Transitions
+An agent is a state machine that transitions through specific statuses during an execution turn:
+
+1. **`idle`**: The agent is not doing anything. It is waiting for `userMessage()` or `step()` to be called.
+2. **`generating`**: The agent has initiated an execution turn and is actively communicating with the LLM or resolving tools.
+3. **`waiting`**: The execution has paused (e.g., waiting for Human-in-the-Loop approval or explicit resumption) and will not proceed until instructed to.
+
+## Resetting the Agent
+If you want to clear an agent's history and start fresh, you can reset its state.
+
+```typescript
+// Clears the message history and resets the stepCount to 0
+agent.reset();
+
+// You can also provide an array of messages to seed the new state
+agent.reset([
+    { role: "user", content: "Let's start over." }
+]);
+```
+
+If you only need to reset the step budget without clearing the conversation history, you can do so directly:
+```typescript
+agent.resetStepCount();
+```
+
+## Stopping Executions
+Because executions can loop automatically (when resolving multiple tool calls sequentially), you may need to stop the agent prematurely based on external events, tool failures, or moderation hooks.
+
+### `agent.stop()`
+Stops the agent gracefully at the end of the *current* asynchronous operation. The agent will finish its current task (like saving a tool result) and then exit the loop, returning to an `idle` state.
+
+```typescript
+agent.onToolCall(({ name }) => {
+    if (name === "dangerousTool") {
+        // Stop execution after this tool resolves
+        agent.stop();
+    }
+});
+```
+
+### `agent.stopSync()`
+Immediately aborts the execution synchronously. It throws an internal signal that halts the execution loop immediately without waiting for promises to resolve.
+
+```typescript
+agent.onBeforeModelInvocation(() => {
+    if (userIsBanned) {
+        agent.stopSync();
+    }
+});
+```

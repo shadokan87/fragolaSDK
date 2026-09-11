@@ -1,6 +1,70 @@
 ---
 title: Execution & Stepping
 ---
-# Execution & Stepping
 
-*Coming soon.*
+Once an agent is configured, you interact with it by triggering an execution turn. An execution turn is a loop where the agent calls the model, resolves any tool calls automatically, and repeats until the model produces a final response.
+
+## `agent.userMessage(...)`
+The most common way to trigger an agent is by sending a user message. This appends the user's prompt to the conversation history and immediately starts an execution turn.
+
+```typescript
+const state = await agent.userMessage({
+    content: "What is the capital of France?"
+});
+
+console.log(state.messages[state.messages.length - 1].content); 
+// "The capital of France is Paris."
+```
+
+### Multi-part User Messages
+The `content` of a user message isn't limited to a simple string. It supports multi-part arrays, allowing you to pass text alongside images or other attachments supported by the model.
+
+```typescript
+const state = await agent.userMessage({
+    content: [
+        { type: "text", text: "What is in this image?" },
+        { type: "image_url", image_url: { url: "https://example.com/image.jpg" } }
+    ]
+});
+```
+
+## `agent.step(...)`
+If you want to trigger the agent *without* appending a new user message, use `agent.step()`. 
+This is useful when the agent already has enough context to act, or if a previous turn hit a token limit or step limit and you want to resume generation.
+
+```typescript
+// Assume the agent was previously populated with messages or hit a limit
+const state = await agent.step();
+```
+
+## Step Options & Limits
+By default, Fragola limits execution turns to 5 consecutive LLM calls (steps) to prevent infinite loops (e.g., when a tool keeps failing and the model keeps retrying). 
+
+You can configure these limits and behaviors when creating the agent, or override them at runtime.
+
+### Configuration Defaults
+```typescript
+const agent = fragola.agent({
+    name: "ResearchAgent",
+    instructions: "Research topics deeply using your tools.",
+    // Configure default stepping behavior:
+    maxStep: 10, 
+    resetStepCountAfterUserMessage: true // True by default
+});
+```
+- `maxStep`: The maximum number of LLM invocations allowed in a single `userMessage` or `step` call before the SDK forcefully returns the state.
+- `resetStepCountAfterUserMessage`: If true, the internal `stepCount` resets to 0 every time you call `userMessage()`. If false, the agent has a total lifetime step budget.
+
+### Runtime Overrides
+You can override stepping options for a single execution using the `by` parameter. This defines how many *additional* steps the agent is allowed to take during this specific call.
+
+```typescript
+// Allow the agent to take up to 20 steps to complete this specific complex task
+const state = await agent.userMessage(
+    { content: "Perform a comprehensive analysis of..." },
+    { by: 20 }
+);
+
+// Manually advance by exactly 1 step (e.g., for debugging or precise control)
+const nextState = await agent.step({ by: 1 });
+```

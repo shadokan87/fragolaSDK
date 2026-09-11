@@ -120,7 +120,6 @@ export type UserMessageQuery<TMetaData extends DefineMetaData<any> = {}> = Prett
 
 export type JsonQuery<S extends ZodSchema = ZodSchema> = Prettify<UserMessageQuery & {
     /** Set to true to use tool calling to extract json instead of classic 'response_format' */
-    // preferToolCalling?: boolean //TODO: for next versions
     /** Zod schema describing the expected JSON shape for the response */
     schema: S,
     /** If set to true, `userMessage` events will not be applied for this query */

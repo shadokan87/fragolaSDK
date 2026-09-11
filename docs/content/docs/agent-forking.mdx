@@ -1,6 +1,48 @@
 ---
-title: Agent Forking (agent.fork)
+title: Agent Forking
 ---
-# Agent Forking (agent.fork)
+import { Callout } from 'fumadocs-ui/components/callout';
 
-*Coming soon.*
+<div className="flex items-center gap-2 mb-4">
+  <span className="bg-orange-100 text-orange-800 text-xs font-semibold px-2.5 py-0.5 rounded border border-orange-200">Experimental</span>
+</div>
+
+Fragola provides a powerful mechanism to duplicate an agent mid-conversation using `agent.fork()`. This is particularly useful when you want to explore different conversational branches, simulate "what-if" scenarios, or safely execute destructive tasks without polluting the main agent's history.
+
+<Callout type="warn">
+  **Experimental Feature:** The `fork()` API is currently experimental. While the core cloning mechanism is stable, edge cases involving deeply nested custom stores or complex asynchronous hooks are still being evaluated.
+</Callout>
+
+## Forking an Agent
+Calling `.fork()` creates a deep clone of the agent's current state. The new agent operates completely independently from that point onward. It is **not** just a simple copy of the message history and options; it deep copies the *entire runtime configuration*.
+
+```typescript
+// The main agent starts a conversation
+await agent.userMessage({ content: "I want to write a sci-fi story." });
+
+// We fork the agent to explore a specific path
+const forkA = agent.fork({ name: "BranchA" });
+await forkA.userMessage({ content: "Make the main character a cyborg." });
+
+// We fork the agent again to explore an alternative path
+const forkB = agent.fork({ name: "BranchB" });
+await forkB.userMessage({ content: "Make the main character a telepathic alien." });
+
+// The original `agent` remains unaffected by forkA and forkB.
+```
+
+## What gets Inherited?
+When you fork an agent, the following runtime properties are deeply cloned or inherited:
+- **State:** The entire `messages` array, `status`, and `stepCount` are deeply cloned.
+- **Tools:** The fork receives all the tools currently registered to the parent at the exact moment of the fork.
+- **Hooks & Listeners:** Any event listeners or Hooks attached to the parent agent are deeply cloned and re-bound to the new fork.
+- **Stores:** Agent-scoped Store instances are deeply cloned so modifications in the fork's store do not affect the parent's store.
+- **Options:** Instructions, model settings, and descriptions are carried over.
+
+## Understanding the Fork Hierarchy
+Every forked agent keeps a reference to its parent's ID via the `forkOf` property. This allows you to understand the provenance of a specific agent instance.
+
+```typescript
+console.log(specializedFork.forkOf === agent.id()); // true
+console.log(agent.forkOf); // undefined (it is the root agent)
+```

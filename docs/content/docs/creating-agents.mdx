@@ -1,6 +1,60 @@
 ---
 title: Creating & Configuring Agents
 ---
-# Creating & Configuring Agents
 
-*Coming soon.*
+Agents are the central primitive in Fragola. You create them using the `fragola.agent()` method. Each agent maintains its own isolated state, messages, and configuration.
+
+## Basic Configuration
+When creating an agent, you provide basic metadata and system instructions. 
+
+```typescript
+import { Fragola } from "@fragola-ai/agent";
+
+const fragola = new Fragola({ model: "gpt-6-astra" });
+
+const agent = fragola.agent({
+    name: "CustomerSupportBot",
+    description: "Handles initial customer inquiries and routing.",
+    instructions: "You are a polite customer support agent. Be concise.",
+});
+```
+
+### Options Breakdown
+- `name`: A string identifying the agent.
+- `description`: A brief description of what the agent does. Useful when another agent (like an orchestrator) needs to know when to delegate to it.
+- `instructions`: The system prompt for the agent. This can be a string, an array of strings, or omitted if you prefer to set them dynamically later.
+- `useDeveloperRole`: (Optional, defaults to `false`) Instructs the SDK to use the `developer` role for system instructions, which is favored by some newer OpenAI models (like `o1` and `o3`).
+
+## Model Settings
+By default, an agent inherits the model and settings from the `Fragola` instance. However, you can override these on a per-agent basis using `modelSettings`.
+
+```typescript
+const mathAgent = fragola.agent({
+    name: "MathGenius",
+    instructions: "Solve complex math problems step-by-step.",
+    modelSettings: {
+        model: "o3-mini", // Override the instance-level model
+        temperature: 0.1, // Lower temperature for more deterministic output
+        max_tokens: 4000,
+        top_p: 0.9,
+    }
+});
+```
+Any standard OpenAI completion parameters (e.g., `frequency_penalty`, `presence_penalty`, `logit_bias`) can be provided in `modelSettings`.
+
+## Seeding Initial Message History
+Sometimes you want an agent to start with an existing conversation history—for example, when restoring a session from a database, or when pre-filling context.
+
+You can do this using the `messages` array in the agent configuration:
+
+```typescript
+const returningUserAgent = fragola.agent({
+    name: "ReturningUserAgent",
+    instructions: "You are a helpful assistant.",
+    messages: [
+        { role: "user", content: "Hi, I need help with my account." },
+        { role: "assistant", content: "Hello! I'd be happy to help. Can you provide your account ID?" }
+    ]
+});
+```
+*Note: The `instructions` provided in the configuration are automatically prepended to the message history as a `system` (or `developer`) message. You do not need to manually include the system prompt in the `messages` array.*

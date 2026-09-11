@@ -1,6 +1,58 @@
 ---
 title: Defining Tools
 ---
-# Defining Tools
 
-*Coming soon.*
+Tools (often referred to as function calling) allow your agent to interact with the outside world—fetching data from APIs, writing to databases, or performing calculations.
+
+Fragola provides a simple `tool(...)` helper function to define these tools securely and with full TypeScript support.
+
+## The `tool(...)` Helper
+To create a tool, use the `tool` function exported by the SDK. A tool requires a `name`, a `description`, a `schema` representing the expected parameters, and a `handler` function.
+
+```typescript
+import { tool } from "@fragola-ai/agent";
+import { z } from "zod";
+
+const getWeatherTool = tool({
+    name: "getWeather",
+    description: "Fetches the current weather for a specific city.",
+    schema: z.object({
+        city: z.string().describe("The city to get weather for, e.g., 'London'")
+    }),
+    handler: async (params, context) => {
+        // `params` is fully typed based on the provided schema!
+        // params.city is a string
+        const response = await fetch(`https://api.weather.com/v1?q=${params.city}`);
+        const data = await response.json();
+        
+        return `The current temperature in ${params.city} is ${data.temp}.`;
+    }
+});
+```
+
+### Tool Metadata
+- **`name`**: The exact string name the model will use to invoke the tool. It must conform to OpenAI's naming rules (usually alphanumeric and underscores).
+- **`description`**: A highly detailed description of what the tool does and when the model should use it. Good descriptions are critical for the model to choose the right tool at the right time.
+
+## Tool Handlers
+The `handler` is the function that executes when the LLM requests the tool. It can be synchronous or asynchronous.
+
+The handler receives two arguments:
+1. `params`: The parsed parameters provided by the LLM. If you used a Zod schema, this object will be strictly typed and validated before the handler runs.
+2. `context`: The `AgentContext` object, giving you access to the agent's stores, state, and message history directly from within the tool.
+
+```typescript
+const logToStoreTool = tool({
+    name: "logMetrics",
+    description: "Logs metrics to the agent's scoped store.",
+    schema: z.object({ value: z.number() }),
+    handler: (params, context) => {
+        const store = context.getStore("metrics-store");
+        store?.update(prev => ({ ...prev, lastValue: params.value }));
+        return "Metrics successfully logged.";
+    }
+});
+```
+
+### Return Values
+The handler can return almost anything: strings, numbers, booleans, arrays, or JSON objects. Fragola will automatically serialize the return value into a stringified JSON format (if it isn't a string already) to feed back into the LLM context.

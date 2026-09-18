@@ -162,7 +162,6 @@ export type appliedEvent<K extends AgentEventId, TMetaData extends DefineMetaDat
     never;
 
 const FORK_FRIEND = Symbol("fork_friend");
-const NOOP_HOOK_DISPOSE: FragolaHookDispose = () => { };
 const CANCELLED_HOOK_INIT = Symbol("cancelled_hook_init");
 
 const formatUnknownError = (error: unknown) => error instanceof Error ? error.message : String(error);
@@ -221,24 +220,39 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         status: "idle"
     }
 
+    /** The underlying openai instance */
     private openai: OpenAI;
+    /** Fragola Tools converted to openai format */
     private paramsTools: ChatCompletionCreateParamsBase["tools"] = [];
+    /** EventMap for registered events */
     private registeredEvents = new EventMap<AgentEventId, registeredEvent<AgentEventId, TMetaData, TGlobalStore, TStore>[], TMetaData, TGlobalStore, TStore>()
+    /** Abort controller for the current api request if any */
     private abortController: AbortController | undefined = undefined;
+    /** Tracks if the agent must stop the execution */
     private stopRequested: boolean = false;
-    //TODO: maybe replace with a map for better perf
+    /** Initialized hooks */
     private hooks: Array<{ hook: FragolaHook, name?: string, sourceHookId: string, dispose?: FragolaHookDispose }> = [];
+    /** Map of dispose functions for hooks */
     private hookDisposeMap: Map<string, FragolaHookDispose> = new Map();
+    /** Tracks uninitialized hook names */
     private pendingHookNames: Set<string> = new Set();
+    /** Tracks uninitialized hook source ids */
     private pendingHookSourceIds: Set<string> = new Set();
+    /** Tracks hook source ids that were cancelled during initialization */
     private cancelledHookSourceIds: Set<string> = new Set();
+    /** Tracks the source id of the currently initializing hook */
     private activeHookSourceId: string | undefined = undefined;
     /** serialized async initialization of hooks (ensures tools are ready before generation) */
     private hooksLoaded: Promise<void> = Promise.resolve();
+    /** The agent's current state */
     #state: AgentState<TMetaData>;
+    /** The agent's unique id */
     #id: string;
+    /** The parent agent's id if this agent is a fork, undefined otherwise */
     #forkOf: string | undefined = undefined;
+    /** The root Fragola instance this agent belongs to */
     #instance: Fragola<TGlobalStore>;
+    /** Map of custom stores added to this agent */
     #namespaceStore: Map<string, Store<any>> = new Map();
     /** Scoped instructions map (scope -> instructions) */
     private instructionScopes: Map<string, string> = new Map();

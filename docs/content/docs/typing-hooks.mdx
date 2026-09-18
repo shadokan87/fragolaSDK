@@ -10,12 +10,12 @@ If your hook performs general-purpose logic (like logging events, measuring exec
 `AgentAny` is an exported utility type that strips away the specific generics (`TMetaData`, `TGlobalStore`, `TStore`) so your hook can be applied to *any* agent.
 
 ```typescript
-import { type FragolaHook, type AgentAny } from "@fragola-ai/agent";
+import { type FragolaHook } from "@fragola-ai/agent/hook";
+import { type AgentAny } from "@fragola-ai/agent";
 
 const loggerHook: FragolaHook = (agent: AgentAny) => {
     agent.onUserMessage(({ message }) => {
         console.log("Message received!");
-        return message;
     });
 };
 ```
@@ -33,7 +33,6 @@ const cacheHook = (agent: CachingAgent) => {
     agent.onBeforeModelInvocation(({ context, config }) => {
         // Typescript knows `context.store.value.cache` is a Map!
         console.log("Cache size:", context.store.value.cache.size);
-        return config;
     });
 };
 

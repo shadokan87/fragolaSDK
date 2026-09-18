@@ -28,11 +28,13 @@ Now, whenever you interact with `context.state.messages` or fire an event, TypeS
 ```typescript
 agent.onAiMessage(({ message }) => {
     // Strongly typed based on `MyMetaData["ai"]`!
-    message.meta = { 
-        confidenceScore: 0.95, 
-        tokensUsed: 120 
+    return {
+        ...message,
+        meta: { 
+            confidenceScore: 0.95, 
+            tokensUsed: 120 
+        }
     };
-    return message;
 });
 ```
 

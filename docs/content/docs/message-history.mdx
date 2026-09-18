@@ -21,7 +21,7 @@ If you are building complex orchestrators or recovery mechanisms, you may need t
 You can access `context.raw.updateMessages()` to safely override the history array.
 
 ```typescript
-agent.onBeforeModelInvocation(({ context, config }) => {
+agent.onBeforeModelInvocation(({ context }) => {
     const messages = context.state.messages;
     
     // Naive token management: If history is too long, keep only the system prompt and the last 10 messages
@@ -29,7 +29,5 @@ agent.onBeforeModelInvocation(({ context, config }) => {
         const recentMessages = messages.slice(-10);
         context.raw.updateMessages(recentMessages);
     }
-    
-    return config;
 });
 ```

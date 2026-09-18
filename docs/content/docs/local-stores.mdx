@@ -8,7 +8,8 @@ A Local Store is a state container that belongs exclusively to a single Agent. I
 You can provide an initial, default local store to an agent during creation via the `store` option.
 
 ```typescript
-import { Fragola, createStore } from "@fragola-ai/agent";
+import { createStore } from "@fragola-ai/agent/store";
+import { Fragola } from "@fragola-ai/agent";
 
 const fragola = new Fragola({ model: "__DEFAULT_MODEL__" });
 

@@ -13,17 +13,17 @@ This document outlines the structure and sections for the left-hand navigation s
   - [x] Package installation (`@fragola-ai/agent`)
   - [x] Client configuration (OpenAI API key, baseURL, custom SDK instances)
   - [x] Environment requirements & TypeScript configuration
-- [ ] **Quickstart**
+- [x] **Quickstart**
   - [x] Creating your first agent
   - [x] Sending user messages (`userMessage`)
   - [x] Inspecting state & conversation history
-  - [ ] Creating & using your first tool
-    - [ ] Defining a simple `weather` tool with `tool(...)`
-    - [ ] Handler logic: call a real weather API if `WEATHER_API_KEY` is set in env, otherwise return a mocked response
-    - [ ] Wiring the tool into the agent and observing the tool-call round trip
-  - [ ] Connecting a hook
-    - [ ] Example 1 — installing the `mcp-client` preset on a single agent
-    - [ ] Example 2 — two agents via the `orchestration` preset (delegator + sub-agent), reusing the weather tool and agent setup from Example 1
+  - [x] Creating & using your first tool
+    - [x] Defining a simple `weather` tool with `tool(...)`
+    - [x] Handler logic: call a real weather API if `WEATHER_API_KEY` is set in env, otherwise return a mocked response
+    - [x] Wiring the tool into the agent and observing the tool-call round trip
+  - [x] Connecting a hook
+    - [x] Example 1 — installing the `mcp-client` preset on a single agent
+    - [x] Example 2 — two agents via the `orchestration` preset (delegator + sub-agent), reusing the weather tool and agent setup from Example 1
 - [x] **Core Concepts**
   - [x] Agents & Execution Turns
   - [x] Events & Lifecycle Pipeline
@@ -61,7 +61,7 @@ This document outlines the structure and sections for the left-hand navigation s
   - [x] `tool(...)` helper function
   - [x] Tool metadata (`name`, `description`)
   - [x] Tool handlers (`handler: (params, context) => ...`)
-    - [ ] ⓘ Callout: handlers receive a `context` argument — covered in depth in [Agent Context](#3-agent-context); for now, treat it as a bag of agent state and helpers passed into every tool call
+    - [x] ⓘ Callout: handlers receive a `context` argument — covered in depth in [Agent Context](#3-agent-context); for now, treat it as a bag of agent state and helpers passed into every tool call
 - [x] **Schema & Validation**
   - [x] Zod schema validation (Zod v3 & v4 support)
   - [x] Raw JSON schema string definitions
@@ -69,7 +69,7 @@ This document outlines the structure and sections for the left-hand navigation s
 - [x] **Dynamic Tools & Custom Resolution**
   - [x] `handler: "dynamic"` for server-side / proxy delegation
   - [x] Injecting results in `onBeforeToolCall`
-    - [ ] ⓘ Callout: `onBeforeToolCall` is an event handler — the full event pipeline is covered in [Events](#4-events)
+    - [x] ⓘ Callout: `onBeforeToolCall` is an event handler — the full event pipeline is covered in [Events](#4-events)
 - [x] **Runtime Tool Management**
   - [x] Updating agent tools dynamically (`context.updateTools`)
   - [x] Enabling/disabling tools per step
@@ -116,7 +116,7 @@ This document outlines the structure and sections for the left-hand navigation s
     - [x] `onAfterToolCall` (Tool execution post-processing and logging)
 - [x] **State Watchers**
   - [x] `watchState` (Reactive state observation for UI, metrics, and logging)
-    - [ ] ⓘ Callout: `watchState` observes store values — stores are covered in depth in [State & Stores](#7-state--stores)
+    - [x] ⓘ Callout: `watchState` observes store values — stores are covered in depth in [State & Stores](#7-state--stores)
 
 ---
 

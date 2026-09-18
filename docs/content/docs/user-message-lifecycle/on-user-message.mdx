@@ -24,10 +24,10 @@ agent.onUserMessage(async ({ message, context }) => {
     
     // Example: RAG Enrichment
     const docs = await myVectorDB.search(message.content);
-    message.content = `User Query: ${message.content}\n\nContext: ${docs}`;
-    
-    // You MUST return the mutated message
-    return message;
+    return {
+        ...message,
+        content: `User Query: ${message.content}\n\nContext: ${docs}`
+    };
 });
 ```
 

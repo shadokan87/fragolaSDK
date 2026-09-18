@@ -17,11 +17,14 @@ It is incredibly powerful for:
 agent.onBeforeModelInvocation(({ config, context }) => {
     // If we've been running too long, switch to a cheaper/faster model
     if (context.state.stepCount > 5) {
-        config.model = "gpt-4o-mini";
-        config.temperature = 0.1;
+        return {
+            ...config,
+            modelSettings: {
+                ...config.modelSettings,
+                model: "gpt-4o-mini",
+                temperature: 0.1
+            }
+        };
     }
-    
-    // You MUST return the config object
-    return config;
 });
 ```

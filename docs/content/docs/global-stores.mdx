@@ -10,7 +10,8 @@ This is highly effective for sharing resources like database connection pools, g
 You pass a store to the `Fragola` constructor as the second argument.
 
 ```typescript
-import { Fragola, createStore } from "@fragola-ai/agent";
+import { createStore } from "@fragola-ai/agent/store";
+import { Fragola } from "@fragola-ai/agent";
 
 const appConfigStore = createStore({ apiLimit: 100, maintenanceMode: false });
 

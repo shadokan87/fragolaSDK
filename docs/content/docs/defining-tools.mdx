@@ -56,3 +56,5 @@ const logToStoreTool = tool({
 
 ### Return Values
 The handler can return almost anything: strings, numbers, booleans, arrays, or JSON objects. Fragola will automatically serialize the return value into a stringified JSON format (if it isn't a string already) to feed back into the LLM context.
+
+> ⓘ **Note:** Handlers receive a `context` argument. We'll cover this in depth in the [Agent Context](../agent-context/understanding-context) section. For now, treat it as a bag of agent state and helpers passed into every tool call.

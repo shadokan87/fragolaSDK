@@ -8,7 +8,7 @@ A `Store` in Fragola is a reactive state container used to persist information o
 You create a store using the `createStore` helper. A store requires an initial value, and optionally, a string namespace.
 
 ```typescript
-import { createStore } from "@fragola-ai/agent";
+import { createStore } from "@fragola-ai/agent/store";
 
 const sessionStore = createStore(
     { userId: "123", role: "admin" }, // initial value

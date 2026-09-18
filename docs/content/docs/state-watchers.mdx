@@ -1,6 +1,17 @@
 ---
 title: State Watchers
 ---
-# State Watchers
 
-*Coming soon.*
+Fragola provides a reactive mechanism to observe an agent's state as it changes throughout the execution lifecycle. This is particularly useful for building UIs, logging metrics, or streaming updates.
+
+## `watchState`
+You can register a state watcher using `agent.watchState()`. It fires whenever the agent's internal state updates (such as changing from `idle` to `generating`, or when `stepCount` increases).
+
+```typescript
+agent.watchState(({ context }) => {
+    console.log(`Agent status changed to: ${context.state.status}`);
+    console.log(`Current step count: ${context.state.stepCount}`);
+});
+```
+
+> ⓘ **Note:** `watchState` effectively observes the agent's core stores. Stores are the fundamental reactive primitive in Fragola, covered in depth in the [State & Stores](../state-stores) section.

@@ -64,14 +64,21 @@ Events allow you to observe, mutate, or short-circuit (`stop()`) the agent's beh
     ```typescript
     agent.onUserMessage(({ message }) => {
         // Intercept and mutate the incoming message
-        message.content = `${message.content} (Reply in Spanish)`;
-        return message;
+        return {
+            ...message,
+            content: `${message.content} (Reply in Spanish)`
+        };
     });
 
     agent.onBeforeModelInvocation(({ config }) => {
         // Dynamically adjust temperature before calling the LLM
-        config.temperature = 0.5;
-        return config;
+        return {
+            ...config,
+            modelSettings: {
+                ...config.modelSettings,
+                temperature: 0.5
+            }
+        };
     });
     ```
   </Tab>
@@ -84,14 +91,21 @@ Events allow you to observe, mutate, or short-circuit (`stop()`) the agent's beh
 
     agent.onUserMessage(({ message }) => {
         // Intercept and mutate the incoming message
-        message.content = `${message.content} (Reply in Spanish)`;
-        return message;
+        return {
+            ...message,
+            content: `${message.content} (Reply in Spanish)`
+        };
     });
 
     agent.onBeforeModelInvocation(({ config }) => {
         // Dynamically adjust temperature before calling the LLM
-        config.temperature = 0.5;
-        return config;
+        return {
+            ...config,
+            modelSettings: {
+                ...config.modelSettings,
+                temperature: 0.5
+            }
+        };
     });
     ```
   </Tab>
@@ -109,10 +123,9 @@ The context provides safe access to:
 <Tabs items={['Snippet', 'Full Code']}>
   <Tab value="Snippet">
     ```typescript
-    agent.onBeforeModelInvocation(({ context, config }) => {
+    agent.onBeforeModelInvocation(({ context }) => {
         // Dynamically inject context-aware instructions
-        context.instructions.add("temp-rule", "Always mention the current date.");
-        return config;
+        context.setInstructions("Always mention the current date.", "temp-rule");
     });
     ```
   </Tab>
@@ -123,10 +136,9 @@ The context provides safe access to:
     const fragola = new Fragola({ model: "gpt-6-astra" });
     const agent = fragola.agent({ name: "SearchAgent" });
 
-    agent.onBeforeModelInvocation(({ context, config }) => {
+    agent.onBeforeModelInvocation(({ context }) => {
         // Dynamically inject context-aware instructions
-        context.instructions.add("temp-rule", "Always mention the current date.");
-        return config;
+        context.setInstructions("Always mention the current date.", "temp-rule");
     });
     ```
   </Tab>
@@ -143,7 +155,8 @@ Often, agents need to remember data that doesn't belong strictly inside the LLM 
 <Tabs items={['Snippet', 'Full Code']}>
   <Tab value="Snippet">
     ```typescript
-    import { createStore, tool } from "@fragola-ai/agent";
+    import { createStore } from "@fragola-ai/agent/store";
+    import { tool } from "@fragola-ai/agent";
 
     const userStore = createStore({ userId: "123", name: "Alice" }, "user-data");
     fragola.addStore(userStore); // Available to all agents on this instance
@@ -161,7 +174,8 @@ Often, agents need to remember data that doesn't belong strictly inside the LLM 
   </Tab>
   <Tab value="Full Code">
     ```typescript
-    import { createStore, tool, Fragola } from "@fragola-ai/agent";
+    import { createStore } from "@fragola-ai/agent/store";
+    import { tool, Fragola } from "@fragola-ai/agent";
 
     const fragola = new Fragola({ model: "gpt-6-astra" });
 
@@ -190,15 +204,14 @@ If you find yourself writing the same safety checks, API logging, or tool-regist
 <Tabs items={['Snippet', 'Full Code']}>
   <Tab value="Snippet">
     ```typescript
-    import { type FragolaHook, type FragolaEvent } from "@fragola-ai/agent";
+    import { type FragolaHook } from "@fragola-ai/agent/hook";
 
     // Define a custom hook
     const withLogger: FragolaHook = (agent) => {
-        let events: FragolaEvent[] = [];
+        let events = [];
 
         events.push(agent.onUserMessage(({ message }) => {
             console.log(`[USER]: ${message.content}`);
-            return message;
         }));
         
         events.push(agent.onAiMessage(({ message }) => {
@@ -207,7 +220,7 @@ If you find yourself writing the same safety checks, API logging, or tool-regist
 
         // Return a cleanup function
         return () => {
-            events.forEach(event => event.remove());
+            events.forEach(off => off());
         }
     };
 
@@ -217,18 +230,18 @@ If you find yourself writing the same safety checks, API logging, or tool-regist
   </Tab>
   <Tab value="Full Code">
     ```typescript
-    import { Fragola, type FragolaEvent, type FragolaHook } from "@fragola-ai/agent";
+    import { type FragolaHook } from "@fragola-ai/agent/hook";
+    import { Fragola } from "@fragola-ai/agent";
 
     const fragola = new Fragola({ model: "gpt-6-astra" });
     const agent = fragola.agent({ name: "SearchAgent" });
 
     // Define a custom hook
     const withLogger: FragolaHook = (agent) => {
-        let events: FragolaEvent[] = [];
+        let events = [];
 
         events.push(agent.onUserMessage(({ message }) => {
             console.log(`[USER]: ${message.content}`);
-            return message;
         }));
         
         events.push(agent.onAiMessage(({ message }) => {
@@ -237,7 +250,7 @@ If you find yourself writing the same safety checks, API logging, or tool-regist
 
         // Return a cleanup function
         return () => {
-            events.forEach(event => event.remove());
+            events.forEach(off => off());
         }
     };
 

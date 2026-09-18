@@ -27,21 +27,23 @@ When the LLM calls `remoteAction`, Fragola will register the tool call in the st
 To resolve a dynamic tool, you use the `onBeforeToolCall` event to intercept the call and inject a hardcoded response.
 
 ```typescript
-agent.onBeforeToolCall(async ({ config }) => {
+agent.onBeforeToolCall(async ({ config, toolCall }) => {
     // Check if the current tool being called is our dynamic tool
-    if (config.tool.name === "remoteAction") {
+    if (toolCall.name === "remoteAction" && "params" in config) {
         
         // Send the tool arguments to your external service
         const externalResult = await fetchRemoteService(config.params);
         
         // Inject the response directly into the event configuration.
-        // By setting `injectResponse`, Fragola skips execution entirely 
-        // and treats this string as the final output of the tool.
-        config.injectResponse = JSON.stringify(externalResult);
+        // By returning `injectConfig`, Fragola skips execution entirely 
+        // and treats this object as the final output of the tool.
+        return {
+            injectConfig: { success: true, data: JSON.stringify(externalResult) }
+        };
     }
-    
-    return config;
 });
 ```
 
 Using `"dynamic"` handlers paired with `injectResponse` allows you to build complex, distributed agent architectures while keeping the core logic predictable and event-driven.
+
+> ⓘ **Note:** `onBeforeToolCall` is an event handler. The full event pipeline is covered in the [Events](../events/event-system-overview) section.

@@ -21,7 +21,6 @@ agent.onBeforeModelInvocation(({ config, context }) => {
     if (context.state.stepCount > 3) {
         console.log(`Agent ${context.options.name} is taking a long time...`);
     }
-    return config;
 });
 ```
 

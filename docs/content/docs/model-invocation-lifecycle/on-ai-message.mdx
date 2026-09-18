@@ -16,9 +16,10 @@ It is useful for:
 agent.onAiMessage(({ message, context }) => {
     // Intercept and mutate the assistant's message
     if (message.content && typeof message.content === 'string') {
-        message.content = message.content.replace(/CONFIDENTIAL/g, "***");
+        return {
+            ...message,
+            content: message.content.replace(/CONFIDENTIAL/g, "***")
+        };
     }
-    
-    return message;
 });
 ```

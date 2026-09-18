@@ -12,18 +12,16 @@ You can access the `context.updateTools` method from within an event listener to
 This is highly effective when paired with state-machine patterns. For instance, if an agent is in an "auth" state, only provide the `login` tool. Once authenticated, swap them out for the primary tools.
 
 ```typescript
-agent.onBeforeModelInvocation(({ context, config }) => {
+agent.onBeforeModelInvocation(({ context }) => {
     const isLoggedIn = context.getStore("auth")?.get().isLoggedIn;
 
     if (!isLoggedIn) {
         // Only allow the login tool
-        context.updateTools([loginTool]);
+        context.updateTools((tools) => [loginTool]);
     } else {
         // Allow the full suite of tools
-        context.updateTools([searchTool, databaseQueryTool, logoutTool]);
+        context.updateTools((tools) => [searchTool, databaseQueryTool, logoutTool]);
     }
-
-    return config;
 });
 ```
 

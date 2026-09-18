@@ -14,8 +14,6 @@ You can add instructions to new scopes using `context.instructions.add(scope, te
 agent.onBeforeModelInvocation(({ context, config }) => {
     // Inject a temporary instruction into a specific scope
     context.setInstructions("Always reply in French.", "language-rule");
-
-    return config;
 });
 ```
 

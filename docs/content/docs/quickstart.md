@@ -1,0 +1,200 @@
+---
+title: Quickstart
+---
+
+This guide will walk you through creating your first Fragola agent, sending it a user message, and inspecting its conversational state.
+
+## Creating Your First Agent
+
+First, ensure you have initialized a `Fragola` instance. From there, you can create a new `Agent`.
+
+An agent requires at minimum a name, a description, and system instructions. 
+
+```typescript
+import { Fragola } from "@fragola-ai/agent";
+
+// 1. Initialize the Fragola SDK
+// Ensure your OpenAI API key is set in your .env file as OPENAI_API_KEY
+const fragola = new Fragola({
+    model: "gpt-6-astra",
+    // apiKey: "<your_api_key>" Alternatively add your apiKey without using .env
+});
+
+// 2. Create the Agent
+const agent = fragola.agent({
+    name: "CalculatorAgent",
+    description: "A simple assistant that helps with math",
+    instructions: "You are a helpful and concise math assistant. Always be polite."
+});
+```
+
+## Sending User Messages
+
+To interact with the agent, use the `agent.userMessage()` method. This will append the user's prompt to the conversation history and trigger a turn of generation.
+
+```typescript
+// Send a message to the agent and wait for its turn to complete
+const state = await agent.userMessage({
+    content: "What is the square root of 144?"
+});
+```
+
+*Note: Behind the scenes, Fragola automatically resolves tool calls, manages state transitions, and accumulates the message history until the model finishes its output.*
+
+## Inspecting State & Conversation History
+
+After an execution turn finishes, it returns the current `AgentState`. You can also access this state directly via `agent.state`.
+
+The state contains:
+- `messages`: The full history of `user`, `assistant`, and `tool` messages.
+- `status`: The current execution status (`idle`, `generating`, or `waiting`).
+- `stepCount`: The number of LLM steps taken in the current execution.
+
+```typescript
+// The state returned from userMessage() contains the full conversation
+console.log(`Agent Status: ${state.status}`); // "idle"
+console.log(`Total Steps Taken: ${state.stepCount}`); 
+
+// Print the conversation history
+for (const msg of state.messages) {
+    console.log(`[${msg.role.toUpperCase()}]: ${msg.content}`);
+}
+```
+
+**Output:**
+```text
+Agent Status: idle
+Total Steps Taken: 1
+[USER]: What is the square root of 144?
+[ASSISTANT]: The square root of 144 is 12.
+```
+## Creating & Using Your First Tool
+
+Tools allow your agent to interact with the outside world. To define a tool, use the `tool` helper and define its schema using `zod`.
+
+Let's add a weather tool to our agent.
+
+```typescript
+import { Fragola, tool } from "@fragola-ai/agent";
+import { z } from "zod";
+
+// 1. Define the tool
+const weatherTool = tool({
+    name: "getWeather",
+    description: "Fetches the current weather for a specific city.",
+    schema: z.object({
+        city: z.string().describe("The name of the city, e.g., 'London' or 'New York'"),
+    }),
+    handler: async (params, context) => {
+        // If an API key is provided in the environment, make a real request.
+        if (process.env.WEATHER_API_KEY) {
+            const response = await fetch(`https://api.weatherapi.com/v1/current.json?key=${process.env.WEATHER_API_KEY}&q=${params.city}`);
+            const data = await response.json();
+            return `The current temperature in ${params.city} is ${data.current.temp_c}°C.`;
+        }
+        
+        // Otherwise, return a mocked response.
+        return `The current temperature in ${params.city} is 22°C (mocked).`;
+    }
+});
+
+// 2. Wire the tool into the agent
+const fragola = new Fragola({ model: "gpt-6-astra" });
+const agent = fragola.agent({
+    name: "WeatherAgent",
+    description: "An assistant that provides weather updates",
+    instructions: "You are a helpful weather assistant. Use the getWeather tool when asked about the weather.",
+    tools: [weatherTool] // Add your tool(s) here!
+});
+
+// 3. Observe the tool-call round trip
+const state = await agent.userMessage({
+    content: "What is the weather like in Paris?"
+});
+
+// The model will automatically invoke the tool, wait for your handler to return the result, 
+// and then use that result to generate its final answer.
+console.log(state.messages[state.messages.length - 1].content);
+// "The current temperature in Paris is 22°C (mocked)."
+```
+
+## Connecting a Hook
+
+Hooks package reusable behavior (like event listeners and state management) into easy-to-install plugins. 
+
+*Note: For these examples, we will reference hook presets. The syntax for presets may differ slightly from the standard `FragolaHook` signature as they use an older version internally, but they work seamlessly when applied to your agent.*
+
+### Example 1 — Installing the `mcp-client` Preset
+
+The Model Context Protocol (MCP) preset allows your agent to connect to an MCP server and automatically ingest its tools.
+
+```typescript
+import { Fragola } from "@fragola-ai/agent";
+import { useMCP } from "@fragola-ai/agent/presets/mcp";
+
+const fragola = new Fragola({ model: "gpt-6-astra" });
+const agent = fragola.agent({
+    name: "DevAgent",
+    description: "An assistant that interacts with the local filesystem",
+    instructions: "You are a developer assistant. Use your tools to read and write files."
+});
+
+// Install the MCP hook preset to connect to a local stdio server
+agent.use(useMCP({
+    command: "npx",
+    args: ["-y", "@modelcontextprotocol/server-memory"]
+}), "mcp-memory-server");
+
+await agent.init(); // Wait for the hook to establish the MCP connection
+
+await agent.userMessage({
+    content: "Please store a note that my favorite color is blue."
+});
+```
+
+### Example 2 — Two Agents via the `orchestration` Preset
+
+You can combine agents into complex workflows. The `orchestration` preset allows a delegator agent to call a sub-agent as if it were a tool. Let's reuse the weather agent we built earlier and connect it to a routing agent.
+
+```typescript
+import { Fragola, tool } from "@fragola-ai/agent";
+import { useDelegation } from "@fragola-ai/agent/presets/orchestration";
+import { z } from "zod";
+
+const fragola = new Fragola({ model: "gpt-6-astra" });
+
+// 1. Setup the Sub-Agent (Our weather agent)
+const weatherTool = tool({
+    name: "getWeather",
+    description: "Fetches weather data",
+    schema: z.object({ city: z.string() }),
+    handler: (params) => `The weather in ${params.city} is 25°C and sunny.`
+});
+
+const weatherAgent = fragola.agent({
+    name: "WeatherAgent",
+    description: "Handles all questions related to weather.",
+    instructions: "You are a weather agent. Provide concise weather updates.",
+    tools: [weatherTool]
+});
+
+// 2. Setup the Delegator Agent
+const routerAgent = fragola.agent({
+    name: "RouterAgent",
+    description: "Routes user requests to the appropriate sub-agent.",
+    instructions: "You are a helpful assistant. If the user asks about the weather, delegate the task to the WeatherAgent."
+});
+
+// 3. Connect the Sub-Agent to the Delegator via the orchestration hook
+routerAgent.use(useDelegation({
+    subAgents: [weatherAgent] // The router can now invoke weatherAgent as a tool
+}), "delegation-hook");
+
+// 4. Test the delegation
+const state = await routerAgent.userMessage({
+    content: "Can you tell me the weather in Tokyo?"
+});
+
+console.log(state.messages[state.messages.length - 1].content);
+// "The weather in Tokyo is 25°C and sunny."
+```

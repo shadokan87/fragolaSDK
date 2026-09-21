@@ -25,7 +25,7 @@ describe("watch state — callback behavior", () => {
         });
         agent.use(injectReply("ok"));
 
-        agent.watchState(({ context }) => {
+        agent.watchState((_payload, context) => {
             snapshots.push({
                 status: context.state.status,
                 stepCount: context.state.stepCount,
@@ -58,7 +58,7 @@ describe("watch state — callback behavior", () => {
         });
         agent.use(injectReply("ok"));
 
-        agent.watch("state", ({ context }) => {
+        agent.watch("state", (_payload, context) => {
             snapshots.push({
                 status: context.state.status,
             });
@@ -79,12 +79,12 @@ describe("watch state — callback behavior", () => {
         });
         agent.use(injectReply("ok"));
 
-        agent.watchState(({ context }) => {
+        agent.watchState((_payload, context) => {
             if (!matchedFirstUpdate && context.state.status === "idle" && context.state.messages.length === 1) {
                 calls.push(1);
             }
         });
-        agent.watchState(({ context }) => {
+        agent.watchState((_payload, context) => {
             if (!matchedFirstUpdate && context.state.status === "idle" && context.state.messages.length === 1) {
                 calls.push(2);
                 matchedFirstUpdate = true;

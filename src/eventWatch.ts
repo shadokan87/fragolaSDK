@@ -4,7 +4,7 @@ import type { StoreLike } from "./types";
 
 export type AgentEventWatchId = "state";
 
-export type EventWatchStatePayload<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = EventDefaultCallbackPayload<TMetaData, TGlobalStore, TStore>;
+export type EventWatchStatePayload = EventDefaultCallbackPayload;
 
 export type EventWatchState<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = EventDefaultCallback<TMetaData, TGlobalStore, TStore>;
 

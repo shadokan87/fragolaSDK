@@ -11,7 +11,7 @@ describe("hook-mcp-client", () => {
       name: "test",
       description: "",
       instructions: "test"
-    }).use(mcpClient({ connectionString: "http://localhost:3000/mcp", name: "test_mcp",
+    }).use(mcpClient({ url: "http://localhost:3000/mcp", name: "test_mcp",
       toolResultProcessor: (result: any) => {
         if (result.isError) {
           throw new Error("");

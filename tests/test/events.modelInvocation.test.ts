@@ -101,7 +101,7 @@ describe("before:modelInvocation — stop", () => {
         const afterCalled = vi.fn();
         const agent = fragola.agent({ name: "a", instructions: "", description: "" });
 
-        agent.onBeforeModelInvocation(({ config: _, context: ctx }) => ctx.stop() as any);
+        agent.onBeforeModelInvocation((_payload, ctx) => ctx.stop() as any);
         agent.onAfterModelInvocation(() => { afterCalled(); });
 
         const state = await agent.userMessage({ content: "hi" });
@@ -113,7 +113,7 @@ describe("before:modelInvocation — stop", () => {
         const secondCalled = vi.fn();
         const agent = fragola.agent({ name: "a", instructions: "", description: "" });
 
-        agent.onBeforeModelInvocation(({ config: _, context: ctx }) => ctx.stop() as any);
+        agent.onBeforeModelInvocation((_payload, ctx) => ctx.stop() as any);
         agent.onBeforeModelInvocation(() => { secondCalled(); return { injectMessage: { content: "ok" } }; });
 
         await agent.userMessage({ content: "hi" });
@@ -246,7 +246,7 @@ describe("before:modelInvocation → after:modelInvocation connection", () => {
         const afterFired = vi.fn();
         const agent = fragola.agent({ name: "a", instructions: "", description: "" });
 
-        agent.onBeforeModelInvocation(({ config: _, context: ctx }) => ctx.stop() as any);
+        agent.onBeforeModelInvocation((_payload, ctx) => ctx.stop() as any);
         agent.onAfterModelInvocation(() => { afterFired(); });
 
         await agent.userMessage({ content: "hi" });
@@ -307,12 +307,12 @@ describe("modelInvocation — streaming chunk events", () => {
         ]);
 
         let chunksBeforeStop = 0;
-        agent.onModelInvocation((invocation) => {
+        agent.onModelInvocation((invocation, context) => {
             chunksBeforeStop++;
             if (invocation.kind !== "chunk")
                 return invocation.data;
             if (chunksBeforeStop >= 2)
-                return invocation.context.stop();
+                return context.stop();
             return invocation.chunk;
         });
 

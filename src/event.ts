@@ -22,12 +22,11 @@ export type {
     ToolCallPayload
 } from "./eventDefault";
 
-export type EventPayloadBase<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = {
-  context: AgentContext<TMetaData, TGlobalStore, TStore>;
-};
+export type EventPayloadBase = {};
 
-export type EventDefaultCallbackPayload<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = EventPayloadBase<TMetaData, TGlobalStore, TStore>;
+export type EventDefaultCallbackPayload = EventPayloadBase;
 
 export type EventDefaultCallback<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = (
-  payload: EventDefaultCallbackPayload<TMetaData, TGlobalStore, TStore>
+  payload: EventDefaultCallbackPayload,
+  context: AgentContext<TMetaData, TGlobalStore, TStore>
 ) => maybePromise<eventResult<void>>;

@@ -146,7 +146,7 @@ describe("before:toolCall — stop", () => {
         const agent = fragola.agent({ name: "a", instructions: "", description: "", tools: [t] });
         injectToolCall(agent, "myTool");
 
-        agent.onBeforeToolCall(({ config: _config, tool: _tool, context: ctx }) => ctx.stop() as any);
+        agent.onBeforeToolCall((_payload, ctx) => ctx.stop() as any);
         agent.onToolCall(() => { toolCallFired(); ; });
         agent.onAfterToolCall(() => { afterFired(); });
 
@@ -162,7 +162,7 @@ describe("before:toolCall — stop", () => {
         const agent = fragola.agent({ name: "a", instructions: "", description: "", tools: [t] });
         injectToolCall(agent, "myTool");
 
-        agent.onBeforeToolCall(({ config: _config, tool: _tool, context: ctx }) => ctx.stop() as any);
+        agent.onBeforeToolCall((_payload, ctx) => ctx.stop() as any);
         agent.onBeforeToolCall(() => { secondCalled(); return { injectConfig: successPayload("never") }; });
 
         await agent.userMessage({ content: "hi" });
@@ -278,7 +278,7 @@ describe("toolCall — handler runs automatically, event transforms result", () 
         const agent = fragola.agent({ name: "a", instructions: "", description: "", tools: [t] });
         injectToolCall(agent, "myTool");
 
-        agent.onToolCall(({ context: ctx }) => ctx.stop() as any);
+        agent.onToolCall((_payload, ctx) => ctx.stop() as any);
         agent.onToolCall(() => { secondCalled(); ; });
         agent.onAfterToolCall(() => { afterFired(); });
 
@@ -408,7 +408,7 @@ describe("before:toolCall → toolCall → after:toolCall connections", () => {
         const agent = fragola.agent({ name: "a", instructions: "", description: "", tools: [t] });
         injectToolCall(agent, "myTool");
 
-        agent.onBeforeToolCall(({ config: _config, tool: _tool, context: ctx }) => ctx.stop() as any);
+        agent.onBeforeToolCall((_payload, ctx) => ctx.stop() as any);
         agent.onToolCall(() => { toolCallFired(); ; });
         agent.onAfterToolCall(() => { afterFired(); });
 

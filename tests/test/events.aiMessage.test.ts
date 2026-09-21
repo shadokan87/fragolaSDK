@@ -136,7 +136,7 @@ describe("aiMessage — skip and stop", () => {
         const agent = fragola.agent({ name: "a", instructions: "", description: "" });
         agent.use(injectReply("never-appended"));
 
-        agent.onAiMessage(({ context: ctx }) => ctx.stop() as any);
+        agent.onAiMessage((_payload, ctx) => ctx.stop() as any);
 
         const state = await agent.userMessage({ content: "hi" });
         expect(state.stepCount).toBe(0);

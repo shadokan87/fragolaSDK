@@ -5,7 +5,7 @@ type MaybePromise<T> = Promise<T> | T;
 type HookAgent = Parameters<FragolaHook>[0];
 type UserMessageHandler = Parameters<HookAgent["onUserMessage"]>[0];
 type AnyUserMessage = ChatCompletionUserMessageParam;
-type AnyContext = Parameters<UserMessageHandler>[0]["context"];
+type AnyContext = Parameters<UserMessageHandler>[1];
 
 const SYM_GUARDRAIL_FAIL = Symbol("Guardrail_fail");
 const _guardRailFail = { message: "", [SYM_GUARDRAIL_FAIL]: true };

@@ -111,7 +111,7 @@ describe("userMessage — skip and stop", () => {
         const agent = fragola.agent({ name: "a", instructions: "", description: "" });
         agent.use(injectReply("never-used"));
 
-        agent.onUserMessage(({ message: _message, context: ctx }) => ctx.stop() as any);
+        agent.onUserMessage((_payload, ctx) => ctx.stop() as any);
 
         const state = await agent.userMessage({ content: "hi" });
         expect(state.stepCount).toBe(0);

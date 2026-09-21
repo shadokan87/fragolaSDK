@@ -10,12 +10,24 @@ import Ajv, { type Options as AjvOptions } from "ajv";
 
 type MaybePromise<T> = Promise<T> | T;
 
-export type McpClientFastConfig = {
-  name: string;
-  transport?: "Http" | "Stdio"
-  connectionString: string;
-  headers?: RequestInit["headers"];
-};
+export type FastConfigStdio = {
+  command: string,
+  args: string[]
+}
+
+export type FastConfigHttpStreamable = {
+  url: string,
+  headers?: RequestInit["headers"]
+}
+
+export type FastConfig = {
+  name: string
+} & (FastConfigStdio | FastConfigHttpStreamable);
+
+export type ExtendedConfig = {
+  name: string,
+  client: Client
+}
 
 export type McpClientData = {
   tools: Tool<any>[];
@@ -31,12 +43,11 @@ export type McpClientCallback = (tools: Tool<any>[]) => MaybePromise<Tool<any>[]
 export type McpClientToolResultProcessor = (result: CallToolResult) => ToolHandlerReturnTypeNonAsync;
 
 export type McpClientOptions = {
-  // client: McpClientFastConfig | Client;
   toolResultProcessor?: McpClientToolResultProcessor,
   schemaValidation?: AjvOptions;
   tools?: McpClientCallback;
-} & (McpClientFastConfig
-  | { client: Client; name: string }
+} & (FastConfig
+  | ExtendedConfig
   );
 
 export type LoadedClient = {
@@ -44,38 +55,7 @@ export type LoadedClient = {
   closeOnDispose: boolean;
 };
 
-// function normalizeToolContent(content: unknown[]): string | unknown {
-//   if (!Array.isArray(content) || content.length === 0)
-//     return "";
-
-//   if (content.length === 1 && (content[0] as ToolContent).type === "text")
-//     return (content[0] as Extract<ToolContent, { type: "text" }>).text;
-
-//   return content.map((item) => {
-//     const toolContent = item as ToolContent;
-
-//     switch (toolContent.type) {
-//       case "text":
-//         return { type: "text", text: toolContent.text };
-//       case "image":
-//         return {
-//           type: "image",
-//           mimeType: toolContent.mimeType,
-//           data: `[base64 image: ${toolContent.data.substring(0, 50)}...]`,
-//         };
-//       case "resource":
-//         return {
-//           type: "resource",
-//           uri: toolContent.resource.uri,
-//           mimeType: toolContent.resource.mimeType,
-//         };
-//       default:
-//         return item;
-//     }
-//   });
-// }
-
-async function connectClient(clientOrOptions: McpClientFastConfig | Client): Promise<LoadedClient> {
+async function connectClient(clientOrOptions: FastConfig | Client): Promise<LoadedClient> {
   if (clientOrOptions instanceof Client) {
     return {
       client: clientOrOptions,
@@ -83,18 +63,17 @@ async function connectClient(clientOrOptions: McpClientFastConfig | Client): Pro
     };
   }
 
-  const resolvedTransport = clientOrOptions.transport ?? "Http";
   const client = new Client({
     name: clientOrOptions.name,
     version: "1.0",
   });
 
-  const transport = resolvedTransport === "Stdio"
+  const transport = "command" in clientOrOptions
     ? new StdioClientTransport({
-      command: clientOrOptions.connectionString,
-      args: [],
+      command: clientOrOptions.command,
+      args: clientOrOptions.args,
     })
-    : new StreamableHTTPClientTransport(new URL(clientOrOptions.connectionString), {
+    : new StreamableHTTPClientTransport(new URL(clientOrOptions.url), {
       requestInit: clientOrOptions.headers
         ? { headers: clientOrOptions.headers }
         : undefined,
@@ -107,6 +86,29 @@ async function connectClient(clientOrOptions: McpClientFastConfig | Client): Pro
     closeOnDispose: true,
   };
 }
+
+export const defaultToolProcessor: McpClientToolResultProcessor = (result) => {
+        if (result.isError) {
+            return "an error occured";
+        } else {
+            if (result.structuredContent)
+                return result.structuredContent;
+            const content = result.content[0];
+            if (!content)
+                return "(empty content)";
+            switch (content.type) {
+                case "text": {
+                    const text = content.text.trim();
+                    // if (text[0] == "{" && text.at(-1) == "}")
+                    //     return JSON.parse(text);
+                    return text;
+                }
+                default: {
+                    return content;
+                }
+            }
+        }
+    };
 
 async function listRemoteTools(client: Client) {
   const remoteTools: Awaited<ReturnType<typeof client.listTools>>["tools"] = [];
@@ -167,12 +169,7 @@ export const mcpClient = (options: McpClientOptions[] | McpClientOptions): Frago
       const client = (() => {
         if ("client" in option)
           return option.client;
-        return {
-          name: option.name,
-          connectionString: option.connectionString,
-          transport: option.transport,
-          headers: option.headers,
-        } as McpClientFastConfig;
+        return option as FastConfig;
       })();
       const loadedClient = await connectClient(client);
       loadedClients.push(loadedClient);
@@ -223,8 +220,7 @@ export const mcpClient = (options: McpClientOptions[] | McpClientOptions): Frago
               const errorContent = result.content;
               throw new Error(`Tool ${remoteTool.name} returned error: ${typeof errorContent === "string" ? errorContent : JSON.stringify(errorContent)}`);
             }
-            return option.toolResultProcessor ? option.toolResultProcessor(result as CallToolResult) : result;
-            // return normalizeToolContent(result.content as unknown[]);
+            return option.toolResultProcessor ? option.toolResultProcessor(result as CallToolResult) : defaultToolProcessor(result as CallToolResult);
           },
         });
       });

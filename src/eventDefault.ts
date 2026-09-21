@@ -2,7 +2,7 @@ import type OpenAI from "openai/index.js";
 import type { CreateAgentOptions } from "./agent";
 import type { AgentContext } from "@src/agentContext";
 import type { maybePromise, StoreLike } from "./types";
-import type { AgentDefaultEventId, eventResult, EventPayloadBase } from "./event";
+import type { AgentDefaultEventId, eventResult } from "./event";
 import type { ClientOptions } from "openai/index.js";
 import type { ChatCompletionAssistantMessageParam, ChatCompletionUserMessageParam, DefineMetaData, Tool, ToolHandlerReturnTypeNonAsync } from "./fragola";
 import type { StepOptions } from "./agent";
@@ -52,13 +52,14 @@ export type ToolCallPayload = {
   data: ToolHandlerReturnTypeNonAsync
 }
 
-export type EventModelInvocationPayload<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = ModelInvocationPayload<TMetaData> & EventPayloadBase<TMetaData, TGlobalStore, TStore>;
+export type EventModelInvocationPayload<TMetaData extends DefineMetaData<any>> = ModelInvocationPayload<TMetaData>;
 
 export type EventModelInvocation<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = (
-  payload: EventModelInvocationPayload<TMetaData, TGlobalStore, TStore>
+  payload: EventModelInvocationPayload<TMetaData>,
+  context: AgentContext<TMetaData, TGlobalStore, TStore>
 ) => maybePromise<eventResult<ModelInvocationChunkResult | ChatCompletionAssistantMessageParam<TMetaData>>>;
 
-export type EventToolCallPayload<TMetaData extends DefineMetaData<any> = {}, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> = EventPayloadBase<TMetaData, TGlobalStore, TStore> & {
+export type EventToolCallPayload<TMetaData extends DefineMetaData<any> = {}> = {
   toolCall: { readonly name: string, readonly id: string };
   result: ToolCallPayload;
   params: Record<string, any>;
@@ -66,22 +67,30 @@ export type EventToolCallPayload<TMetaData extends DefineMetaData<any> = {}, TGl
 };
 
 export type EventToolCall<TMetaData extends DefineMetaData<any> = {}, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}>
-  = (payload: EventToolCallPayload<TMetaData, TGlobalStore, TStore>)
-    => maybePromise<eventResult<ToolCallPayload>>
+  = (
+      payload: EventToolCallPayload<TMetaData>,
+      context: AgentContext<TMetaData, TGlobalStore, TStore>
+    ) => maybePromise<eventResult<ToolCallPayload>>
 
-export type EventAiMessagePayload<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> = EventPayloadBase<TMetaData, TGlobalStore, TStore> & {
+export type EventAiMessagePayload<TMetaData extends DefineMetaData<any>> = {
   message: ChatCompletionAssistantMessageParam<TMetaData>;
   finish_reason: OpenAI.Chat.Completions.ChatCompletionChunk.Choice['finish_reason'];
   usage: OpenAI.Chat.Completions.ChatCompletionChunk['usage'];
 };
 
-export type EventAiMessage<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> = (payload: EventAiMessagePayload<TMetaData, TGlobalStore, TStore>) => maybePromise<eventResult<ChatCompletionAssistantMessageParam>>;
+export type EventAiMessage<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> = (
+  payload: EventAiMessagePayload<TMetaData>,
+  context: AgentContext<TMetaData, TGlobalStore, TStore>
+) => maybePromise<eventResult<ChatCompletionAssistantMessageParam>>;
 
-export type EventUserMessagePayload<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> = EventPayloadBase<TMetaData, TGlobalStore, TStore> & {
+export type EventUserMessagePayload<TMetaData extends DefineMetaData<any>> = {
   message: ChatCompletionUserMessageParam<TMetaData>;
 };
 
-export type EventUserMessage<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> = (payload: EventUserMessagePayload<TMetaData, TGlobalStore, TStore>) => maybePromise<eventResult<ChatCompletionUserMessageParam>>;
+export type EventUserMessage<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any> = {}, TStore extends StoreLike<any> = {}> = (
+  payload: EventUserMessagePayload<TMetaData>,
+  context: AgentContext<TMetaData, TGlobalStore, TStore>
+) => maybePromise<eventResult<ChatCompletionUserMessageParam>>;
 
 //@prettier-ignore
 export type callbackMap<TMetaData extends DefineMetaData<any>, TGlobalStore extends StoreLike<any>, TStore extends StoreLike<any>> = {

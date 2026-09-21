@@ -79,7 +79,7 @@ describe("before:step — stop", () => {
         const agent = fragola.agent({ name: "a", instructions: "", description: "" });
         agent.use(injectReply("never-used"));
 
-        agent.onBeforeStep(({ options: _options, context: ctx }) => ctx.stop() as any);
+        agent.onBeforeStep((_payload, ctx) => ctx.stop() as any);
         agent.onAfterStep(() => { afterCalled(); });
 
         const state = await agent.userMessage({ content: "hi" });
@@ -92,7 +92,7 @@ describe("before:step — stop", () => {
         const secondCalled = vi.fn();
         const agent = fragola.agent({ name: "a", instructions: "", description: "" });
 
-        agent.onBeforeStep(({ options: _options, context: ctx }) => ctx.stop() as any);
+        agent.onBeforeStep((_payload, ctx) => ctx.stop() as any);
         agent.onBeforeStep(({ options }) => {
             secondCalled();
             return { ...options, maxStep: 1 };

@@ -15,7 +15,6 @@ import { mcpClient } from "@fragola-ai/hook-mcp-client";
 
 agent.use(mcpClient({
   name: "docs-mcp",
-  connectionString: "http://localhost:3000/mcp",
-  transport: "Http"
+  url: "http://localhost:3000/mcp"
 }), "mcp-client");
 ```

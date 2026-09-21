@@ -77,6 +77,8 @@
     "glob": "^13.0.6",
     "ts-morph": "^28.0.0",
     "tsc-alias": "^1.8.10",
+    "typedoc": "^0.28.20",
+    "typedoc-plugin-markdown": "^4.13.1",
     "typescript": "^5.9.2",
     "vitest": "^4.0.1"
   },
@@ -104,6 +106,7 @@
     "lint": "bunx eslint .",
     "clean": "rm -rf dist",
     "build": "bun run build.ts",
+    "docs:api": "npx typedoc && bun run scripts/add-frontmatter.ts",
     "hook-preset": "bun run scripts/create-hook-preset/create.ts",
     "test:build": "bun run build && cd tests && rm -rf node_modules && bun i && bunx vitest --run",
     "test": "cd tests && bunx vitest --run",

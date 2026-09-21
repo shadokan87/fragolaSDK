@@ -76,7 +76,7 @@ This document outlines the structure and sections for the left-hand navigation s
 
 ---
 
-## 3. Agent Context
+## 3. Agent Context - Note: add table with list of all methods
 - [x] **Understanding `AgentContext`**
   - [x] Context availability in tools, events, and hooks
   - [x] Accessing agent state & options

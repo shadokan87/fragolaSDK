@@ -1,0 +1,13 @@
+{
+  "entryPoints": ["package/fragola.index.ts", "package/event.index.ts", "package/store.index.ts", "package/hook.index.ts", "package/exceptions.index.ts"],
+  "out": "docs/content/docs/api",
+  "plugin": ["typedoc-plugin-markdown"],
+  "readme": "none",
+  "disableSources": true,
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "excludeInternal": true,
+  "tsconfig": "tsconfig.build.json",
+  "hidePageTitle": true,
+  "hideBreadcrumbs": true
+}

@@ -87,7 +87,7 @@ Events allow you to observe, mutate, or short-circuit (`stop()`) the agent's beh
     import { Fragola } from "@fragola-ai/agent";
 
     const fragola = new Fragola({ model: "gpt-6-astra" });
-    const agent = fragola.agent({ name: "SearchAgent" });
+    const agent = fragola.agent({ name: "SearchAgent", instructions: "You are a helpful assistant" });
 
     agent.onUserMessage(({ message }) => {
         // Intercept and mutate the incoming message

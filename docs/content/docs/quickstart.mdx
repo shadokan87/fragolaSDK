@@ -2,11 +2,19 @@
 title: Quickstart
 ---
 
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+
 This guide will walk you through creating your first Fragola agent, sending it a user message, and inspecting its conversational state.
 
 ## Creating Your First Agent
 
-First, ensure you have initialized a `Fragola` instance. From there, you can create a new `Agent`.
+First, install the package.
+
+```package-install
+@fragola-ai/agent
+```
+
+Then, ensure you have initialized a `Fragola` instance. From there, you can create a new `Agent`.
 
 An agent requires at minimum a name, a description, and system instructions. 
 
@@ -39,34 +47,39 @@ const state = await agent.userMessage({
 });
 ```
 
-*Note: Behind the scenes, Fragola automatically resolves tool calls, manages state transitions, and accumulates the message history until the model finishes its output.*
+*Note: 🧙 Behind the scenes, Fragola resolves tool calls and manages state until the output is ready.*
 
 ## Inspecting State & Conversation History
 
 After an execution turn finishes, it returns the current `AgentState`. You can also access this state directly via `agent.state`.
 
-The state contains:
-- `messages`: The full history of `user`, `assistant`, and `tool` messages.
-- `status`: The current execution status (`idle`, `generating`, or `waiting`).
-- `stepCount`: The number of LLM steps taken in the current execution.
-
 ```typescript
-// The state returned from userMessage() contains the full conversation
+// The state returned from userMessage() contains the full conversation.
+
+// 🚦 The current execution status ('idle', 'generating', or 'waiting')
 console.log(`Agent Status: ${state.status}`); // "idle"
+
+// 👣 The number of LLM steps taken in the current execution
 console.log(`Total Steps Taken: ${state.stepCount}`); 
 
-// Print the conversation history
-for (const msg of state.messages) {
-    console.log(`[${msg.role.toUpperCase()}]: ${msg.content}`);
-}
+// 💬 The full history of user, assistant, and tool messages
+console.log(JSON.stringify(state.messages, null, 2));
 ```
 
 **Output:**
 ```text
 Agent Status: idle
 Total Steps Taken: 1
-[USER]: What is the square root of 144?
-[ASSISTANT]: The square root of 144 is 12.
+[
+  {
+    "role": "user",
+    "content": "What is the square root of 144?"
+  },
+  {
+    "role": "assistant",
+    "content": "The square root of 144 is 12."
+  }
+]
 ```
 ## Creating & Using Your First Tool
 
@@ -74,11 +87,16 @@ Tools allow your agent to interact with the outside world. To define a tool, use
 
 Let's add a weather tool to our agent.
 
+<Steps>
+<Step>
+### Define the tool
+
+First, define your tool and its schema using `zod`.
+
 ```typescript
 import { Fragola, tool } from "@fragola-ai/agent";
 import { z } from "zod";
 
-// 1. Define the tool
 const weatherTool = tool({
     name: "getWeather",
     description: "Fetches the current weather for a specific city.",
@@ -97,8 +115,15 @@ const weatherTool = tool({
         return `The current temperature in ${params.city} is 22°C (mocked).`;
     }
 });
+```
+</Step>
 
-// 2. Wire the tool into the agent
+<Step>
+### Wire the tool into the agent
+
+Next, create an agent and provide the tool you created in its `tools` array.
+
+```typescript
 const fragola = new Fragola({ model: "gpt-6-astra" });
 const agent = fragola.agent({
     name: "WeatherAgent",
@@ -106,17 +131,25 @@ const agent = fragola.agent({
     instructions: "You are a helpful weather assistant. Use the getWeather tool when asked about the weather.",
     tools: [weatherTool] // Add your tool(s) here!
 });
+```
+</Step>
 
-// 3. Observe the tool-call round trip
+<Step>
+### Observe the tool-call round trip
+
+Finally, interact with the agent! The model will automatically invoke the tool, wait for your handler to return the result, and then use that result to generate its final answer.
+
+```typescript
 const state = await agent.userMessage({
     content: "What is the weather like in Paris?"
 });
 
-// The model will automatically invoke the tool, wait for your handler to return the result, 
-// and then use that result to generate its final answer.
 console.log(state.messages[state.messages.length - 1].content);
 // "The current temperature in Paris is 22°C (mocked)."
 ```
+</Step>
+</Steps>
+
 
 ## Connecting a Hook
 

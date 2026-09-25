@@ -61,7 +61,7 @@ export const guardrail = (
   rejectionBehaviour: "keepAndAnnotate" | "remove" = "keepAndAnnotate",
 ): FragolaHook => {
   return (agent) => {
-    agent.onUserMessage(async ({ message, context }) => {
+    agent.onUserMessage(async ({ message }, context) => {
       // If the last message is from a user role but has been rejected by a guardrail, we remove it from the messages
       const lastMessage = context.state.messages.at(-1);
       if (lastMessage?.role == "user") {

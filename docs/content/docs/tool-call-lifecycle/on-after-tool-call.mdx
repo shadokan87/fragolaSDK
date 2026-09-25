@@ -13,7 +13,7 @@ It is useful for:
 
 ### Payload Details
 ```typescript
-agent.onAfterToolCall(({ message, name, id, context }) => {
+agent.onAfterToolCall(({ message, name, id }, context) => {
     console.log(`Tool ${name} (ID: ${id}) completed successfully.`);
 });
 ```

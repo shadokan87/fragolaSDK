@@ -14,7 +14,7 @@ It is incredibly powerful for:
 
 ### Payload Details
 ```typescript
-agent.onBeforeModelInvocation(({ config, context }) => {
+agent.onBeforeModelInvocation(({ config }, context) => {
     // If we've been running too long, switch to a cheaper/faster model
     if (context.state.stepCount > 5) {
         return {

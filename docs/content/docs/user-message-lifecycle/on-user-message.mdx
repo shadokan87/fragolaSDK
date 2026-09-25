@@ -14,7 +14,7 @@ It is the ideal place to:
 
 ### Payload Details
 ```typescript
-agent.onUserMessage(async ({ message, context }) => {
+agent.onUserMessage(async ({ message }, context) => {
     // message is an object containing `role: "user"` and the `content`
     
     // Example: Moderation Check

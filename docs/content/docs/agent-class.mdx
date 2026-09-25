@@ -355,7 +355,7 @@ Returns an unsubscribe function that removes the registered handler.
 
 ```typescript
 // listen to userMessage events
-const off = agent.on('userMessage', (message, context) => {
+const off = agent.on('userMessage', ({ message }, context) => {
   // inspect or transform the message
   return { ...message, content: message.content.trim() };
 });
@@ -432,7 +432,7 @@ user message which will be used instead of the original.
 **Example**
 
 ```typescript
-agent.onUserMessage(({ message, context }) => {
+agent.onUserMessage(({ message }, context) => {
   // enrich user message with metadata
   return { ...message, content: message.content.trim() };
 });
@@ -451,7 +451,7 @@ Called before a step is executed.
 **Example**
 
 ```typescript
-agent.onBeforeStep(({ options, context }) => {
+agent.onBeforeStep(({ options }, context) => {
   console.log('Before step', options);
 });
      
@@ -469,7 +469,7 @@ Called after a step is executed.
 **Example**
 
 ```typescript
-agent.onAfterStep(({ options, newMessages, stepsTaken, context }) => {
+agent.onAfterStep(({ options, newMessages, stepsTaken }, context) => {
   console.log('After step', options, newMessages, stepsTaken);
 });
      
@@ -508,7 +508,7 @@ Called after the model is invoked.
 **Example**
 
 ```typescript
-agent.onAfterModelInvocation(({ message, context }) => {
+agent.onAfterModelInvocation(({ message }, context) => {
   console.log('After model invocation', message);
 });
      
@@ -547,7 +547,7 @@ Called after a tool payload is finalized.
 **Example**
 
 ```typescript
-agent.onAfterToolCall(({ result, params, tool, context }) => {
+agent.onAfterToolCall(({ result, params, tool }, context) => {
   console.log('After tool call', tool.name, result);
 });
      

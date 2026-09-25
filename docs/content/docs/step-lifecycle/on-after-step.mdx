@@ -14,7 +14,7 @@ It is useful for:
 
 ### Payload Details
 ```typescript
-agent.onAfterStep(({ params, context }) => {
+agent.onAfterStep(({ params }, context) => {
     console.log(`Finished step ${context.state.stepCount}. Moving to next state: ${context.state.status}`);
 });
 ```

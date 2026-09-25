@@ -1285,7 +1285,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      * user message which will be used instead of the original.
      *
      * @example
-     * agent.onUserMessage(({ message, context }) => {
+     * agent.onUserMessage(({ message }, context) => {
      *   // enrich user message with metadata
      *   return { ...message, content: message.content.trim() };
      * });
@@ -1298,7 +1298,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      * Called before a step is executed.
      *
      * @example
-     * agent.onBeforeStep(({ options, context }) => {
+     * agent.onBeforeStep(({ options }, context) => {
      *   console.log('Before step', options);
      * });
      */
@@ -1310,7 +1310,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      * Called after a step is executed.
      *
          * @example
-         * agent.onAfterStep(({ options, newMessages, stepsTaken, context }) => {
+         * agent.onAfterStep(({ options, newMessages, stepsTaken }, context) => {
          *   console.log('After step', options, newMessages, stepsTaken);
      * });
      */
@@ -1337,7 +1337,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
      * Called after the model is invoked.
      *
      * @example
-     * agent.onAfterModelInvocation(({ message, context }) => {
+     * agent.onAfterModelInvocation(({ message }, context) => {
      *   console.log('After model invocation', message);
      * });
      */
@@ -1364,7 +1364,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         * Called after a tool payload is finalized.
      *
      * @example
-     * agent.onAfterToolCall(({ result, params, tool, context }) => {
+     * agent.onAfterToolCall(({ result, params, tool }, context) => {
      *   console.log('After tool call', tool.name, result);
      * });
      */

@@ -13,7 +13,7 @@ It is useful for:
 
 ### Payload Details
 ```typescript
-agent.onAiMessage(({ message, context }) => {
+agent.onAiMessage(({ message }, context) => {
     // Intercept and mutate the assistant's message
     if (message.content && typeof message.content === 'string') {
         return {

@@ -16,7 +16,7 @@ The `AgentContext` exposes several key properties:
 Every lifecycle event (`onUserMessage`, `onBeforeToolCall`, etc.) receives the `context` as part of its payload. This allows you to write listeners that react conditionally based on the agent's state or options.
 
 ```typescript
-agent.onBeforeModelInvocation(({ config, context }) => {
+agent.onBeforeModelInvocation(({ config }, context) => {
     // Check the agent's current state via context
     if (context.state.stepCount > 3) {
         console.log(`Agent ${context.options.name} is taking a long time...`);

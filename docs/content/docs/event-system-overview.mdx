@@ -30,7 +30,7 @@ Every event listener receives a payload containing the relevant data for that st
 
 ```typescript
 // Register an inline method
-agent.onUserMessage(({ message, context }) => {
+agent.onUserMessage(({ message }, context) => {
     // Mutate the message before it gets processed
     return {
         ...message,
@@ -88,7 +88,7 @@ Events allow you to gracefully exit the agent's execution loop if certain condit
 - **`context.stopSync()`**: Immediately throws an internal exception, aborting the execution turn entirely without waiting.
 
 ```typescript
-agent.onBeforeModelInvocation(({ context, config }) => {
+agent.onBeforeModelInvocation(({ config }, context) => {
     const budget = context.getStore("token-budget")?.get();
     
     if (budget.remaining <= 0) {

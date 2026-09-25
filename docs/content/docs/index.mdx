@@ -3,27 +3,33 @@ title: Overview & Philosophy
 ---
 
 ## Introduction to Fragola
-Fragola is a hyperextensible SDK for building AI agents in Typescript, it uses an event-drivent model and is built on top of `openai-node`. It gives you a small set of core primitives: `Agents, Tools, Stores, Events` and lets you use them individually or combine them inside hooks to create re-usable logic for your agents.
+Fragola Agent SDK (or just Fragola) is a hyperextensible SDK for building AI agents in Typescript, it uses an event-drivent model and is built on top of `openai-node`. It gives you a small set of core primitives: `Agents, Tools, Stores, Events` and lets you use them individually or combine them inside hooks to create re-usable logic for your agents.
 
 ## Why Fragola?
 Fragola is designed to start small and grow to fit your project:
 
-- **Designed for control:** You can stop the agent at any stage of its execution loop from within any event, and every input (user) and output (model) can be mutated at will. This gives you complete authority over the conversation and the agent's state. The syntax is designed to be boilerplate-free—for example, here is how you can easily censor phone numbers before the model ever sees them:
+- **Designed for control:** Stop the agent at any stage of its execution loop from within any event, and mutate every input and output at will. The syntax is designed to be boilerplate-free. Here, we use `libphonenumber-js` inside an `onUserMessage` event to redact phone numbers before the model ever sees them:
 
   ```typescript
   import { findPhoneNumbersInText } from 'libphonenumber-js';
 
-  agent.on("userMessage", ({ message }) => {
+  const redact = (text: string) => {
+      let redacted = text;
+      const numbers = findPhoneNumbersInText(text);
+      // Iterate in reverse to avoid messing up indices
+      for (const match of numbers.reverse()) {
+          redacted = redacted.slice(0, match.startsAt) + "[REDACTED]" + redacted.slice(match.endsAt);
+      }
+      return redacted;
+  };
+
+  agent.onUserMessage(({ message }) => {
       if (typeof message.content === "string") {
-          const numbers = findPhoneNumbersInText(message.content);
-          
-          // Iterate in reverse to avoid messing up indices
-          for (const match of numbers.reverse()) {
-              message.content = 
-                  message.content.slice(0, match.startsAt) + 
-                  "[REDACTED]" + 
-                  message.content.slice(match.endsAt);
-          }
+          message.content = redact(message.content);
+      } else if (Array.isArray(message.content)) {
+          message.content = message.content.map(part => 
+              part.type === "text" ? { ...part, text: redact(part.text) } : part
+          );
       }
       return message;
   });

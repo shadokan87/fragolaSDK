@@ -9,7 +9,7 @@ This event provides the final snapshot of the LLM call. It is the primary locati
 
 ### Payload Details
 ```typescript
-agent.onAfterModelInvocation(({ message, usage, finish_reason, context }) => {
+agent.onAfterModelInvocation(({ message, usage, finish_reason }, context) => {
     console.log("Tokens used:", usage?.total_tokens);
     console.log("Finish reason:", finish_reason);
 });

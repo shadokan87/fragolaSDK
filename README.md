@@ -4,7 +4,7 @@
   <img src="./social-preview.png" alt="Fragola Agentic SDK splash" width="720" />
 </p>
 
-Fragola is an event‑driven SDK for building AI‑first software and custom agents. It focuses on composable primitives, predictable state, and production‑ready patterns for orchestrating AI tools and workflows.
+Fragola Agent SDK (or just Fragola) is an event‑driven SDK for building AI‑first software and custom agents. It focuses on composable primitives, predictable state, and production‑ready patterns for orchestrating AI tools and workflows.
 
 > Status: **Under construction 🚧** – first public beta releases coming soon. 🧪
 

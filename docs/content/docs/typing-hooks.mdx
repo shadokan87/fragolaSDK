@@ -30,7 +30,7 @@ import type { Agent } from "@fragola-ai/agent";
 type CachingAgent = Agent<any, any, { cache: Map<string, string> }>;
 
 const cacheHook = (agent: CachingAgent) => {
-    agent.onBeforeModelInvocation(({ context, config }) => {
+    agent.onBeforeModelInvocation(({ config }, context) => {
         // Typescript knows `context.store.value.cache` is a Map!
         console.log("Cache size:", context.store.value.cache.size);
     });

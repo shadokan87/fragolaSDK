@@ -11,7 +11,7 @@ Because Fragola manages the stream processing internally, you rarely need to mod
 
 ### Payload Details
 ```typescript
-agent.onModelInvocation(async ({ stream, context }) => {
+agent.onModelInvocation(async ({ stream }, context) => {
     // You can iterate over the stream if you want to inspect chunks
     // Note: Fragola uses `tee()` under the hood, so consuming this stream does not break the internal parser.
     for await (const chunk of stream) {

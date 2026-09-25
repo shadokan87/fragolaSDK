@@ -123,7 +123,7 @@ The context provides safe access to:
 <Tabs items={['Snippet', 'Full Code']}>
   <Tab value="Snippet">
     ```typescript
-    agent.onBeforeModelInvocation(({ context }) => {
+    agent.onBeforeModelInvocation((payload, context) => {
         // Dynamically inject context-aware instructions
         context.setInstructions("Always mention the current date.", "temp-rule");
     });
@@ -136,7 +136,7 @@ The context provides safe access to:
     const fragola = new Fragola({ model: "gpt-6-astra" });
     const agent = fragola.agent({ name: "SearchAgent" });
 
-    agent.onBeforeModelInvocation(({ context }) => {
+    agent.onBeforeModelInvocation((payload, context) => {
         // Dynamically inject context-aware instructions
         context.setInstructions("Always mention the current date.", "temp-rule");
     });

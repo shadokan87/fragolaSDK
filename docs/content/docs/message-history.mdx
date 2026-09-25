@@ -8,7 +8,7 @@ While you can read the agent's history via `context.state.messages`, modifying i
 Fragola provides `context.messagesParser`, a set of utilities securely bound to the current agent's message history. It allows you to search, filter, and extract specific interactions safely.
 
 ```typescript
-agent.onAfterStep(({ context }) => {
+agent.onAfterStep((payload, context) => {
     // Use the parser to find specific messages easily
     const allToolCalls = context.messagesParser.getTools();
     const lastUserMessage = context.messagesParser.getLastUserMessage();
@@ -21,7 +21,7 @@ If you are building complex orchestrators or recovery mechanisms, you may need t
 You can access `context.raw.updateMessages()` to safely override the history array.
 
 ```typescript
-agent.onBeforeModelInvocation(({ context }) => {
+agent.onBeforeModelInvocation((payload, context) => {
     const messages = context.state.messages;
     
     // Naive token management: If history is too long, keep only the system prompt and the last 10 messages

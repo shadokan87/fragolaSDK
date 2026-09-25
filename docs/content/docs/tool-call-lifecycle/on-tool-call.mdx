@@ -9,7 +9,7 @@ This event is your chance to transform the raw output of the tool before the LLM
 
 ### Payload Details
 ```typescript
-agent.onToolCall(({ toolCall, result, context }) => {
+agent.onToolCall(({ toolCall, result }, context) => {
     // `result` contains the raw result from the handler
     if (toolCall.name === "fetchDatabase" && result.success) {
         // Redact sensitive fields before the LLM reads it

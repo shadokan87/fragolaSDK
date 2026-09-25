@@ -14,7 +14,7 @@ It is useful for:
 
 ### Payload Details
 ```typescript
-agent.onBeforeStep(({ params, context }) => {
+agent.onBeforeStep(({ params }, context) => {
     // `params` contains the current step parameters, including the remaining step budget
     console.log(`Starting step ${context.state.stepCount}. Remaining budget: ${params.maxStep}`);
     

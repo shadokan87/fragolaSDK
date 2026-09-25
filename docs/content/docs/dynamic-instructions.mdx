@@ -11,7 +11,7 @@ You can add instructions to new scopes using `context.instructions.add(scope, te
 
 ### Setting and Removing Instructions
 ```typescript
-agent.onBeforeModelInvocation(({ context, config }) => {
+agent.onBeforeModelInvocation(({ config }, context) => {
     // Inject a temporary instruction into a specific scope
     context.setInstructions("Always reply in French.", "language-rule");
 });

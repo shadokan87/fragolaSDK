@@ -25,7 +25,7 @@ const agent = fragola.agent({
 Once attached, the local store can be accessed from the `AgentContext` via `context.store`. This makes it instantly available inside any tool handler or event listener without needing to lookup a namespace.
 
 ```typescript
-agent.onAfterModelInvocation(({ context }) => {
+agent.onAfterModelInvocation((payload, context) => {
     // Increment the query counter after every LLM call
     context.store.update(prev => ({
         queryCount: prev.queryCount + 1

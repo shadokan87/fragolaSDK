@@ -23,13 +23,6 @@ When you call `agent.userMessage()` or `agent.step()`, the following general seq
    - `onAfterToolCall` fires for post-execution cleanup or logging.
 5. **Step Loop Ends:** `onAfterStep` fires. If tool calls occurred, the loop goes back to Step 2. Otherwise, the agent returns to an `idle` state.
 
-## Mutating Data in Events
-When an event payload allows data mutation (like `message` or `config`), you have two ways to apply your changes:
-1. **Spread with new object return:** Return a new object with the spread operator. This is the approach used throughout this documentation.
-2. **Direct reference mutation:** Modify the object's properties directly (e.g. `message.content = ...`) and return nothing (or return the object).
-
-Both methods are fully supported, so you can choose the approach you prefer.
-
 ## Registering Event Handlers
 You register event listeners directly on the agent instance using the `on*` methods. 
 
@@ -60,6 +53,33 @@ const off = agent.onAiMessage(() => { console.log("AI Spoke!") });
 // Later...
 off();
 ```
+
+## Mutating Data in Events
+When an event payload allows data mutation (like `message` or `config`), you have two ways to apply your changes:
+
+### 1. Spread with new object return
+Return a new object with the spread operator. This is functional and predictable.
+```typescript
+agent.on("userMessage", ({ message }) => {
+    return {
+        ...message,
+        content: `[From Web]: ${message.content}`
+    };
+});
+```
+
+### 2. Direct reference mutation
+Modify the object's properties directly and return it (or return nothing).
+```typescript
+agent.on("userMessage", ({ message }) => {
+    message.content = `[From Web]: ${message.content}`;
+    return message; // returning is optional when mutating
+});
+```
+
+<Callout title="Info">
+  You will see both styles used throughout this documentation because they are completely interchangeable for convenience. But feel free to pick the syntax you prefer!
+</Callout>
 
 ## Flow Control: `stop()` and `stopSync()`
 Events allow you to gracefully exit the agent's execution loop if certain conditions are met.

@@ -982,8 +982,6 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
                             return injectedConfig;
                         if (!tool)
                             return createToolCallSuccessPayload(`(tool with name ${toolCall.function.name} do not or no longer exist)`);
-                        if (tool.handler == "dynamic")
-                            throw new BadUsage(`Cannot execute tool '${tool.name}' because it uses handler: 'dynamic' but no result was injected. Dynamic tools do not run a local handler and must receive { injectConfig } from a 'before:toolCall' event. Register that event or replace the dynamic handler with a concrete function.`);
                         try {
                             const rawResult = await tool.handler(effectiveParams, this.context as any);
                             return createToolCallSuccessPayload(rawResult);

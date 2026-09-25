@@ -7,7 +7,7 @@ The `onBeforeToolCall` event fires when the LLM requests a tool, but *before* Fr
 ## Usage
 This event allows you to intercept the tool execution. It is heavily used in advanced patterns to:
 - Override or rewrite the arguments (`params`) provided by the LLM before they reach your handler.
-- Bypass the handler entirely by providing an `injectConfig` (useful for dynamic/remote tools).
+- Bypass the handler entirely by providing an `injectConfig` (useful for caching or remote tools).
 
 ### Payload Details
 ```typescript
@@ -26,9 +26,9 @@ agent.onBeforeToolCall(({ config, toolCall }) => {
     }
     
     // Or completely bypass execution by providing a raw payload response
-    if (toolCall.name === "remoteTool") {
+    if (toolCall.name === "expensiveTool") {
         return {
-            injectConfig: { success: true, data: { status: "handled externally" } }
+            injectConfig: { success: true, data: { status: "cached result" } }
         };
     }
 });

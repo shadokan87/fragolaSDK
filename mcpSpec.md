@@ -15,9 +15,9 @@ Your current design cleanly separates:
 - Hooks (extensible behavior like orchestration)
 
 MCP concepts map naturally:
-- MCP Server Tools → Fragola `Tool` objects with a dynamic handler that delegates `client.callTool`.
+- MCP Server Tools → Fragola `Tool` objects with a handler that delegates `client.callTool`.
 - MCP Resources → Either:
-  1. A “read_resource” dynamic tool (fetch by URI)
+  1. A “read_resource” tool (fetch by URI)
   2. Automatic pre-injection into conversation (more invasive; optional)
   3. Added to a namespaced store for contextual retrieval
 - MCP Prompts → Tools that return structured prompt messages OR a helper that appends messages directly via `context.raw.appendMessages`.
@@ -93,7 +93,7 @@ Notifications (`listChanged`) → Refresh local cached remote tool list & auto-e
    - Result returned as stringified JSON (your existing type system expects a stringable output)
 
 5. Resources & Prompts:
-   - `read_resource`: dynamic calls `client.readResource({ uri })`, stores content, returns summary or full text.
+   - `read_resource`: calls `client.readResource({ uri })`, stores content, returns summary or full text.
    - `use_prompt`: fetches a prompt, appends its messages directly to conversation (via `context.raw.appendMessages([...])`) and returns a confirmation.
 
 ## Detailed Implementation Steps

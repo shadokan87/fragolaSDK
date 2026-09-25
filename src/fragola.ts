@@ -58,9 +58,9 @@ export interface Tool<TSCHEMA extends Schema = any> {
      */
     description: string;
     /**
-     * The function that handles the tool's logic, or the string "dynamic" for dynamic handlers.
+     * The function that handles the tool's logic.
      */
-    handler: ((parameters: TSCHEMA extends ZodSchema<any> ? Infer<TSCHEMA> : any, context: AgentContext<any, any>) => ToolHandlerReturnType) | "dynamic";
+    handler: ((parameters: TSCHEMA extends ZodSchema<any> ? Infer<TSCHEMA> : any, context: AgentContext<any, any>) => ToolHandlerReturnType);
     /**
      * The Zod schema or JSON Schema string that validates/describes the parameters for the tool.
      * - Zod schema: Automatic validation will be performed

@@ -54,7 +54,7 @@ describe("hook-mcp-client", () => {
     expect(listClientsTool).toBeDefined();
 
     // Call tool
-    const result = listClientsTool?.handler != "dynamic" ? await listClientsTool?.handler({}, undefined as any) : undefined;
+    const result = await listClientsTool?.handler({}, undefined as any);
     expect(typeof result).toBe("object");
     expect(result).toHaveProperty("count");
   });

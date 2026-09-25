@@ -18,7 +18,7 @@ When you call `agent.userMessage()` or `agent.step()`, the following general seq
    - `onAfterModelInvocation` fires with the final message and usage stats.
 4. **Tool Resolution (if requested by the model):**
    - `onBeforeToolCall` fires for each requested tool.
-   - *The Tool Handler executes (if it's not marked as dynamic).*
+   - The Tool Handler executes.
    - `onToolCall` fires, allowing you to mutate the tool's result before it is saved.
    - `onAfterToolCall` fires for post-execution cleanup or logging.
 5. **Step Loop Ends:** `onAfterStep` fires. If tool calls occurred, the loop goes back to Step 2. Otherwise, the agent returns to an `idle` state.

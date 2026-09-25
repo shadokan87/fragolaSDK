@@ -8,7 +8,26 @@ Fragola is a hyperextensible SDK for building AI agents in Typescript, it uses a
 ## Why Fragola?
 Fragola is designed to start small and grow to fit your project:
 
-- **Event-driven core:** Every stage of an agent's lifecycle (`onUserMessage`, `onBeforeModelInvocation`, `onToolCall`, etc.) is an explicit event you can observe, pause, or mutate. You always know what's in the conversation history and what state the agent is in (`idle`, `generating`, `waiting`).
+- **Designed for control:** You can stop the agent at any stage of its execution loop from within any event, and every input (user) and output (model) can be mutated at will. This gives you complete authority over the conversation and the agent's state. The syntax is designed to be boilerplate-free—for example, here is how you can easily censor phone numbers before the model ever sees them:
+
+  ```typescript
+  import { findPhoneNumbersInText } from 'libphonenumber-js';
+
+  agent.on("userMessage", ({ message }) => {
+      if (typeof message.content === "string") {
+          const numbers = findPhoneNumbersInText(message.content);
+          
+          // Iterate in reverse to avoid messing up indices
+          for (const match of numbers.reverse()) {
+              message.content = 
+                  message.content.slice(0, match.startsAt) + 
+                  "[REDACTED]" + 
+                  message.content.slice(match.endsAt);
+          }
+      }
+      return message;
+  });
+  ```
 - **Hyper-extensible via hooks:** Features aren't baked into the core - they're hooks. You can drop in pre-built hook presets (like MCP support, multi-agent orchestration, or guardrails) or easily implement your own custom hooks. Hooks can be nested to keep complex logic organized and combined to enable highly customized agent behavior. Don't need orchestration? Don't add the hook. The core SDK stays lean regardless of how much you build on top of it.
 - **Minimal building blocks:** Agents, Tools, Stores, and Events compose directly, with no abstract chains or graphs to learn - just concrete pieces you wire together.
 

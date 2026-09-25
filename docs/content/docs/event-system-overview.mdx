@@ -2,7 +2,9 @@
 title: Event System Overview
 ---
 
-Fragola is fundamentally event-driven. Instead of relying on a monolithic execution graph, the agent progresses through a well-defined lifecycle during each execution turn. You can hook into specific stages of this lifecycle to mutate data, pause execution, or handle side effects.
+Fragola's event system lets you take complete control of the agent's execution loop and all the data circulating within it.
+
+![Look at me, I'm the captain now](/im-the-captain-now-captain.gif)
 
 ## Event Pipeline
 When you call `agent.userMessage()` or `agent.step()`, the following general sequence of events occurs:

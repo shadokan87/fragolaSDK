@@ -10,3 +10,76 @@ html > body[data-scroll-locked] {
   margin-right: 0px !important;
   --removed-body-scroll-bar-size: 0px !important;
 }
+
+#nd-sidebar,
+.dark #nd-sidebar {
+  --color-fd-card: #111213;
+  --color-fd-primary: #f56f91;
+  --color-fd-primary-foreground: #111213;
+  --color-fd-muted: #191a1c;
+  --color-fd-muted-foreground: #c4c6c8;
+  --color-fd-border: rgb(255 255 255 / 14%);
+  --color-fd-accent: rgb(255 255 255 / 8%);
+  --color-fd-accent-foreground: #f4f4f5;
+}
+
+#nd-sidebar [data-active='true'] {
+  background-color: transparent;
+  color: #f4f4f5;
+  font-weight: 600;
+}
+
+#nd-sidebar p {
+  color: #f4f4f5;
+  font-weight: 600;
+}
+
+#nd-sidebar p ~ a,
+#nd-sidebar p ~ button {
+  border-radius: 2px;
+  padding-block: 0.375rem;
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+  text-indent: 4px;
+}
+
+#nd-sidebar p ~ a:hover,
+#nd-sidebar p ~ button:hover,
+#nd-sidebar [data-active='true']:hover {
+  background-color: transparent;
+}
+
+html:not(.dark) #nd-sidebar p ~ a:hover,
+html:not(.dark) #nd-sidebar p ~ button:hover,
+html:not(.dark) #nd-sidebar [data-active='true']:hover {
+  color: #000;
+}
+
+html.dark #nd-sidebar p ~ a:hover,
+html.dark #nd-sidebar p ~ button:hover,
+html.dark #nd-sidebar [data-active='true']:hover {
+  color: #fff;
+}
+
+#nd-sidebar p ~ a::after,
+#nd-sidebar p ~ button::after {
+  content: '';
+  position: absolute;
+  inset-block: -1px;
+  inset-inline-start: 0;
+  z-index: 0;
+  width: 1px;
+  background-color: var(--color-fd-border);
+  pointer-events: none;
+}
+
+#nd-sidebar [data-active='true']::before {
+  content: '';
+  position: absolute;
+  inset-block: 0.125rem;
+  inset-inline-start: 0;
+  z-index: 1;
+  width: 2px;
+  border-radius: 1px;
+  background-color: #f56f91;
+}

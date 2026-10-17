@@ -1,4 +1,3 @@
-// TODO: logger method
 import { createStore, Store } from "./store"
 import { Fragola, stripMessagesMeta, type ChatCompletionAssistantMessageParam, type ChatCompletionMessageParam, type ChatCompletionUserMessageParam, type DefineMetaData, type Infer, type MessageMeta, type OpenaiClientOptions, type Schema, type Tool, type ToolHandlerReturnTypeNonAsync, type ZodSchema } from "./fragola"
 import type { ChatCompletionCreateParamsBase } from "openai/resources/chat/completions.js"
@@ -119,7 +118,10 @@ export type StepParams = StepBy & StepOptions;
 export type UserMessageQuery<TMetaData extends DefineMetaData<any> = {}> = Prettify<Omit<OpenAI.Chat.ChatCompletionUserMessageParam, "role">> & { step?: StepParams, meta?: MessageMeta<TMetaData, "user"> };
 
 export type JsonQuery<S extends ZodSchema = ZodSchema> = Prettify<UserMessageQuery & {
-    /** Set to true to use tool calling to extract json instead of classic 'response_format' */
+    /** Set to true to inject `'json'` keyword in system prompt, useful for APIS such as deepseek /chat/completions endpoint. can also be defined in env under `FRAGOLA_INJECT_JSON_KEYWORD` Defaults to `false` */
+    injectJsonKeyword?: boolean,
+    /** The type of response format being defined. Defaults to `json_schema`, can also be defined in env under `FRAGOLA_JSON_TYPE`. Cast as any to use other string types */
+    type?: Pick<NonNullable<ModelSettings["response_format"]>, "type">["type"],
     /** Zod schema describing the expected JSON shape for the response */
     schema: S,
     /** If set to true, `userMessage` events will not be applied for this query */
@@ -248,7 +250,7 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
     #state: AgentState<TMetaData>;
     /** The agent's unique id */
     #id: string;
-    /** The parent agent's id if this agent is a fork, undefined otherwise */
+    /** The parent agent's id if this agent is a fork */
     #forkOf: string | undefined = undefined;
     /** The root Fragola instance this agent belongs to */
     #instance: Fragola<TGlobalStore>;
@@ -1062,15 +1064,30 @@ export class Agent<TMetaData extends DefineMetaData<any> = {}, TGlobalStore exte
         if (!_step?.modelSettings)
             _step["modelSettings"] = { ...this.modelSettings() }
         let jsonSchema = zodToJsonSchema(schema);
+        let type = query.type as NonNullable<JsonQuery["type"]>;
+        if (!query.type) {
+            if (process.env["FRAGOLA_JSON_TYPE"])
+                type = process.env["FRAGOLA_JSON_TYPE"] as any;
+            else
+                type = "json_schema"
+        }
         _step.modelSettings.response_format = {
-            type: "json_schema", json_schema: {
+            type, json_schema: {
                 name,
                 description,
                 strict,
                 schema: jsonSchema,
             }
         }
-        const state = await this.step(_step);
+        let injectJsonKeyword =
+            query.injectJsonKeyword ? query.injectJsonKeyword
+                : (process.env["FRAGOLA_INJECT_JSON_KEYWORD"]?.trim().toLowerCase() === "true");
+        if (injectJsonKeyword)
+            this.context.setInstructions("json", "FRAGOLA_INJECT_JSON_KEYWORD");
+        const state = await this.step(_step).finally(() => {
+            if (injectJsonKeyword)
+                this.context.removeInstructions("FRAGOLA_INJECT_JSON_KEYWORD");
+        });
         const lastAiMessage = this.lastAiMessage(state.messages);
         if (!lastAiMessage)
             throw new JsonModeError(`JSON generation failed because no assistant message was produced after step() completed. The json() helper expects the final message to be an assistant response containing the JSON payload. Check whether an event stopped execution early, a tool loop consumed the turn, or the message history was modified unexpectedly.`);

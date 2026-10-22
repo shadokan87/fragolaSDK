@@ -11,6 +11,10 @@
   --radius-3xl: 2px;
 }
 
+[data-active] > .absolute.inset-x-2.bottom-0.h-px {
+  background-color: #f56f91;
+}
+
 html {
   scrollbar-gutter: stable;
 }

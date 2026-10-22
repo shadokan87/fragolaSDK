@@ -11,7 +11,11 @@ html > body[data-scroll-locked] {
   --removed-body-scroll-bar-size: 0px !important;
 }
 
-#nd-sidebar,
+#nd-sidebar {
+  --color-fd-primary: #f56f91;
+  --color-fd-primary-foreground: #111213;
+}
+
 .dark #nd-sidebar {
   --color-fd-card: #111213;
   --color-fd-primary: #f56f91;
@@ -25,12 +29,12 @@ html > body[data-scroll-locked] {
 
 #nd-sidebar [data-active='true'] {
   background-color: transparent;
-  color: #f4f4f5;
+  color: var(--color-fd-foreground);
   font-weight: 600;
 }
 
 #nd-sidebar p {
-  color: #f4f4f5;
+  color: var(--color-fd-foreground);
   font-weight: 600;
 }
 
@@ -43,20 +47,20 @@ html > body[data-scroll-locked] {
   text-indent: 4px;
 }
 
-#nd-sidebar p ~ a:hover,
-#nd-sidebar p ~ button:hover,
+#nd-sidebar a:hover,
+#nd-sidebar button:hover,
 #nd-sidebar [data-active='true']:hover {
   background-color: transparent;
 }
 
-html:not(.dark) #nd-sidebar p ~ a:hover,
-html:not(.dark) #nd-sidebar p ~ button:hover,
+html:not(.dark) #nd-sidebar a:hover,
+html:not(.dark) #nd-sidebar button:hover,
 html:not(.dark) #nd-sidebar [data-active='true']:hover {
   color: #000;
 }
 
-html.dark #nd-sidebar p ~ a:hover,
-html.dark #nd-sidebar p ~ button:hover,
+html.dark #nd-sidebar a:hover,
+html.dark #nd-sidebar button:hover,
 html.dark #nd-sidebar [data-active='true']:hover {
   color: #fff;
 }
@@ -82,4 +86,8 @@ html.dark #nd-sidebar [data-active='true']:hover {
   width: 2px;
   border-radius: 1px;
   background-color: #f56f91;
+}
+
+#nd-sidebar [data-active='true'][class*='before:inset-s-2.5']::before {
+  inset-inline-start: 0.625rem;
 }

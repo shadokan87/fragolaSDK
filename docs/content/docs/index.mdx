@@ -5,6 +5,8 @@ title: Overview & Philosophy
 ## Introduction to Fragola
 Fragola Agent SDK (or just Fragola) is a hyperextensible SDK for building AI agents in Typescript, it uses an event-drivent model and is built on top of `openai-node`. It gives you a small set of core primitives: `Agents, Tools, Stores, Events` and lets you use them individually or combine them inside hooks to create re-usable logic for your agents.
 
+Because Fragola is built on top of `openai-node`, any tooling that works with `openai-node` also works with Fragola, and message history is interchangeable between the two. You can use Fragola exclusively or in a hybrid manner alongside the OpenAI SDK, depending on the needs of your project.
+
 ## Why Fragola?
 Fragola is designed to start small and grow to fit your project:
 
@@ -35,8 +37,6 @@ Fragola is designed to start small and grow to fit your project:
   });
   ```
 - **Hyper-extensible via hooks:** Features aren't baked into the core - they're hooks. You can drop in pre-built hook presets (like MCP support, multi-agent orchestration, or guardrails) or easily implement your own custom hooks. Hooks can be nested to keep complex logic organized and combined to enable highly customized agent behavior. Don't need orchestration? Don't add the hook. The core SDK stays lean regardless of how much you build on top of it.
-- **Minimal building blocks:** Agents, Tools, Stores, and Events compose directly, with no abstract chains or graphs to learn - just concrete pieces you wire together.
-
 ## Architecture at a Glance
 
 1. **Agent:** The core loop - maintains state (messages, step count, execution status) and drives turn-by-turn interaction with the LLM.
